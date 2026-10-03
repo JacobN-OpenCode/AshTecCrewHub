@@ -1,0 +1,27 @@
+{
+  "id": "dmwbvmw39f",
+  "accessMode": "external",
+  "authentication": {
+    "signup": "disabled",
+    "authenticationMethods": {
+      "magicLink": true,
+      "googleSignIn": false,
+      "sso": false
+    }
+  },
+  "integrationSettings": {
+    "email": {
+      "fromName": "AshTec Crew Hub"
+    }
+  },
+  "seoSettings": {
+    "title": "AshTec Crew Manager + Hub",
+    "description": "",
+    "thumbnailUrl": "https://images.fillout.com/orgid-607319/flowpublicid-dmwbvmw39f/widgetid-default/8TpTkxgVRSxBqsdk4BSs8B/Screenshot-2026-10-01-at-21.13.46.png",
+    "faviconUrl": "https://images.fillout.com/orgid-607319/flowpublicid-dmwbvmw39f/widgetid-default/9d7kwtoHd6cG19CgBY3yAZ/Screenshot-2026-10-01-at-21.13.02.png"
+  },
+  "pwaSettings": {
+    "enabled": true,
+    "title": "AshTec Hub"
+  }
+}
