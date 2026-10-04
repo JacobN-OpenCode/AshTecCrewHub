@@ -20,6 +20,8 @@ export default createEndpoint({
       members: members.records.map((m) => ({
         id: m.id,
         name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim(),
+        // Same derivation as mapMember: last name + first initial, e.g. moorej.
+        shortUsername: `${(m.lastName ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}${(m.firstName ?? '').slice(0, 1).toLowerCase()}` || (m.schoolEmail ?? '').split('@')[0],
         year: m.year ?? '',
         roles: m.roles ?? [],
         headOf: m.headOf ?? [],

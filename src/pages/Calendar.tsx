@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { getCalendar } from '#api';
+import { getCalendar, setShowResponse, setAttendance } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -9,12 +9,14 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@project/components/ui/dialog';
 import { cn } from '@project/components/lib/utils';
-import { pv } from '../lib/preview';
+import { pv, previewId } from '../lib/preview';
 import { useMe } from '../lib/me';
 import MultiFilter from '../components/admin/MultiFilter';
 import SubEventDialog from '../components/admin/SubEventDialog';
+import ReasonDialog from '../components/ReasonDialog';
 import { type AdminShow, type AdminSubEvent } from '../lib/useAdminData';
 import { buildIcs, downloadIcs } from '../lib/ics';
+import { isClubSession } from '../lib/constants';
 
 type CalShow = AdminShow;
 
@@ -23,8 +25,18 @@ type CalEvent = {
   id: string; title: string; type: string; subtype?: string; showIds: string[];
   date: string | null; dateTbc: boolean; meetTime?: string; importance: string; hidden: boolean;
   description?: string; timings?: string; thingsToBring?: string;
-  dueDate?: string | null; dueUnknown?: boolean; responses?: CalResponse[];
+  dueDate?: string | null; dueUnknown?: boolean; responses?: CalResponse[]; status?: string | null;
 };
+
+/** One colour per event category, so club sessions read as their own thing. */
+const typeCard = (t: string) =>
+  t === 'Performance' ? 'border-pink-500/30 bg-pink-500/5'
+    : isClubSession(t) ? 'border-emerald-500/30 bg-emerald-500/5'
+      : 'border-sky-500/30 bg-sky-500/5';
+const typeChip = (t: string) =>
+  t === 'Performance' ? 'bg-pink-500/15 text-pink-300 border-pink-500/30'
+    : isClubSession(t) ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+      : 'bg-sky-500/15 text-sky-300 border-sky-500/30';
 
 /** Local YYYY-MM-DD. toISOString would shift the day across the UTC boundary. */
 const iso = (d: Date) =>
@@ -69,6 +81,10 @@ export default function Calendar() {
   const [responses, setResponses] = useState<string[]>([]);
   const [editEvent, setEditEvent] = useState<AdminSubEvent | null>(null);
   const [calBusy, setCalBusy] = useState(false);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  // Club sessions RSVP per event, so "can't go" needs the same written reason
+  // the rest of the app asks for.
+  const [reasonForEvent, setReasonForEvent] = useState<CalEvent | null>(null);
   // Hidden events are only ever returned to admins, so only they can use this.
   const canSeeHidden = me.isAdmin;
   const [includeHidden, setIncludeHidden] = useState(true);
@@ -148,12 +164,44 @@ export default function Calendar() {
     }
   };
 
+  /**
+   * Ticket 66ed2183: members set their attending / maybe / no from the calendar
+   * too, not only from My Events. A response belongs to a show, so an event that
+   * sits in several shows offers a control for each.
+   */
+  const respondToShow = async (showId: string, response: 'Yes' | 'Maybe' | 'No') => {
+    setRespondingTo(showId);
+    try {
+      await setShowResponse({ showId, response, memberId: previewId() });
+      toast.success('Response saved');
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
+  /** Ticket 43e07671: club sessions have no show, so members answer per event. */
+  const respondToEvent = async (subEventId: string, status: 'Expected Arrival' | 'Maybe' | 'Not Attending', reason?: string) => {
+    setRespondingTo(subEventId);
+    try {
+      await setAttendance({ items: [{ subEventId, status, reason }], memberId: previewId() });
+      toast.success('Response saved');
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   /** One event in the day sheet, with everything the admin wrote on it. */
   const DayRow = ({ e }: { e: CalEvent }) => (
     <div
       className={cn(
         'rounded-xl border p-3.5 space-y-2',
-        e.type === 'Performance' ? 'border-pink-500/30 bg-pink-500/5' : 'border-sky-500/30 bg-sky-500/5',
+        typeCard(e.type),
         e.hidden && 'border-dashed opacity-70',
       )}
     >
@@ -197,6 +245,75 @@ export default function Calendar() {
           Responses due by {new Date(e.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}
         </p>
       ) : null}
+      {/* Members respond here; admins get the full Edit control instead. */}
+      {!me.isAdmin && e.showIds.length > 0 && (
+        <div className="space-y-1.5 border-t pt-2 mt-1">
+          {e.showIds.map((showId) => {
+            const s = shows.find((x) => x.id === showId);
+            if (!s) return null;
+            const current = e.responses?.find((r) => r.showId === showId)?.response ?? null;
+            return (
+              <div key={showId} className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground truncate">{s.name}</span>
+                <div className="flex gap-1 shrink-0">
+                  {(['Yes', 'Maybe', 'No'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      disabled={respondingTo === showId}
+                      onClick={() => respondToShow(showId, r)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-50',
+                        current === r
+                          ? r === 'Yes'
+                            ? 'bg-emerald-500 text-white border-emerald-500'
+                            : r === 'No'
+                              ? 'bg-red-500 text-white border-red-500'
+                              : 'bg-yellow-500 text-black border-yellow-500'
+                          : 'hover:bg-muted',
+                      )}
+                    >
+                      {r === 'Yes' ? 'In' : r === 'No' ? 'No' : 'Maybe'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {/* Club sessions have no show, so members answer the session itself. */}
+      {!me.isAdmin && e.showIds.length === 0 && (
+        <div className="flex items-center justify-between gap-2 border-t pt-2 mt-1">
+          <span className="text-xs text-muted-foreground">Are you coming?</span>
+          <div className="flex gap-1 shrink-0">
+            {([
+              { v: 'Expected Arrival', label: 'In' },
+              { v: 'Maybe', label: 'Maybe' },
+              { v: 'Not Attending', label: 'No' },
+            ] as const).map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                disabled={respondingTo === e.id}
+                onClick={() => (o.v === 'Not Attending' ? setReasonForEvent(e) : respondToEvent(e.id, o.v))}
+                className={cn(
+                  'px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-50',
+                  e.status === o.v
+                    ? o.v === 'Expected Arrival'
+                      ? 'bg-emerald-500 text-white border-emerald-500'
+                      : o.v === 'Not Attending'
+                        ? 'bg-red-500 text-white border-red-500'
+                        : 'bg-yellow-500 text-black border-yellow-500'
+                    : 'hover:bg-muted',
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -205,9 +322,7 @@ export default function Calendar() {
       title={[e.title, e.subtype || e.type, e.meetTime, showName(e)].filter(Boolean).join(' · ')}
       className={cn(
         'text-[11px] leading-tight rounded-md px-1.5 py-1 border truncate',
-        e.type === 'Performance'
-          ? 'bg-pink-500/15 text-pink-300 border-pink-500/30'
-          : 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        typeChip(e.type),
         e.hidden && 'opacity-60 border-dashed',
       )}
     >
@@ -216,7 +331,7 @@ export default function Calendar() {
         <span className="truncate">{e.title}</span>
         {e.hidden && <EyeOff className="h-3 w-3 shrink-0 opacity-70" />}
       </div>
-      <div className="truncate opacity-70">{showName(e) || 'No show'}</div>
+      <div className="truncate opacity-70">{showName(e) || (isClubSession(e.type) ? 'Club session' : 'No show')}</div>
     </div>
   );
 
@@ -255,7 +370,7 @@ export default function Calendar() {
         />
         <MultiFilter
           label="Type"
-          options={[{ value: 'Rehearsal', label: 'Rehearsal' }, { value: 'Performance', label: 'Performance' }]}
+          options={[{ value: 'Rehearsal', label: 'Rehearsal' }, { value: 'Performance', label: 'Performance' }, { value: 'Club Session', label: 'Club Session' }]}
           selected={types}
           onChange={setTypes}
         />
@@ -353,6 +468,18 @@ export default function Calendar() {
           onSaved={async () => { setEditEvent(null); await load(); }}
         />
       )}
+
+      <ReasonDialog
+        open={!!reasonForEvent}
+        title={reasonForEvent ? `Can’t attend ${reasonForEvent.title}` : 'Can’t attend'}
+        busy={respondingTo === reasonForEvent?.id}
+        onCancel={() => setReasonForEvent(null)}
+        onSubmit={(reason) => {
+          const ev = reasonForEvent!;
+          setReasonForEvent(null);
+          void respondToEvent(ev.id, 'Not Attending', reason);
+        }}
+      />
 
       {undated.length > 0 && (
         <div className="rounded-2xl border bg-card p-5 space-y-3">

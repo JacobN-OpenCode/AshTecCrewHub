@@ -9,29 +9,32 @@ import { Checkbox } from '@project/components/ui/checkbox';
 import { DatePicker } from '@project/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { type AdminShow, type AdminSubEvent, toIso, fromIso } from '../../lib/useAdminData';
-import { SUBTYPES } from '../../lib/constants';
+import { SUBTYPES, EVENT_TYPES, isClubSession } from '../../lib/constants';
 
 type Form = {
-  title: string; type: 'Rehearsal' | 'Performance'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
+  title: string; type: 'Rehearsal' | 'Performance' | 'Club Session'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
   description: string; meetTime: string; timings: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
   dueDate: string | null; dueUnknown: boolean; hidden: boolean;
 };
-const blank = (showId?: string): Form => ({
-  title: '', type: 'Rehearsal', subtype: 'Part Day Rehearsal', showIds: showId ? [showId] : [], date: null, dateTbc: false,
+const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
+  title: '', type, subtype: SUBTYPES[type][0], showIds: showId ? [showId] : [], date: null, dateTbc: false,
   description: '', meetTime: '', timings: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
 });
 
-export default function SubEventDialog({ open, ev, shows, defaultShowId, onClose, onSaved }: {
-  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; defaultShowId?: string; onClose: () => void; onSaved: () => void;
+export default function SubEventDialog({ open, ev, shows, defaultShowId, defaultType, onClose, onSaved }: {
+  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; defaultShowId?: string; defaultType?: Form['type']; onClose: () => void; onSaved: () => void;
 }) {
   const [f, setF] = useState<Form>(blank());
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
-    setF(ev ? { ...ev, type: ev.type as Form['type'], importance: ev.importance as Form['importance'] } : blank(defaultShowId));
-  }, [open, ev, defaultShowId]);
+    setF(ev ? { ...ev, type: ev.type as Form['type'], importance: ev.importance as Form['importance'] } : blank(defaultShowId, defaultType));
+  }, [open, ev, defaultShowId, defaultType]);
   const set = (p: Partial<Form>) => setF((x) => ({ ...x, ...p }));
-  const valid = f.title.trim() && f.showIds.length && (f.dateTbc || f.date);
+  // A club session is not part of a production, so it is the only type that may
+  // be saved with no show attached.
+  const club = isClubSession(f.type);
+  const valid = f.title.trim() && (club || f.showIds.length) && (f.dateTbc || f.date);
 
   const save = async () => {
     setBusy(true);
@@ -44,13 +47,13 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, onClose
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{ev ? 'Edit' : 'Add'} rehearsal / performance</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{ev ? 'Edit' : 'Add'} event</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2 space-y-1"><L>Title *</L><Input value={f.title} onChange={(e) => set({ title: e.target.value })} placeholder="Tech run – Act 1" /></div>
           <div className="space-y-1"><L>Type</L>
-            <Select value={f.type} onValueChange={(v) => set({ type: v as Form['type'], subtype: SUBTYPES[v][0] })}>
+            <Select value={f.type} onValueChange={(v) => set({ type: v as Form['type'], subtype: SUBTYPES[v][0], showIds: v === 'Club Session' ? [] : f.showIds })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="Rehearsal">Rehearsal</SelectItem><SelectItem value="Performance">Performance</SelectItem></SelectContent>
+              <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1"><L>Kind</L>
@@ -59,13 +62,18 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, onClose
               <SelectContent>{SUBTYPES[f.type].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2 space-y-1"><L>Show(s) *</L>
-            <div className="flex flex-wrap gap-4">{shows.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={f.showIds.includes(s.id)} onCheckedChange={(c) => set({ showIds: c ? [...f.showIds, s.id] : f.showIds.filter((x) => x !== s.id) })} />
-                {s.name}{s.code && ` (${s.code})`}
-              </label>))}
-            </div>
+          <div className="sm:col-span-2 space-y-1">
+            <L>Show(s) {club ? '' : '*'}</L>
+            {club ? (
+              <p className="text-xs text-muted-foreground">Club sessions are scheduled separately and are not part of a show.</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">{shows.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={f.showIds.includes(s.id)} onCheckedChange={(c) => set({ showIds: c ? [...f.showIds, s.id] : f.showIds.filter((x) => x !== s.id) })} />
+                  {s.name}{s.code && ` (${s.code})`}
+                </label>))}
+              </div>
+            )}
           </div>
           <div className="space-y-1"><L>Date *</L>
             <label className="flex items-center gap-2 text-sm mb-1"><Checkbox checked={f.dateTbc} onCheckedChange={(c) => set({ dateTbc: !!c })} />TBC</label>

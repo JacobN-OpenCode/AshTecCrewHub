@@ -16,20 +16,31 @@ import ShowDialog from '../../components/admin/ShowDialog';
 import SubEventDialog from '../../components/admin/SubEventDialog';
 import AttendanceSheet from '../../components/admin/AttendanceSheet';
 
+/** Synthetic tab id for the club-session category, which has no show row. */
+const CLUB = '__club__';
+
 export default function AdminEvents() {
   const { data, reload } = useAdminData();
   const [showId, setShowId] = useState<string>('');
   const [showDlg, setShowDlg] = useState<'new' | 'edit' | null>(null);
-  const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null } | null>(null);
+  const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null; club?: boolean } | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'show' | 'ev'; id: string; name: string } | null>(null);
 
-  useEffect(() => { if (data && !data.shows.some((s) => s.id === showId)) setShowId(data.shows[0]?.id ?? ''); }, [data, showId]);
+  useEffect(() => {
+    if (!data) return;
+    if (showId === CLUB) return;
+    if (!data.shows.some((s) => s.id === showId)) setShowId(data.shows[0]?.id ?? CLUB);
+  }, [data, showId]);
   if (!data) return <Skeleton className="h-96 rounded-2xl" />;
 
+  const onClub = showId === CLUB;
   const show = data.shows.find((s) => s.id === showId);
-  const events = data.subEvents.filter((e) => e.showIds.includes(showId));
-  const resp = data.responses.filter((r) => r.showId === showId);
+  // Club sessions are the events with no show, so they get their own tab.
+  const events = onClub
+    ? data.subEvents.filter((e) => e.type === 'Club Session')
+    : data.subEvents.filter((e) => e.showIds.includes(showId));
+  const resp = onClub ? [] : data.responses.filter((r) => r.showId === showId);
   const rc = (r: string) => resp.filter((x) => x.response === r).length;
   const cnt = (id: string, s: string) => data.attendance.filter((a) => a.subEventId === id && a.status === s).length;
 
@@ -42,6 +53,34 @@ export default function AdminEvents() {
     } catch (e) { toast.error((e as Error).message); }
     setConfirm(null);
   };
+
+  const EventRow = ({ e }: { e: AdminSubEvent }) => (
+    <div className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{e.title}</span>
+          <Badge variant="outline" className={e.type === 'Performance' ? 'border-pink-500/40 text-pink-400' : e.type === 'Club Session' ? 'border-emerald-500/40 text-emerald-400' : 'border-sky-500/40 text-sky-400'}>{e.subtype || e.type}</Badge>
+          <Badge variant="outline" className={IMPORTANCE_STYLE[e.importance]}>{e.importance}</Badge>
+          {e.hidden && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-400" title="Hidden from members">
+              <EyeOff className="h-3 w-3 mr-1" />Hidden
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{fmtDate(e.date, e.dateTbc)}{e.meetTime && ` · Meet ${e.meetTime}`} · <span className="font-mono text-xs">{dueLabel(e.dueDate, e.dueUnknown)}</span></p>
+      </div>
+      <div className="flex items-center gap-3 text-sm font-mono">
+        <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
+        <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
+        <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
+      </div>
+      <div className="flex gap-1">
+        <Button size="sm" variant="outline" onClick={() => setViewing(e.id)}><Users className="h-4 w-4 mr-1" />Attendance</Button>
+        <Button size="icon" variant="ghost" onClick={() => setEvDlg({ ev: e })}><Pencil className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" onClick={() => setConfirm({ kind: 'ev', id: e.id, name: e.title })}><Trash2 className="h-4 w-4" /></Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -60,8 +99,27 @@ export default function AdminEvents() {
             {s.name}{s.code && <span className="ml-1.5 font-mono opacity-70">{s.code}</span>}
           </button>
         ))}
+        <button onClick={() => setShowId(CLUB)}
+          className={cn('px-4 py-2 rounded-xl border text-sm font-medium inline-flex items-center gap-1.5',
+            onClub ? 'bg-emerald-600 text-white border-emerald-600' : 'hover:bg-muted')}>
+          Club sessions
+        </button>
       </div>
-      {show && (
+      {onClub ? (
+        <>
+          <div className="rounded-2xl border bg-card p-5 flex flex-col md:flex-row gap-4 md:items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Club sessions</h2>
+              <p className="text-sm text-muted-foreground mt-1">Regular club meetings, scheduled separately from shows.</p>
+            </div>
+            <Button onClick={() => setEvDlg({ ev: null, club: true })}><Plus className="h-4 w-4 mr-1" />Add club session</Button>
+          </div>
+          <div className="rounded-2xl border bg-card divide-y">
+            {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
+            {events.map((e) => <EventRow key={e.id} e={e} />)}
+          </div>
+        </>
+      ) : show && (
         <>
           <div className="rounded-2xl border bg-card p-5 flex flex-col md:flex-row gap-4 md:items-center justify-between">
             <div>
@@ -87,39 +145,15 @@ export default function AdminEvents() {
           </div>
           <div className="rounded-2xl border bg-card divide-y">
             {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
-            {events.map((e) => (
-              <div key={e.id} className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{e.title}</span>
-                    <Badge variant="outline" className={e.type === 'Performance' ? 'border-pink-500/40 text-pink-400' : 'border-sky-500/40 text-sky-400'}>{e.subtype || e.type}</Badge>
-                    <Badge variant="outline" className={IMPORTANCE_STYLE[e.importance]}>{e.importance}</Badge>
-                    {e.hidden && (
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-400" title="Hidden from members">
-                        <EyeOff className="h-3 w-3 mr-1" />Hidden
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">{fmtDate(e.date, e.dateTbc)}{e.meetTime && ` · Meet ${e.meetTime}`} · <span className="font-mono text-xs">{dueLabel(e.dueDate, e.dueUnknown)}</span></p>
-                </div>
-                <div className="flex items-center gap-3 text-sm font-mono">
-                  <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
-                  <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
-                  <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setViewing(e.id)}><Users className="h-4 w-4 mr-1" />Attendance</Button>
-                  <Button size="icon" variant="ghost" onClick={() => setEvDlg({ ev: e })}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setConfirm({ kind: 'ev', id: e.id, name: e.title })}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            ))}
+            {events.map((e) => <EventRow key={e.id} e={e} />)}
           </div>
         </>
       )}
       <ShowDialog open={!!showDlg} show={showDlg === 'edit' ? show ?? null : null} onClose={() => setShowDlg(null)}
         onSaved={async (id) => { setShowDlg(null); await reload(); setShowId(id); }} />
-      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows} defaultShowId={showId}
+      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows}
+        defaultShowId={evDlg?.club ? undefined : showId}
+        defaultType={evDlg?.club ? 'Club Session' : undefined}
         onClose={() => setEvDlg(null)} onSaved={async () => { setEvDlg(null); await reload(); }} />
       <AttendanceSheet ev={data.subEvents.find((e) => e.id === viewing) ?? null} data={data} onClose={() => setViewing(null)} reload={reload} />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>

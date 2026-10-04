@@ -9,6 +9,7 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Bug, LifeBuoy, Lightbulb, Loader2, MessageCircleQuestion } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
+import { useSupportCollapsed } from '../lib/uiPrefs';
 
 type T = SubmitSupportInputType['type'];
 const TYPES: { v: T; icon: typeof Bug; hint: string }[] = [
@@ -24,6 +25,7 @@ export default function SupportButton() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [collapsed] = useSupportCollapsed();
   const valid = subject.trim().length >= 3 && message.trim().length >= 10;
 
   const send = async () => {
@@ -38,9 +40,22 @@ export default function SupportButton() {
 
   return (
     <>
-      <Button data-tour="support" onClick={() => setOpen(true)} className="fixed bottom-4 left-4 z-40 rounded-full shadow-lg" size="sm">
-        <LifeBuoy className="h-4 w-4 mr-1.5" />Help & feedback
-      </Button>
+      {collapsed ? (
+        <Button
+          data-tour="support"
+          onClick={() => setOpen(true)}
+          aria-label="Help & feedback"
+          title="Help & feedback"
+          className="fixed bottom-4 left-4 z-40 h-11 w-11 rounded-full shadow-lg p-0"
+          size="icon"
+        >
+          <LifeBuoy className="h-5 w-5" />
+        </Button>
+      ) : (
+        <Button data-tour="support" onClick={() => setOpen(true)} className="fixed bottom-4 left-4 z-40 rounded-full shadow-lg" size="sm">
+          <LifeBuoy className="h-4 w-4 mr-1.5" />Help & feedback
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>

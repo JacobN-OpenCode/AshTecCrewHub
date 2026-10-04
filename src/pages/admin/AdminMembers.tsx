@@ -131,7 +131,8 @@ export default function AdminMembers() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+              {/* Ticket b696f612: the handle reads better than a full school email. */}
+              <p className="text-xs text-muted-foreground truncate" title={m.email}>@{m.shortUsername}</p>
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {m.headOf.map((r) => <Badge key={'h' + r} className="bg-primary/20 text-primary border-primary/30" variant="outline"><Crown className="h-3 w-3 mr-1" />{r}</Badge>)}
                 {m.roles.filter((r) => !m.headOf.includes(r)).map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}

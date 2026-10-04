@@ -103,7 +103,7 @@ export default function StageLayout() {
             {data.members.filter((m) => contact && m.headOf.includes(contact)).map((m) => (
               <a key={m.id} href={`mailto:${m.email}`} className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted">
                 <span className="font-medium flex items-center gap-1.5"><Crown className="h-4 w-4 text-primary" />{m.name}</span>
-                <span className="text-sm text-primary flex items-center gap-1"><Mail className="h-4 w-4" />{m.email}</span>
+                <span className="text-sm text-primary flex items-center gap-1" title={m.email}><Mail className="h-4 w-4" />@{m.shortUsername}</span>
               </a>
             ))}
             {contact && !data.members.some((m) => m.headOf.includes(contact)) && <p className="text-sm text-muted-foreground">No head has been assigned to this area yet.</p>}

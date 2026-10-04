@@ -7,10 +7,12 @@ import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { Lock, CalendarPlus, ExternalLink } from 'lucide-react';
+import { Switch } from '@project/components/ui/switch';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle } from 'lucide-react';
 import { useMe } from '../lib/me';
-import { ROLES, SELF_YEARS } from '../lib/constants';
+import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
+import { useSupportCollapsed } from '../lib/uiPrefs';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -133,7 +135,59 @@ export default function Profile() {
         <Button data-tour="profile-save" onClick={save} disabled={busy || !p1 || !p2 || p1 === p2}>{busy ? 'Saving…' : 'Save profile'}</Button>
       </div>
 
+      <Preferences />
+
+      <WhatsAppCommunity />
+
       <CalendarIntegration />
+    </div>
+  );
+}
+
+/** Ticket d6b098db: a one-click way into the club's WhatsApp community. */
+function WhatsAppCommunity() {
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" />
+          WhatsApp community
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Crew announcements and quick questions live in the club&apos;s WhatsApp community.
+        </p>
+      </div>
+      <Button asChild>
+        <a href={WHATSAPP_COMMUNITY_URL} target="_blank" rel="noreferrer">
+          Join the WhatsApp community
+          <ExternalLink className="ml-2 h-4 w-4" />
+        </a>
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Per-device look-and-feel. Stored in this browser only, so changing it on a
+ * school machine does not follow the account home. Ticket 9c895ffb.
+ */
+function Preferences() {
+  const [collapsed, setCollapsed] = useSupportCollapsed();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg">Preferences</h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      </div>
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Collapse the help button to an icon</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Shrinks the floating “Help &amp; feedback” button down to just its icon, so it stays out of the way.
+          </span>
+        </span>
+        <Switch checked={collapsed} onCheckedChange={setCollapsed} aria-label="Collapse the help button to an icon" />
+      </label>
     </div>
   );
 }
