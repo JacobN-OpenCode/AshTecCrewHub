@@ -23,11 +23,11 @@ function RuntimeErrorFallback(props: { error: Error }) {
     <div className="fixed inset-0 grid place-items-center">
       <div className="relative w-full max-w-xl rounded border-t-4 border-t-red-500 bg-white p-4 shadow-lg">
         <h3 className="mb-2 flex items-center gap-2 font-medium">
-          Issue rendering app
+          Issue rendering the app
         </h3>
         <p className="mb-4 text-sm text-gray-600">
           {allowAiFix
-            ? 'Try asking Zite to fix the issue or find a workaround.'
+            ? 'The app hit an unexpected error. You can try reloading the page.'
             : 'Something went wrong while loading this app. You can try reloading the page.'}
         </p>
 
