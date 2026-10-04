@@ -9,11 +9,12 @@ import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Switch } from '@project/components/ui/switch';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info } from 'lucide-react';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, ACCENTS } from '../lib/uiPrefs';
+import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -144,11 +145,77 @@ export default function Profile() {
         <div className="space-y-6">
           <Preferences />
 
+          <PwaSettings />
+
           <WhatsAppCommunity />
 
           <CalendarIntegration />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * PWA settings: whether the app is installed, the notification state, a way to
+ * re-open the welcome, and install instructions when it is not installed yet.
+ */
+function PwaSettings() {
+  const [installed] = useState(() => isStandalone());
+  const [notif, setNotif] = useState(() => notificationState());
+
+  // Re-read permission when you come back from the browser's own settings.
+  useEffect(() => {
+    const onVisible = () => setNotif(notificationState());
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, []);
+
+  const stateLabel: Record<string, string> = {
+    granted: 'On',
+    denied: 'Blocked in your browser settings',
+    default: 'Not switched on yet',
+    unsupported: 'Not supported on this browser',
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Smartphone className="h-5 w-5 text-primary" />
+          App &amp; notifications
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {installed
+            ? 'You are using the installed app.'
+            : 'You are on the website. Install the app to get the home-screen icon and full-screen view.'}
+        </p>
+      </div>
+
+      {!installed && (
+        <p className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
+          To install: open this site in Safari, tap the Share button, then <strong>Add to Home Screen</strong>.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-3 border-t pt-4">
+        <div>
+          <p className="text-sm font-medium">Notifications</p>
+          <p className="text-xs text-muted-foreground">{stateLabel[notif]}</p>
+        </div>
+        <Badge variant="outline" className={notif === 'granted' ? 'border-emerald-500/40 text-emerald-400' : undefined}>
+          {notif === 'granted' ? 'On' : 'Off'}
+        </Badge>
+      </div>
+
+      <Button variant="outline" onClick={openPwaWelcome} className="w-full">
+        <Info className="mr-2 h-4 w-4" />
+        Show the PWA welcome again
+      </Button>
     </div>
   );
 }

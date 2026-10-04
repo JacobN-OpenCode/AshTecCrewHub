@@ -5,6 +5,7 @@ import { HelpCircle, MousePointerClick } from 'lucide-react';
 import { Button } from '@project/components/ui/button';
 import { TOUR, SEEN_KEY, type Step } from '../lib/tutorial';
 import { useMe } from '../lib/me';
+import { pwaWelcomeOpen } from './PwaWelcome';
 
 type Rect = { top: number; left: number; width: number; height: number };
 
@@ -76,7 +77,11 @@ export default function Tutorial() {
 
   useEffect(() => {
     // Auto-open once per member per browser, and only on a page the tour covers.
+    // Also hold off while the PWA welcome is up: when the installed app first
+    // opens, both used to fire at once and the tour landed on top of the
+    // welcome before it could ask about notifications.
     if (localStorage.getItem(seenKey)) return;
+    if (pwaWelcomeOpen()) return;
     const at = steps.findIndex((s) => s.path === loc.pathname);
     if (at < 0) return;
     setI(at);

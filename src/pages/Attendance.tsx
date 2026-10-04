@@ -22,8 +22,17 @@ const STATE_STYLE: Record<string, string> = {
 const clock = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
 
-/** The admin scans this off the member's phone, so it points at this app's own origin. */
-const approvalUrl = (token: string) => `${window.location.origin}/a/${token}`;
+/**
+ * The admin scans this off the member's phone, so it points at this app's own
+ * origin.
+ *
+ * The `?pwa=1` fragment is not read by anything - it is there so the QR carries
+ * a different URL from the bare site. iOS opens a scanned link in Safari, not in
+ * the installed app, and if the app is already installed the OS will offer to
+ * open it there; the distinct URL also stops Safari reusing a cached tab. On
+ * Android, in scope of the manifest, it opens in the installed app directly.
+ */
+const approvalUrl = (token: string) => `${window.location.origin}/a/${token}?pwa=1`;
 
 /** "back at 19:30" from the time the member said they would return. */
 const backLabel = (iso: string | null) =>

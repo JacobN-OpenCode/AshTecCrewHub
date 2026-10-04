@@ -6,6 +6,7 @@ import {
 import { Bell, CalendarDays, Check, DoorOpen, Smartphone, WifiOff } from 'lucide-react';
 
 const SEEN = 'ashtec-pwa-welcome';
+const EVENT = 'ashtec-pwa-welcome-changed';
 
 /** True when the app is running installed (home screen), not in a browser tab. */
 export function isStandalone(): boolean {
@@ -17,32 +18,72 @@ export function isStandalone(): boolean {
   );
 }
 
+/** True when the first-run welcome is on screen, so the tour can hold off. */
+export const pwaWelcomeOpen = () => !isStandalone() ? false : !hasSeenWelcome();
+
+/**
+ * Re-open the welcome on demand (Settings -> PWA). Works even after it has been
+ * dismissed, which is the point: it is the place to check and change the
+ * notification setting later.
+ */
+export function openPwaWelcome(): void {
+  try { localStorage.removeItem(SEEN); } catch {}
+  window.dispatchEvent(new Event(EVENT));
+}
+
+/** Subscribe to welcome open/close, so the tour knows when to stay quiet. */
+export const onPwaWelcomeChange = (fn: () => void) => {
+  window.addEventListener(EVENT, fn);
+  return () => window.removeEventListener(EVENT, fn);
+};
+
+/** Whether the signed-in user is running the installed app (vs a browser tab). */
+export function hasSeenWelcome(): boolean {
+  try { return localStorage.getItem(SEEN) === '1'; } catch { return false; }
+}
+
+/** Current notification permission, or 'unsupported'. */
+export function notificationState(): 'granted' | 'denied' | 'default' | 'unsupported' {
+  if (typeof Notification === 'undefined') return 'unsupported';
+  return Notification.permission as 'granted' | 'denied' | 'default';
+}
+
 /**
  * First-run greeting for the installed PWA.
  *
  * Only appears when the app is opened from the home screen (standalone), and
- * only once per device. Its main job beyond the welcome is to ask for
- * notification permission from a real user gesture, which browsers require - so
- * the opt-in lives here rather than firing unprompted on load.
+ * only once per device unless re-opened from Settings. Its main job beyond the
+ * welcome is to ask for notification permission from a real user gesture, which
+ * browsers require - so the opt-in lives here rather than firing unprompted on
+ * load.
  */
 export default function PwaWelcome() {
   const [open, setOpen] = useState(false);
   const [notif, setNotif] = useState<'idle' | 'granted' | 'denied' | 'unsupported'>('idle');
+  const [installed, setInstalled] = useState(false);
 
   useEffect(() => {
-    if (!isStandalone()) return;
-    try {
-      if (localStorage.getItem(SEEN)) return;
-    } catch {
-      return;
-    }
-    setOpen(true);
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') setNotif('granted');
+    const evaluate = () => {
+      const standalone = isStandalone();
+      setInstalled(standalone);
+      setOpen(standalone && !hasSeenWelcome());
+    };
+    evaluate();
+    const off = onPwaWelcomeChange(evaluate);
+    // Permission can be changed in the browser's own UI while we are open.
+    const onVisible = () => setNotif(notificationState() === 'granted' ? 'granted' : 'idle');
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { off(); document.removeEventListener('visibilitychange', onVisible); };
   }, []);
+
+  useEffect(() => {
+    if (open) setNotif(notificationState() === 'granted' ? 'granted' : 'idle');
+  }, [open]);
 
   const dismiss = () => {
     try { localStorage.setItem(SEEN, '1'); } catch {}
     setOpen(false);
+    window.dispatchEvent(new Event(EVENT));
   };
 
   const enable = async () => {
@@ -82,9 +123,17 @@ export default function PwaWelcome() {
           <img src="/icons/icon-192.png" alt="" className="mx-auto mb-2 h-14 w-14 rounded-2xl border border-primary/30" />
           <DialogTitle className="text-center text-2xl">Welcome to PWA mode!</DialogTitle>
           <DialogDescription className="text-center">
-            You have installed the AshTec Crew Hub. Here is what you can now do.
+            {installed
+              ? 'You have installed the AshTec Crew Hub. Here is what you can now do.'
+              : 'Here is what the installed app can do once it is on your home screen.'}
           </DialogDescription>
         </DialogHeader>
+
+        {!installed && (
+          <p className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
+            To install: open this site in Safari, tap the Share button, then <strong>Add to Home Screen</strong>.
+          </p>
+        )}
 
         <ul className="space-y-3">
           {features.map((f) => (
@@ -111,7 +160,7 @@ export default function PwaWelcome() {
                 <p className="text-sm font-medium">Turn on notifications</p>
                 <p className="text-xs text-muted-foreground">
                   {notif === 'denied'
-                    ? 'Blocked. You can re-enable them in Settings, under Notifications.'
+                    ? 'Blocked. You can re-enable them in your browser settings, then check here again.'
                     : notif === 'unsupported'
                       ? 'This browser does not support notifications.'
                       : 'Get told when something needs you.'}

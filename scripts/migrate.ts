@@ -189,6 +189,16 @@ async function main() {
     console.log('  applied server/db/schema.sql');
   }
 
+  // --schema-only stops here. This exists because re-running the full migrate on
+  // a live database re-imports the CSV snapshot and overwrites rows that have
+  // moved on since export -- it silently reset support-ticket statuses once.
+  // New tables and columns are what a live deploy needs; the data is already
+  // there. Only omit it when deliberately restoring a database from the CSV.
+  if (process.argv.includes('--schema-only')) {
+    console.log('  --schema-only: skipping the CSV import');
+    return;
+  }
+
   const dirArg = process.argv.indexOf('--dir');
   const dir = dirArg !== -1 ? process.argv[dirArg + 1] : join(process.env.HOME!, 'Downloads');
 
