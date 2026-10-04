@@ -57,8 +57,12 @@ async function signIn(schoolEmail: string) {
   );
   const t = rows[0]?.token;
   if (!t) return j;
-  const res = await fetch(`${BASE}/api/auth/verify?token=${encodeURIComponent(t)}&callbackURL=%2F`, {
-    headers: { cookie: cookieHeader(j) },
+  // The GET only renders a confirmation page (so mail scanners cannot burn the
+  // token); redeeming is a POST. Mirror what the page's form does.
+  const res = await fetch(`${BASE}/api/auth/verify`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie: cookieHeader(j) },
+    body: JSON.stringify({ token: t, callbackURL: '/' }),
     redirect: 'manual',
   });
   absorb(j, res);
@@ -193,11 +197,30 @@ if (!admin) {
     const bad = await get('/api/auth/verify?token=not-a-real-token');
     check('bogus token is refused', bad.status === 400);
 
-    const verified = await get(`/api/auth/verify?token=${encodeURIComponent(token)}&callbackURL=%2F`);
+    // The GET must NOT consume the token: the school mail gateway prefetches
+    // links to scan them, which used to burn the token before the human clicked.
+    const confirm = await get(`/api/auth/verify?token=${encodeURIComponent(token)}&callbackURL=%2F`);
+    check('link GET renders a confirmation page', confirm.status === 200 && confirm.text.includes('<!doctype html'));
+    const { rows: stillThere } = await db().query(
+      `SELECT "usedAt" IS NULL AS unused FROM "AuthMagicTokens" WHERE "token" = $1`,
+      [token]
+    );
+    check('link GET does not consume the token', stillThere[0]?.unused === true);
+
+    // Redeeming is a POST, mirroring the form the confirmation page submits.
+    const redeem = async (t: string) =>
+      fetch(`${BASE}/api/auth/verify`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: cookieHeader(jar) },
+        body: JSON.stringify({ token: t, callbackURL: '/' }),
+        redirect: 'manual',
+      });
+    const verified = await redeem(token);
+    absorb(jar, verified);
     check('valid token redirects to the callback', verified.status === 303 && verified.headers.get('location') === '/');
 
     // Replay must fail: the link is single use.
-    const replay = await get(`/api/auth/verify?token=${encodeURIComponent(token)}`);
+    const replay = await redeem(token);
     check('token cannot be replayed', replay.status === 400);
 
     const session = await get('/api/auth/session');

@@ -18,7 +18,15 @@ import { readdirSync } from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { ZiteError, type EndpointConfig, type ZiteSchedule, type ZiteScheduledContext } from './backend.js';
-import { getSessionUser, requestMagicLink, consumeMagicLink, setSessionCookie, destroySession, pruneAuth } from './auth.js';
+import {
+  getSessionUser,
+  requestMagicLink,
+  consumeMagicLink,
+  peekMagicLink,
+  setSessionCookie,
+  destroySession,
+  pruneAuth,
+} from './auth.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -110,12 +118,78 @@ app.post('/api/auth/magic-link', async (req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * Small dark-themed pages for the sign-in link, matching the app.
+ *
+ * Why a confirmation step exists at all: the school's Barracuda mail gateway
+ * prefetches links in inbound mail to scan them. When the link itself redeemed
+ * the token, that GET consumed it about three seconds after the email was sent,
+ * so the human always arrived at "expired or already used". Scanners issue GETs,
+ * not form POSTs, so the GET now renders this page and only the POST redeems.
+ * The script submits automatically, so a real browser still gets in with a click.
+ */
+const escapeAttr = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function signInPage(title: string, inner: string): string {
+  return (
+    '<!doctype html><html lang="en"><head><meta charset="utf-8" />' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1" />' +
+    '<meta name="robots" content="noindex,nofollow" />' +
+    `<title>${escapeAttr(title)}</title><style>` +
+    'html,body{margin:0;height:100%}body{background:#0c0d13;color:#f3f1ed;' +
+    'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;' +
+    'align-items:center;justify-content:center;padding:24px}' +
+    'main{max-width:26rem;width:100%;text-align:center;background:#12141c;border:1px solid #2c2e3a;' +
+    'border-radius:18px;padding:32px 28px;box-shadow:0 20px 50px rgba(0,0,0,.45)}' +
+    'h1{font-size:1.4rem;margin:0 0 10px}p{color:#9ca3af;font-size:.95rem;line-height:1.55;margin:0 0 22px}' +
+    'button{background:#f59e0b;color:#1a1206;border:0;border-radius:999px;padding:13px 26px;' +
+    'font-size:1rem;font-weight:700;cursor:pointer}a{color:#f59e0b}' +
+    '</style></head><body><main>' +
+    inner +
+    '</main></body></html>'
+  );
+}
+
+const expiredPage = () =>
+  signInPage(
+    'Sign-in link expired',
+    '<h1>That link is no longer valid</h1>' +
+      '<p>It has expired or has already been used. Sign-in links work once and last 15 minutes.</p>' +
+      '<p><a href="/">Request a new one</a></p>'
+  );
+
+// GET does NOT redeem: it renders a page whose form POSTs the token, so a mail
+// scanner that follows the link cannot consume it. See signInPage above.
 app.get('/api/auth/verify', async (req, res) => {
   const token = String(req.query.token ?? '');
   const raw = typeof req.query.callbackURL === 'string' ? req.query.callbackURL : '/';
   const callbackURL = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
+  res.set('Cache-Control', 'no-store');
+  const who = token ? await peekMagicLink(token) : null;
+  if (!who) return res.status(400).type('html').send(expiredPage());
+
+  const action = `/api/auth/verify?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(callbackURL)}`;
+  const first = who.firstName?.trim().split(/\s+/)[0] || 'there';
+  res.type('html').send(
+    signInPage(
+      'Signing you in',
+      `<h1>Sign in as ${escapeAttr(first)}?</h1>` +
+        '<p>Tap below to finish signing in to the AshTec crew hub.</p>' +
+        `<form method="post" action="${escapeAttr(action)}">` +
+        '<button type="submit">Sign in</button></form>' +
+        '<script>document.forms[0].submit()</script>'
+    )
+  );
+});
+
+// POST is what actually redeems the single-use token and sets the session.
+app.post('/api/auth/verify', async (req, res) => {
+  const token = String(req.query.token ?? req.body?.token ?? '');
+  const raw = String(req.query.callbackURL ?? req.body?.callbackURL ?? '/');
+  const callbackURL = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
   const user = token ? await consumeMagicLink(token) : null;
-  if (!user) return res.status(400).send('That sign-in link has expired or was already used. Request a new one.');
+  if (!user) return res.status(400).type('html').send(expiredPage());
   setSessionCookie(res, user);
   res.redirect(303, callbackURL);
 });

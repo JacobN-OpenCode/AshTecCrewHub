@@ -93,6 +93,21 @@ export async function requestMagicLink(email: string, name: string, callbackURL 
 }
 
 /**
+ * Look at a token without redeeming it. The GET side of the sign-in link uses
+ * this so a mail gateway that prefetches links to scan them does not burn the
+ * single-use token before the human clicks (the school's Barracuda gateway was
+ * doing exactly that, ~3s after each send). Only the POST consumes.
+ */
+export async function peekMagicLink(token: string): Promise<{ email: string; firstName: string } | null> {
+  const { rows } = await db().query(
+    `SELECT "email", "firstName" FROM "AuthMagicTokens"
+      WHERE "token" = $1 AND "usedAt" IS NULL AND "expiresAt" > now()`,
+    [token]
+  );
+  return rows[0] ?? null;
+}
+
+/**
  * Consume a token and open a session. The `usedAt IS NULL` predicate makes this
  * single-use even if the link is opened twice concurrently.
  */
