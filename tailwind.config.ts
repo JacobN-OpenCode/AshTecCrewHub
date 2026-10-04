@@ -5,8 +5,12 @@ const tailwindConfig: Config = {
   darkMode: ['class'],
   content: [
     'src/**/*.{ts,tsx,css}',
-    '../../packages/ui/**/*.{ts,tsx}',
-    '../../packages/components/**/*.{ts,tsx}',
+    // Relative to the config file, which sits in the repo root -- so these must
+    // not climb out of it. The shared UI library lives at packages/components
+    // here, and with the wrong glob nothing in it was scanned, which left every
+    // shared component (Input, Button, Dialog...) largely unstyled.
+    'packages/ui/**/*.{ts,tsx}',
+    'packages/components/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

@@ -40,11 +40,11 @@ function Shell() {
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     { to: '/profile', label: 'My Profile', icon: User },
     { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },
-    ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Venue Check-in', icon: DoorOpen }] : []),
   ];
 
   // Every admin page lives behind one dropdown so the top bar stays short.
   const adminLinks = [
+    ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Venue Check-in', icon: DoorOpen }] : []),
     { to: '/admin/events', label: 'Manage Events', icon: Settings2 },
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
