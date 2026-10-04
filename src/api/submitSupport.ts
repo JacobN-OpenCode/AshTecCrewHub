@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireMember, isEmailable, isStaff } from '../lib/server';
 import { SUPPORT_MESSAGE_MAX, noReplyNotice } from '../lib/emails';
 
@@ -36,7 +36,7 @@ export default createEndpoint({
     const logs: Record<string, unknown>[] = [];
     for (const r of recipients) {
       try {
-        await Email.send({ to: r.schoolEmail!, subject, body: [{ type: 'text', content: body }, { type: 'button', label: 'Open Support tab', href: `${process.env.ZITE_APP_URL}/admin/support` }] });
+        await Email.send({ to: r.schoolEmail!, subject, body: [{ type: 'text', content: body }, { type: 'button', label: 'Open Support tab', href: `${process.env.APP_URL}/admin/support` }] });
         logs.push({ subject, member: r.id, recipientEmail: r.schoolEmail, purpose: 'Support', body, sentBy: who, batchId: recipients.length > 1 ? ticket.id : '' });
       } catch { /* keep going */ }
     }

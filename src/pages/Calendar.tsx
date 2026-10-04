@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { getCalendar } from 'zitejs/api';
+import { getCalendar } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Skeleton } from '@project/components/ui/skeleton';

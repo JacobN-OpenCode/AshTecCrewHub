@@ -1,4 +1,4 @@
-import type { CrewMembersRecordType } from 'zitejs/db';
+import type { CrewMembersRecordType } from '#db';
 import { isEmailable, isStaff } from './server';
 
 export const REPLY_KIND = { toUser: 'To User', note: 'Internal Note', fromUser: 'From User' } as const;
@@ -39,6 +39,6 @@ export function isDueForEscalation(t: { submittedAt?: string | null; lastReplyAt
   return sinceEscalation >= ESCALATION_HOURS * 3600_000;
 }
 
-export const ticketUrl = (id: string) => `${process.env.ZITE_APP_URL}/admin/support/${id}`;
+export const ticketUrl = (id: string) => `${process.env.APP_URL}/admin/support/${id}`;
 
 export const fullName = (m: { firstName?: string | null; lastName?: string | null }) => `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();

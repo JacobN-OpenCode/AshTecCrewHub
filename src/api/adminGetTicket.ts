@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite, type CrewMembersRecordType } from '#db';
 import { requireAdmin } from '../lib/server';
 import { REPLY_KIND, fullName } from '../lib/support';
 import { ids } from '../lib/server';
 
-const person = (m: { id: string; firstName?: string | null; lastName?: string | null; schoolEmail?: string | null; isMaintainer?: boolean | null; isAdmin?: boolean | null; isPreview?: boolean | null } | undefined) =>
-  m ? { id: m.id, name: fullName(m), email: m.schoolEmail ?? '', isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin } : null;
+const person = (m: CrewMembersRecordType | undefined) =>
+  m ? { id: String(m.id), name: fullName(m), email: m.schoolEmail ?? '', isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin } : null;
 
 export default createEndpoint({
   description: 'Returns one support ticket with its full reply thread and the maintainer list (admins)',

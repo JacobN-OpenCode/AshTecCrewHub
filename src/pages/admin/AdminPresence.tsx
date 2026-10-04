@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminGetPresence, presenceEnd, presenceStart } from 'zitejs/api';
+import { adminGetPresence, presenceEnd, presenceStart } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';

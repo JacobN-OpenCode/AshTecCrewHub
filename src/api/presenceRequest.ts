@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { actingMember, wordCount } from '../lib/server';
 import { CUSTOM_REASON } from '../lib/constants';
 import { findPresence, newToken, presenceKey, requireActiveSession } from '../lib/presence';

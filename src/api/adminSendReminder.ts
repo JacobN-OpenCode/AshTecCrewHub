@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireAdmin, ids, mapShow, mapSubEvent } from '../lib/server';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
 import { pendingForms } from '../lib/reminders';
@@ -54,7 +54,7 @@ export default createEndpoint({
       subject,
       body: [
         { type: 'text', content: text },
-        { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.ZITE_APP_URL },
+        { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.APP_URL },
       ],
     });
     await zite.emailLog.create({

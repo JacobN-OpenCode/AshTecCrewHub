@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.tsbuildinfo
+.tsbuildinfo-server
+
+# Secrets: .env holds DATABASE_URL and SMTP credentials.
+.env
+.env.local
+.env.*.local
+
+*.log
+.DS_Store
+.vite/

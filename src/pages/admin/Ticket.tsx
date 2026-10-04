@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminGetTicket, adminNoteTicket, adminReplyTicket, adminUpdateTicket } from 'zitejs/api';
+import { adminGetTicket, adminNoteTicket, adminReplyTicket, adminUpdateTicket } from '#api';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
 import { ArrowLeft, Loader2, Mail, MessageSquare, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
-import { TYPE_STYLE, STATUS_STYLE, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
-import { OPENCODE_TAG_TYPES } from '../../api/adminUpdateTicket';
+import { TYPE_STYLE, STATUS_STYLE, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
 import { useMe } from '../../lib/me';
 
 type Status = 'Open' | 'In Progress' | 'Resolved' | 'Closed';

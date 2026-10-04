@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getPublicCalendar } from 'zitejs/api';
+import { getPublicCalendar } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { CalendarDays, Clock, Lightbulb, MapPin, LogIn } from 'lucide-react';

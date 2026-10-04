@@ -1,8 +1,8 @@
 import { pv } from './lib/preview';
 import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth, logout } from 'zitejs/auth';
-import { getMe } from 'zitejs/api';
+import { useAuth, logout } from '#auth';
+import { getMe } from '#api';
 import { Toaster } from '@project/components/ui/sonner';
 import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { setAttendance } from 'zitejs/api';
+import { setAttendance } from '#api';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@project/components/ui/sheet';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';

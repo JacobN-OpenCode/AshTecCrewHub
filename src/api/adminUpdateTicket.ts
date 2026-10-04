@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { OPENCODE_TAG_TYPES } from '../lib/supportStyle';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
 
 /** A plain label for "hand this to the coding agent". Setting it triggers nothing. */
-export const OPENCODE_TAG_TYPES = ['Bug Report', 'Feature Request'];
 
 export default createEndpoint({
   description: 'Updates the status, assignment or scratchpad notes of a support ticket, or deletes it (admins)',

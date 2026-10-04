@@ -6,7 +6,7 @@
 // here answers "are you in the room right now?". Mixing them means every
 // presence read would drag RSVP state along with it, and the two disagree
 // constantly: someone can be signed out of the venue while marked as attending.
-import { zite } from 'zitejs/db';
+import { zite } from '#db';
 import { ids } from './server';
 
 /** Where a member stands relative to the current session. */
@@ -59,7 +59,9 @@ export async function findPresence(sessionId: string, memberId: string) {
 
 /** Strips the internal bookkeeping down to what the UI actually renders. */
 export function mapPresence(p: {
-  id: string
+  // Optional: this helper only reshapes presentation fields, and rows arrive
+  // typed as a bare record index signature from the database layer.
+  id?: string
   state?: string
   reasonLabel?: string
   reason?: string

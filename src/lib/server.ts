@@ -1,6 +1,6 @@
 // Backend-only helpers shared by endpoints in src/api/.
-import { zite } from 'zitejs/db';
-import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from 'zitejs/db';
+import { zite } from '#db';
+import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from '#db';
 
 export const ids = (v?: string | string[] | null): string[] => (v ? (Array.isArray(v) ? v : [v]) : []);
 

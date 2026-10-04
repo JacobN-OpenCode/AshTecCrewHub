@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { signIn } from 'zitejs/auth';
-import { loginWithRedirect } from 'zitejs/auth';
-import { checkEmail } from 'zitejs/api';
+import { signIn } from '#auth';
+import { loginWithRedirect } from '#auth';
+import { checkEmail } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Loader2, Mail } from 'lucide-react';

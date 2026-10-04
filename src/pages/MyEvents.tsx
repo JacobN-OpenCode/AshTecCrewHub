@@ -1,6 +1,6 @@
 import { pv } from '../lib/preview';
 import { useCallback, useEffect, useState } from 'react';
-import { getMyEvents, type GetMyEventsOutputType } from 'zitejs/api';
+import { getMyEvents, type GetMyEventsOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import ShowCard from '../components/ShowCard';
 import { isPastDue } from '../lib/constants';

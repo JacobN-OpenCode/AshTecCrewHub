@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, type AdminGetSupportOutputType } from 'zitejs/api';
+import { adminGetSupport, adminSetMaintainer, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';

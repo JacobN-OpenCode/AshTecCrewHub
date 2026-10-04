@@ -47,9 +47,9 @@ export const IMPORTANCE_STYLE: Record<string, string> = {
  * matter to a stage manager, and free text turns the roster into a wall of
  * sentences. "Other" is the escape hatch and does require a written reason.
  *
- * Lives here rather than in lib/presence.ts because that file imports
- * zitejs/db and is backend-only, while the picker that renders these options is
- * a React component.
+ * Lives here rather than in lib/presence.ts because that file imports the
+ * database layer and is backend-only, while the picker that renders these
+ * options is a React component.
  */
 export const SIGN_OUT_REASONS = ['Toilet', 'Food', 'Phone call', 'Runs off stage', 'Ill', 'Other'];
 export const CUSTOM_REASON = 'Other';

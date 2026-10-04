@@ -33,6 +33,6 @@
     "noUncheckedSideEffectImports": true,
     "strictNullChecks": true
   },
-  "include": ["src", ".zite", "zite.auth.ts", ".zite/user-extensions.d.ts", ".zite/env.d.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { resolveTarget, isPastDue, wordCount, ids, upsertAttendance } from '../lib/server';
 
 const NOT = ['Not Attending', 'Not Attending Event'];

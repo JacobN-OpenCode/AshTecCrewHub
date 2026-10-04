@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveMember } from 'zitejs/api';
+import { adminSaveMember } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';

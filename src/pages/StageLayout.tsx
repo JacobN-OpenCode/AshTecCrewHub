@@ -4,7 +4,7 @@ import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable,
   pointerWithin, rectIntersection, type CollisionDetection, type DragEndEvent,
 } from '@dnd-kit/core';
-import { getStageLayout, adminMoveRole, type GetStageLayoutOutputType } from 'zitejs/api';
+import { getStageLayout, adminMoveRole, type GetStageLayoutOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
 import { Crown, Mail } from 'lucide-react';

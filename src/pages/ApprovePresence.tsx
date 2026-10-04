@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from 'zitejs/auth';
+import { useAuth } from '#auth';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { presenceApproval, presenceDecision } from 'zitejs/api';
+import { presenceApproval, presenceDecision } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { CheckCircle2, Loader2, LogIn, LogOut, TriangleAlert, XCircle } from 'lucide-react';

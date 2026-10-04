@@ -1,7 +1,7 @@
 import { previewId } from '../lib/preview';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { setShowResponse, setAttendance, type GetMyEventsOutputType } from 'zitejs/api';
+import { setShowResponse, setAttendance, type GetMyEventsOutputType } from '#api';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import {

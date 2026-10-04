@@ -1,7 +1,7 @@
 import { previewId, pv } from '../lib/preview';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, getCalendar } from 'zitejs/api';
+import { updateMyProfile, getCalendar } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';

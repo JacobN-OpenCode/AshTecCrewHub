@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { adminSendReminder } from 'zitejs/api';
+import { adminSendReminder } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Loader2, Mail } from 'lucide-react';
 import type { AdminData } from '../../lib/useAdminData';

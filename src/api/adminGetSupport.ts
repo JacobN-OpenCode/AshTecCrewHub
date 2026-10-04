@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
 import { REPLY_KIND } from '../lib/support';
 

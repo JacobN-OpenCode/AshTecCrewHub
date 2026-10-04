@@ -17,6 +17,8 @@ export const STATUS_STYLE: Record<string, string> = {
  * is easy to find again later.
  */
 export const OPENCODE_TAG = 'Refer to opencode';
+/** The ticket types that may carry the opencode tag; validated server-side too. */
+export const OPENCODE_TAG_TYPES = ['Bug Report', 'Feature Request'];
 export const OPENCODE_TAG_STYLE = 'border-purple-500/40 bg-purple-500/10 text-purple-300';
 
 export const REPLY_KIND_STYLE: Record<string, string> = {

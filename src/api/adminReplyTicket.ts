@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireAdmin, ids } from '../lib/server';
 import { REPLY_KIND, ticketUrl, fullName } from '../lib/support';
 import { SUPPORT_MESSAGE_MAX, noReplyNotice, automatedFooter } from '../lib/emails';

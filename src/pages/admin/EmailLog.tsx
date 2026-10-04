@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { adminGetEmailLog, type AdminGetEmailLogOutputType } from 'zitejs/api';
+import { adminGetEmailLog, type AdminGetEmailLogOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';

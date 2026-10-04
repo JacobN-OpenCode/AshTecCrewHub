@@ -1,7 +1,7 @@
 import { Badge } from '@project/components/ui/badge';
 import { cn } from '@project/components/lib/utils';
 import { Clock, MapPin, Backpack, CalendarDays } from 'lucide-react';
-import type { GetMyEventsOutputType } from 'zitejs/api';
+import type { GetMyEventsOutputType } from '#api';
 import { fmtDate, dueLabel, isPastDue, IMPORTANCE_STYLE } from '../lib/constants';
 
 export type MySubEvent = GetMyEventsOutputType['subEvents'][number];
