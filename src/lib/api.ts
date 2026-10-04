@@ -31,6 +31,20 @@ export type AdminGetPresenceInputType = NonNullable<_AdminGetPresenceCfg['inputS
 export type AdminGetPresenceOutputType = Awaited<ReturnType<_AdminGetPresenceCfg['execute']>>;
 export const adminGetPresence = createCaller<AdminGetPresenceInputType, AdminGetPresenceOutputType>('adminGetPresence');
 
+import type { default as _AdminGetPresenceHistoryEp } from '../api/adminGetPresenceHistory';
+
+type _AdminGetPresenceHistoryCfg = typeof _AdminGetPresenceHistoryEp;
+export type AdminGetPresenceHistoryInputType = NonNullable<_AdminGetPresenceHistoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetPresenceHistoryCfg['execute']>[0]['input'];
+export type AdminGetPresenceHistoryOutputType = Awaited<ReturnType<_AdminGetPresenceHistoryCfg['execute']>>;
+export const adminGetPresenceHistory = createCaller<AdminGetPresenceHistoryInputType, AdminGetPresenceHistoryOutputType>('adminGetPresenceHistory');
+
+import type { default as _AdminGetSessionDetailEp } from '../api/adminGetSessionDetail';
+
+type _AdminGetSessionDetailCfg = typeof _AdminGetSessionDetailEp;
+export type AdminGetSessionDetailInputType = NonNullable<_AdminGetSessionDetailCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetSessionDetailCfg['execute']>[0]['input'];
+export type AdminGetSessionDetailOutputType = Awaited<ReturnType<_AdminGetSessionDetailCfg['execute']>>;
+export const adminGetSessionDetail = createCaller<AdminGetSessionDetailInputType, AdminGetSessionDetailOutputType>('adminGetSessionDetail');
+
 import type { default as _AdminGetSupportEp } from '../api/adminGetSupport';
 
 type _AdminGetSupportCfg = typeof _AdminGetSupportEp;
@@ -240,6 +254,8 @@ export const api = {
   adminGetData,
   adminGetEmailLog,
   adminGetPresence,
+  adminGetPresenceHistory,
+  adminGetSessionDetail,
   adminGetSupport,
   adminGetTicket,
   adminMoveRole,

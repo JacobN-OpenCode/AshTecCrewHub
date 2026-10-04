@@ -49,6 +49,7 @@ const TABLES = {
   attendance: { table: 'Attendance', arr: [] },
   presenceSessions: { table: 'PresenceSessions', arr: [] },
   venuePresence: { table: 'VenuePresence', arr: [] },
+  venuePresenceEvents: { table: 'VenuePresenceEvents', arr: [] },
   supportTickets: { table: 'SupportTickets', arr: ['assignedMaintainers'] },
   supportReplies: { table: 'SupportReplies', arr: [] },
   emailLog: { table: 'EmailLog', arr: ['shows'] },

@@ -156,6 +156,28 @@ CREATE TABLE IF NOT EXISTS "VenuePresence" (
   "createdAt"         timestamptz NOT NULL DEFAULT now(),
   "updatedAt"         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Append-only log of every venue check-in decision (ticket 168e8274). The
+-- VenuePresence row above is one row per member per session and is overwritten
+-- on each approval, so it can only ever show the latest sign-in/out. This table
+-- keeps the whole timeline: each sign-in, sign-out, decline and the session
+-- open/close, with the admin who made the call.
+CREATE TABLE IF NOT EXISTS "VenuePresenceEvents" (
+  "id"             uuid PRIMARY KEY,
+  "eventKey"       text NOT NULL DEFAULT '',
+  "session"        uuid,
+  "member"         uuid,
+  "action"         text NOT NULL,
+  "reasonLabel"    text NOT NULL DEFAULT '',
+  "reason"         text NOT NULL DEFAULT '',
+  "comingBack"     boolean NOT NULL DEFAULT false,
+  "expectedBackAt" timestamptz,
+  "at"             timestamptz NOT NULL DEFAULT now(),
+  "by"             uuid,
+  "createdAt"      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "VenuePresenceEvents_session_idx" ON "VenuePresenceEvents" ("session");
+CREATE INDEX IF NOT EXISTS "VenuePresenceEvents_member_idx" ON "VenuePresenceEvents" ("member");
 CREATE INDEX IF NOT EXISTS "VenuePresence_member_idx" ON "VenuePresence" ("member");
 CREATE INDEX IF NOT EXISTS "VenuePresence_session_idx" ON "VenuePresence" ("session");
 

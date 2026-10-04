@@ -117,7 +117,7 @@ console.log(`smoke: ${BASE}\n`);
   const res = await get('/healthz');
   const body = JSON.parse(res.text || '{}');
   check('healthz responds 200', res.status === 200);
-  check('all 33 endpoints mounted', body.endpoints === 33, `got ${body.endpoints}`);
+  check('all 35 endpoints mounted', body.endpoints === 35, `got ${body.endpoints}`);
   check('database reachable', body.ok === true);
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminGetPresence, presenceEnd, presenceStart } from '#api';
+import { adminGetPresence, adminGetPresenceHistory, presenceEnd, presenceStart } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -9,9 +9,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { DoorOpen, Loader2, LogOut, MapPin, TriangleAlert, UserCheck } from 'lucide-react';
+import { ChevronRight, DoorOpen, History, Loader2, LogOut, MapPin, TriangleAlert, UserCheck } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { fmtDate } from '../../lib/constants';
+import PresenceHistoryDialog from '../../components/admin/PresenceHistoryDialog';
 
 type Row = {
   id: string
@@ -27,6 +28,12 @@ type Row = {
   signedInAt: string | null
   signedOutAt: string | null
   pendingAction: string | null
+};
+
+type SessionSummary = {
+  id: string; title: string; type: string; date: string | null; status: string;
+  startedAt: string | null; endedAt: string | null; startedByName: string; endedByName: string;
+  checkedIn: number; eventCount: number;
 };
 
 type Payload = {
@@ -52,12 +59,13 @@ function backLabel(iso: string | null) {
 }
 
 function RosterGroup({
-  title, hint, rows, empty,
+  title, hint, rows, empty, onSelect,
 }: {
   title: string
   hint?: string
   rows: Row[]
   empty: string
+  onSelect?: (r: Row) => void
 }) {
   return (
     <section className="space-y-2">
@@ -71,29 +79,41 @@ function RosterGroup({
       ) : (
         <ul className="divide-y rounded-2xl border">
           {rows.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-2 px-3.5 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{r.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[r.year, ...r.roles].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                {r.reasonLabel && <span className="text-muted-foreground">{r.reasonLabel}</span>}
-                {r.reason && <span className="max-w-[22ch] truncate italic text-muted-foreground">“{r.reason}”</span>}
-                {r.comingBack && backLabel(r.expectedBackAt) && (
-                  <span className="text-yellow-400">{backLabel(r.expectedBackAt)}</span>
+            <li key={r.id}>
+              <div
+                role={onSelect ? 'button' : undefined}
+                tabIndex={onSelect ? 0 : undefined}
+                onClick={onSelect ? () => onSelect(r) : undefined}
+                onKeyDown={onSelect ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(r); } } : undefined}
+                className={cn(
+                  'flex flex-wrap items-center gap-2 px-3.5 py-3',
+                  onSelect && 'cursor-pointer transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
                 )}
-                {r.pendingAction && (
-                  <Badge variant="outline" className="border-yellow-500/40 bg-yellow-500/10 text-yellow-400">
-                    wants to {r.pendingAction.toLowerCase()}
-                  </Badge>
-                )}
-                {r.state && (
-                  <Badge variant="outline" className={cn('border', STATE_STYLE[r.state] ?? STATE_STYLE['Off Site'])}>
-                    {r.state}
-                  </Badge>
-                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{r.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[r.year, ...r.roles].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {r.reasonLabel && <span className="text-muted-foreground">{r.reasonLabel}</span>}
+                  {r.reason && <span className="max-w-[22ch] truncate italic text-muted-foreground">“{r.reason}”</span>}
+                  {r.comingBack && backLabel(r.expectedBackAt) && (
+                    <span className="text-yellow-400">{backLabel(r.expectedBackAt)}</span>
+                  )}
+                  {r.pendingAction && (
+                    <Badge variant="outline" className="border-yellow-500/40 bg-yellow-500/10 text-yellow-400">
+                      wants to {r.pendingAction.toLowerCase()}
+                    </Badge>
+                  )}
+                  {r.state && (
+                    <Badge variant="outline" className={cn('border', STATE_STYLE[r.state] ?? STATE_STYLE['Off Site'])}>
+                      {r.state}
+                    </Badge>
+                  )}
+                  {onSelect && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </div>
               </div>
             </li>
           ))}
@@ -109,6 +129,8 @@ export default function AdminPresence() {
   const [eventId, setEventId] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [history, setHistory] = useState<SessionSummary[]>([]);
+  const [detail, setDetail] = useState<{ sessionId: string; memberId?: string } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -120,13 +142,23 @@ export default function AdminPresence() {
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    try {
+      const r = await adminGetPresenceHistory({});
+      setHistory(r.sessions as SessionSummary[]);
+    } catch {
+      // History is secondary; a failure must not break the live roster.
+    }
+  }, []);
+
   useEffect(() => {
     load();
+    loadHistory();
     // Polls because a stage manager is watching this on a laptop across the
     // room while crew scan in; without it the numbers only move on reload.
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, loadHistory]);
 
   // Only dated, non-hidden events can host check-in: a TBC date has nothing to
   // check in against. The endpoint already filters both out, so the picker can
@@ -157,6 +189,7 @@ export default function AdminPresence() {
       const r = await presenceEnd({});
       toast.success(r.voided ? `Check-in closed. ${r.voided} pending code(s) voided.` : 'Check-in closed');
       await load();
+      await loadHistory();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -246,6 +279,7 @@ export default function AdminPresence() {
             <RosterGroup
               title="Waiting for you to approve"
               rows={waiting}
+              onSelect={(r) => live.session && setDetail({ sessionId: live.session.id, memberId: r.memberId })}
               empty={
                 canManage
                   ? "Nobody is waiting. Scan a crew member’s code with your phone camera to approve it."
@@ -255,11 +289,13 @@ export default function AdminPresence() {
             <RosterGroup
               title="In the room"
               rows={onSite}
+              onSelect={(r) => live.session && setDetail({ sessionId: live.session.id, memberId: r.memberId })}
               empty="Nobody has been scanned in yet."
             />
             <RosterGroup
               title="Stepped out"
               rows={away}
+              onSelect={(r) => live.session && setDetail({ sessionId: live.session.id, memberId: r.memberId })}
               empty="Nobody has left."
             />
           </div>
@@ -272,6 +308,52 @@ export default function AdminPresence() {
           </p>
         </>
       )}
+
+      {history.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <History className="h-4 w-4" />Session backlog
+            <span className="font-mono text-xs text-muted-foreground">{history.length}</span>
+          </h2>
+          <p className="text-xs text-muted-foreground">Open any session to see who signed in and out, when, and which admin approved it.</p>
+          <ul className="divide-y rounded-2xl border">
+            {history.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => setDetail({ sessionId: s.id })}
+                  className="flex w-full flex-wrap items-center gap-2 px-3.5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 truncate font-medium">
+                      {s.title}
+                      {s.status === 'Active' && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />live
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {fmtDate(s.date)}
+                      {s.startedAt && ` · ${new Date(s.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                      {s.endedAt && ` – ${clock(s.endedAt)}`}
+                      {s.startedByName && ` · opened by ${s.startedByName}`}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{s.checkedIn} checked in</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <PresenceHistoryDialog
+        sessionId={detail?.sessionId ?? null}
+        memberId={detail?.memberId}
+        onClose={() => setDetail(null)}
+      />
 
       <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
         <AlertDialogContent>

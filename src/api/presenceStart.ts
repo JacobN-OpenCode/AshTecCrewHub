@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireAdmin } from '../lib/server';
+import { logPresenceEvent } from '../lib/presence';
 
 /**
  * Opens the venue check-in session. Admins only.
@@ -55,6 +56,7 @@ export default createEndpoint({
       });
     }
 
+    await logPresenceEvent({ session: created.id, action: 'Session Opened', at: startedAt, by: me.id });
     return { sessionId: created.id, startedAt };
   },
 });

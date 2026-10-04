@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireAdmin } from '../lib/server';
-import { activeSession, findPresenceByToken, one } from '../lib/presence';
+import { activeSession, findPresenceByToken, one, logPresenceEvent } from '../lib/presence';
 
 /**
  * Approve or decline a member's pending sign-in/sign-out. Admins only.
@@ -47,6 +47,17 @@ export default createEndpoint({
         id: row.id,
         record: { pendingAction: null, approvalToken: '', updatedBy: me.id } as never,
       });
+      // Record the decline too: "asked to leave at 14:05, declined by Mr X" is
+      // part of the story an admin reviewing a session wants to see.
+      await logPresenceEvent({
+        session: session.id,
+        member: memberId,
+        action: `Declined ${action}`,
+        reasonLabel: row.reasonLabel ?? '',
+        reason: row.reason ?? '',
+        at: new Date().toISOString(),
+        by: me.id,
+      });
       return { state: row.state ?? null, memberName };
     }
 
@@ -69,6 +80,18 @@ export default createEndpoint({
         approvalToken: '',
         updatedBy: me.id,
       } as never,
+    });
+
+    await logPresenceEvent({
+      session: session.id,
+      member: memberId,
+      action,
+      reasonLabel: row.reasonLabel ?? '',
+      reason: row.reason ?? '',
+      comingBack: !!row.comingBack,
+      expectedBackAt: row.expectedBackAt ?? null,
+      at: now,
+      by: me.id,
     });
 
     return { state: approved.state, memberName };
