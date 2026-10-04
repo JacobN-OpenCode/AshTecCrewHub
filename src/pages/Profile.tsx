@@ -8,11 +8,12 @@ import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Switch } from '@project/components/ui/switch';
+import { cn } from '@project/components/lib/utils';
 import { Lock, CalendarPlus, ExternalLink, MessageCircle } from 'lucide-react';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, ACCENTS } from '../lib/uiPrefs';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -173,12 +174,36 @@ function WhatsAppCommunity() {
  */
 function Preferences() {
   const [collapsed, setCollapsed] = useSupportCollapsed();
+  const [accent, setAccent] = useAccent();
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
+    <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
         <h2 className="font-semibold text-lg">Preferences</h2>
         <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
       </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Accent colour</p>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Accent colour">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="radio"
+              aria-checked={accent === a.id}
+              aria-label={a.label}
+              title={a.label}
+              onClick={() => setAccent(a.id)}
+              className={cn(
+                'h-9 w-9 rounded-full border-2 transition-transform',
+                accent === a.id ? 'border-foreground scale-110' : 'border-transparent hover:scale-105',
+              )}
+              style={{ backgroundColor: `hsl(${a.hsl})` }}
+            />
+          ))}
+        </div>
+      </div>
+
       <label className="flex items-start justify-between gap-4 cursor-pointer">
         <span>
           <span className="block font-medium text-sm">Collapse the help button to an icon</span>

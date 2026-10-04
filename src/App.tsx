@@ -23,8 +23,11 @@ import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
 import LoginCat from './components/LoginCat';
 import { MeContext, type Me } from './lib/me';
+import { applyAccent, getAccent } from './lib/uiPrefs';
 
 document.documentElement.classList.add('dark');
+// Apply the saved accent before first paint so the app never flashes the default.
+applyAccent(getAccent());
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>

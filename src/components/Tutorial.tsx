@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HelpCircle, MousePointerClick } from 'lucide-react';
 import { Button } from '@project/components/ui/button';
@@ -15,6 +16,13 @@ export default function Tutorial() {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<Rect | null>(null);
   const [missing, setMissing] = useState(false);
+  // Phones get a docked card instead of one anchored beside the target.
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   // The measured rect is read inside scroll/resize listeners, so it has to be a
   // ref. Putting it in state re-runs the measure effect, which re-registers the
   // listeners, which re-measures.
@@ -202,7 +210,7 @@ export default function Tutorial() {
   if (!step) return null;
 
   const card = (
-    <div className="w-80 rounded-2xl border bg-card p-4 shadow-2xl space-y-3">
+    <div className="w-[min(20rem,calc(100vw-1.5rem))] max-h-[70vh] overflow-y-auto rounded-2xl border bg-card p-4 shadow-2xl space-y-3">
       <div className="space-y-1">
         <p className="text-xs font-semibold text-primary tracking-wide uppercase">
           Step {i + 1} of {steps.length}
@@ -242,8 +250,15 @@ export default function Tutorial() {
         <HelpCircle className="h-4 w-4" />
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-[100]" role="dialog" aria-label="Guided tour">
+      {/*
+        Portalled to <body>. The button lives in the header, which carries
+        backdrop-blur; backdrop-filter makes an element a containing block for
+        position:fixed descendants, so without the portal this overlay was
+        trapped inside the 56px-tall header and every step was mispositioned.
+      */}
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-[100]" role="dialog" aria-label="Guided tour">
           {rect ? (
             <>
               {/* Four panels dim the page around the hole; the hole itself stays clickable. */}
@@ -260,7 +275,11 @@ export default function Tutorial() {
             <div className="absolute inset-0 bg-black/70" />
           )}
 
-          {rect ? (
+          {narrow ? (
+            // A phone has no room to anchor a card beside a target, and the
+            // measured-anchor maths put it off-screen. Dock it to the bottom.
+            <div className="absolute inset-x-3 bottom-3">{card}</div>
+          ) : rect ? (
             (() => {
               // Prefer below the element, fall back to above, and clamp to the
               // viewport last. The old fall-back was `rect.top - 214` with only a
@@ -289,8 +308,9 @@ export default function Tutorial() {
           ) : (
             <div className="absolute inset-0 flex items-center justify-center p-4">{card}</div>
           )}
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
