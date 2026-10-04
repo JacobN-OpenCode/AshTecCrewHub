@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { adminGetPresence, adminGetPresenceHistory, presenceEnd, presenceStart } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -9,10 +10,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { ChevronRight, DoorOpen, History, Loader2, LogOut, MapPin, TriangleAlert, UserCheck } from 'lucide-react';
+import { ChevronRight, DoorOpen, History, Loader2, LogOut, MapPin, QrCode, TriangleAlert, UserCheck } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { fmtDate } from '../../lib/constants';
 import PresenceHistoryDialog from '../../components/admin/PresenceHistoryDialog';
+import QrScanner from '../../components/admin/QrScanner';
 
 type Row = {
   id: string
@@ -131,6 +133,20 @@ export default function AdminPresence() {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [history, setHistory] = useState<SessionSummary[]>([]);
   const [detail, setDetail] = useState<{ sessionId: string; memberId?: string } | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
+
+  // A venue notification links to /admin/attendance?scan=1, which should open the
+  // scanner immediately rather than making the admin find the button.
+  useEffect(() => {
+    if (params.get('scan') === '1') {
+      setScannerOpen(true);
+      params.delete('scan');
+      setParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -209,16 +225,23 @@ export default function AdminPresence() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Venue Check-in</h1>
-        {live.session && canManage && (
-          <Button variant="outline" onClick={() => setConfirmEnd(true)} disabled={busy}>
-            <LogOut className="h-4 w-4 mr-1" />End check-in
-          </Button>
-        )}
-        {live.session && !canManage && (
-          <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-            Read-only
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {live.session && canManage && (
+            <Button onClick={() => setScannerOpen(true)} disabled={busy}>
+              <QrCode className="h-4 w-4 mr-1" />Scan a code
+            </Button>
+          )}
+          {live.session && canManage && (
+            <Button variant="outline" onClick={() => setConfirmEnd(true)} disabled={busy}>
+              <LogOut className="h-4 w-4 mr-1" />End check-in
+            </Button>
+          )}
+          {live.session && !canManage && (
+            <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+              Read-only
+            </span>
+          )}
+        </div>
       </div>
 
       {!live.session ? (
@@ -348,6 +371,17 @@ export default function AdminPresence() {
           </ul>
         </section>
       )}
+
+      <QrScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onToken={(token) => {
+          setScannerOpen(false);
+          // The /a/:token page already shows the full detail and the
+          // approve/decline controls, so hand over to it rather than duplicating.
+          nav(`/a/${token}`);
+        }}
+      />
 
       <PresenceHistoryDialog
         sessionId={detail?.sessionId ?? null}

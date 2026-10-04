@@ -72,13 +72,16 @@ export default function Profile() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 lg:max-w-5xl">
+    <div className="mx-auto w-full max-w-2xl space-y-6 lg:max-w-5xl">
       <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
       {/* Two columns on desktop: the editable details on the left, the toggles
-          and extras on the right, instead of one narrow strip down the middle. */}
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <div className="space-y-6">
+          and extras on the right, instead of one narrow strip down the middle.
+          min-w-0 on the columns is what stops a long unbroken string (an email,
+          a subscription endpoint in diagnostics) forcing the whole grid wider
+          than the screen on a phone. */}
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-6">
           <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
             <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />
             <Field k="Member type" v={me.memberType} />
@@ -143,7 +146,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Preferences />
 
           <PwaSettings />
@@ -295,7 +298,7 @@ function PwaSettings() {
 
       {note && <p className="text-xs text-amber-400">{note}</p>}
 
-      <div className="flex gap-2 border-t pt-4">
+      <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row">
         <Button
           variant="outline"
           className="flex-1"
@@ -333,7 +336,7 @@ function PwaSettings() {
       </div>
 
       {diag && (
-        <pre className="overflow-x-auto rounded-xl border bg-muted/30 p-3 text-[11px] leading-relaxed">
+        <pre className="w-full overflow-x-auto rounded-xl border bg-muted/30 p-3 text-[11px] leading-relaxed">
           {Object.entries(diag).map(([k, v]) => `${k}: ${v}`).join('\n')}
         </pre>
       )}

@@ -22,7 +22,14 @@ export type ZiteErrorCode =
 
 export interface ZiteSchedule {
   scheduleType: 'recurring';
-  schedule: { frequency: 'hourly' | 'daily' | 'weekly' | 'monthly'; interval: number };
+  schedule: {
+    frequency: 'hourly' | 'daily' | 'weekly' | 'monthly';
+    interval: number;
+    /** Local hour (0-23) a daily/weekly job should fire at. Without it a job
+     *  anchored on `interval` hours lands on midnight, which is never what a
+     *  reminder wants. */
+    atHour?: number;
+  };
   timezone?: string;
 }
 

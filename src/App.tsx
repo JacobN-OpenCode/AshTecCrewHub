@@ -18,6 +18,7 @@ import AdminMembers from './pages/admin/AdminMembers';
 import EmailLog from './pages/admin/EmailLog';
 import Support from './pages/admin/Support';
 import AdminPresence from './pages/admin/AdminPresence';
+import ServerDiagnostics from './pages/admin/ServerDiagnostics';
 import Calendar from './pages/Calendar';
 import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
@@ -70,6 +71,7 @@ function SignedIn() {
           {me.isAdmin && <Route path="/admin/emails" element={<EmailLog />} />}
           {me.isAdmin && <Route path="/admin/support" element={<Support />} />}
           {(me.isAdmin || me.isStaff) && <Route path="/admin/attendance" element={<AdminPresence />} />}
+          {me.isAdmin && <Route path="/admin/diagnostics" element={<ServerDiagnostics />} />}
           {me.isAdmin && <Route path="/admin/support/:ticketId" element={<Ticket />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

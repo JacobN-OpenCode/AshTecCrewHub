@@ -101,7 +101,9 @@ export async function notifyPresenceWaiting(memberName: string, action: string):
   await sendToMembers(recipients, {
     title: `Waiting to ${action.toLowerCase()}`,
     body: `${memberName} is waiting for you to approve.`,
-    url: '/admin/attendance',
+    // Deep-link straight into the in-app scanner, so tapping the notification
+    // lands on the camera rather than the roster.
+    url: '/admin/attendance?scan=1',
     tag: 'presence-waiting',
   });
 }

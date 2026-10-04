@@ -252,6 +252,9 @@ const matchesSchedule = (s: ZiteSchedule | undefined, now: Date): boolean => {
   );
   const minute = Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, minute: 'numeric' }).format(now));
   if (s.schedule.frequency !== 'hourly' || minute !== 0) return false;
+  // A daily/weekly job names the hour it wants; `interval` on its own would only
+  // ever land on midnight (hour % 24 === 0), which is useless for reminders.
+  if (s.schedule.atHour !== undefined) return hour === s.schedule.atHour;
   return hour % (s.schedule.interval || 1) === 0;
 };
 

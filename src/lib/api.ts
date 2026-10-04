@@ -17,6 +17,13 @@ export type AdminGetDataInputType = NonNullable<_AdminGetDataCfg['inputSchema']>
 export type AdminGetDataOutputType = Awaited<ReturnType<_AdminGetDataCfg['execute']>>;
 export const adminGetData = createCaller<AdminGetDataInputType, AdminGetDataOutputType>('adminGetData');
 
+import type { default as _AdminGetDiagnosticsEp } from '../api/adminGetDiagnostics';
+
+type _AdminGetDiagnosticsCfg = typeof _AdminGetDiagnosticsEp;
+export type AdminGetDiagnosticsInputType = NonNullable<_AdminGetDiagnosticsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetDiagnosticsCfg['execute']>[0]['input'];
+export type AdminGetDiagnosticsOutputType = Awaited<ReturnType<_AdminGetDiagnosticsCfg['execute']>>;
+export const adminGetDiagnostics = createCaller<AdminGetDiagnosticsInputType, AdminGetDiagnosticsOutputType>('adminGetDiagnostics');
+
 import type { default as _AdminGetEmailLogEp } from '../api/adminGetEmailLog';
 
 type _AdminGetEmailLogCfg = typeof _AdminGetEmailLogEp;
@@ -142,6 +149,13 @@ type _DeletePushSubscriptionCfg = typeof _DeletePushSubscriptionEp;
 export type DeletePushSubscriptionInputType = NonNullable<_DeletePushSubscriptionCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeletePushSubscriptionCfg['execute']>[0]['input'];
 export type DeletePushSubscriptionOutputType = Awaited<ReturnType<_DeletePushSubscriptionCfg['execute']>>;
 export const deletePushSubscription = createCaller<DeletePushSubscriptionInputType, DeletePushSubscriptionOutputType>('deletePushSubscription');
+
+import type { default as _FormRemindersEp } from '../api/formReminders';
+
+type _FormRemindersCfg = typeof _FormRemindersEp;
+export type FormRemindersInputType = NonNullable<_FormRemindersCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_FormRemindersCfg['execute']>[0]['input'];
+export type FormRemindersOutputType = Awaited<ReturnType<_FormRemindersCfg['execute']>>;
+export const formReminders = createCaller<FormRemindersInputType, FormRemindersOutputType>('formReminders');
 
 import type { default as _GetCalendarEp } from '../api/getCalendar';
 
@@ -294,6 +308,7 @@ export const updateMyProfile = createCaller<UpdateMyProfileInputType, UpdateMyPr
 export const api = {
   adminDeleteSubEvent,
   adminGetData,
+  adminGetDiagnostics,
   adminGetEmailLog,
   adminGetPresence,
   adminGetPresenceHistory,
@@ -312,6 +327,7 @@ export const api = {
   adminUpdateTicket,
   checkEmail,
   deletePushSubscription,
+  formReminders,
   getCalendar,
   getMe,
   getMyEvents,

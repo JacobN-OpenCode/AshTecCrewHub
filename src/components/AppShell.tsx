@@ -5,7 +5,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@project/components/ui/dropdown-menu';
 import {
-  CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, LayoutGrid, LifeBuoy, Lightbulb,
+  Activity, CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, LayoutGrid, LifeBuoy, Lightbulb,
   Mail, LogOut, Settings2, ShieldCheck, User, Users,
 } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -49,6 +49,7 @@ function Shell() {
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
+    { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
   ];
   const inAdmin = loc.pathname.startsWith('/admin');
 
