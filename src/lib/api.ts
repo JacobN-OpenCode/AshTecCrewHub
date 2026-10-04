@@ -150,13 +150,6 @@ export type DeletePushSubscriptionInputType = NonNullable<_DeletePushSubscriptio
 export type DeletePushSubscriptionOutputType = Awaited<ReturnType<_DeletePushSubscriptionCfg['execute']>>;
 export const deletePushSubscription = createCaller<DeletePushSubscriptionInputType, DeletePushSubscriptionOutputType>('deletePushSubscription');
 
-import type { default as _FormRemindersEp } from '../api/formReminders';
-
-type _FormRemindersCfg = typeof _FormRemindersEp;
-export type FormRemindersInputType = NonNullable<_FormRemindersCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_FormRemindersCfg['execute']>[0]['input'];
-export type FormRemindersOutputType = Awaited<ReturnType<_FormRemindersCfg['execute']>>;
-export const formReminders = createCaller<FormRemindersInputType, FormRemindersOutputType>('formReminders');
-
 import type { default as _GetCalendarEp } from '../api/getCalendar';
 
 type _GetCalendarCfg = typeof _GetCalendarEp;
@@ -327,7 +320,6 @@ export const api = {
   adminUpdateTicket,
   checkEmail,
   deletePushSubscription,
-  formReminders,
   getCalendar,
   getMe,
   getMyEvents,
