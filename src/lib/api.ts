@@ -241,6 +241,13 @@ export type SavePushSubscriptionInputType = NonNullable<_SavePushSubscriptionCfg
 export type SavePushSubscriptionOutputType = Awaited<ReturnType<_SavePushSubscriptionCfg['execute']>>;
 export const savePushSubscription = createCaller<SavePushSubscriptionInputType, SavePushSubscriptionOutputType>('savePushSubscription');
 
+import type { default as _SendTestNotificationEp } from '../api/sendTestNotification';
+
+type _SendTestNotificationCfg = typeof _SendTestNotificationEp;
+export type SendTestNotificationInputType = NonNullable<_SendTestNotificationCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SendTestNotificationCfg['execute']>[0]['input'];
+export type SendTestNotificationOutputType = Awaited<ReturnType<_SendTestNotificationCfg['execute']>>;
+export const sendTestNotification = createCaller<SendTestNotificationInputType, SendTestNotificationOutputType>('sendTestNotification');
+
 import type { default as _SetAdminNotificationsEp } from '../api/setAdminNotifications';
 
 type _SetAdminNotificationsCfg = typeof _SetAdminNotificationsEp;
@@ -319,6 +326,7 @@ export const api = {
   presenceRequest,
   presenceStart,
   savePushSubscription,
+  sendTestNotification,
   setAdminNotifications,
   setAttendance,
   setShowResponse,

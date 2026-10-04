@@ -9,13 +9,13 @@ import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Switch } from '@project/components/ui/switch';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell } from 'lucide-react';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, ACCENTS } from '../lib/uiPrefs';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
-import { pushSupport, setAdminNotificationsEnabled } from '../lib/pushClient';
+import { setAdminNotificationsEnabled, sendTest, currentEndpoint, diagnostics } from '../lib/pushClient';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -167,9 +167,19 @@ function PwaSettings() {
   const [installed] = useState(() => isStandalone());
   const [notif, setNotif] = useState(() => notificationState());
   const [adminNotifs, setAdminNotifs] = useState<boolean>(me.adminNotifications);
+  // Whether THIS device actually holds a push subscription - the thing that
+  // decides if a notification can arrive, as opposed to the stored preference.
+  const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const support = pushSupport();
+  const [diag, setDiag] = useState<Record<string, string> | null>(null);
+
+  // Look for a real browser subscription when the panel opens.
+  useEffect(() => {
+    let alive = true;
+    currentEndpoint().then((ep) => { if (alive) setSubscribed(!!ep); });
+    return () => { alive = false; };
+  }, []);
 
   // Re-read permission when you come back from the browser's own settings.
   useEffect(() => {
@@ -204,6 +214,7 @@ function PwaSettings() {
       }
       setAdminNotifs(next);
       setNotif(notificationState());
+      setSubscribed(!!(await currentEndpoint()));
       await refreshMe();
     } catch (e) {
       setNote((e as Error).message);
@@ -259,10 +270,16 @@ function PwaSettings() {
                 ? 'New bug reports and feature requests, replies, and people waiting at venue check-in.'
                 : 'New support tickets, replies, and people waiting for you to approve a venue check-in.'}
             </span>
+            {/* Distinguish the preference from whether THIS device can receive. */}
+            <span className="block text-xs text-muted-foreground mt-1">
+              {subscribed
+                ? 'This device is set up to receive them.'
+                : 'This device is not subscribed yet — switch this on to allow notifications here.'}
+            </span>
           </span>
           <Switch
-            checked={adminNotifs}
-            disabled={busy || support !== 'ready'}
+            checked={subscribed}
+            disabled={busy}
             onCheckedChange={flip}
             aria-label="Admin notifications"
           />
@@ -278,8 +295,50 @@ function PwaSettings() {
 
       {note && <p className="text-xs text-amber-400">{note}</p>}
 
-      <Button variant="outline" onClick={openPwaWelcome} className="w-full">
-        <Info className="mr-2 h-4 w-4" />
+      <div className="flex gap-2 border-t pt-4">
+        <Button
+          variant="outline"
+          className="flex-1"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setNote(null);
+            try {
+              const r = await sendTest();
+              setNote(
+                r.sent > 0
+                  ? `Sent to ${r.sent} of your ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}. Check your notifications.`
+                  : r.subscriptions === 0
+                    ? 'No device is subscribed yet. Turn on admin notifications above (or the switch), and allow the permission prompt.'
+                    : `Could not deliver to ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}. They may have been uninstalled; toggle notifications off and on again.`,
+              );
+            } catch (e) {
+              setNote((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Bell className="mr-2 h-4 w-4" />
+          Send test notification
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={async () => setDiag(await diagnostics())}
+        >
+          <Info className="mr-2 h-4 w-4" />
+          Why no notifications?
+        </Button>
+      </div>
+
+      {diag && (
+        <pre className="overflow-x-auto rounded-xl border bg-muted/30 p-3 text-[11px] leading-relaxed">
+          {Object.entries(diag).map(([k, v]) => `${k}: ${v}`).join('\n')}
+        </pre>
+      )}
+
+      <Button variant="ghost" size="sm" className="w-full" onClick={openPwaWelcome}>
         Show the PWA welcome again
       </Button>
     </div>

@@ -10,7 +10,32 @@
  *   - Notification.permission denied -> the member said no in the browser
  */
 
-import { getPushConfig, savePushSubscription, deletePushSubscription, setAdminNotifications } from '#api';
+import { getPushConfig, savePushSubscription, deletePushSubscription, setAdminNotifications, sendTestNotification } from '#api';
+
+/** Ask the server to push a test to this member's devices and report how many. */
+export async function sendTest(): Promise<{ sent: number; subscriptions: number }> {
+  return sendTestNotification({});
+}
+
+/** A snapshot of everything that decides whether a push can arrive here. */
+export async function diagnostics(): Promise<Record<string, string>> {
+  const out: Record<string, string> = {
+    pushSupported: pushSupport(),
+    notificationPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unavailable',
+    serviceWorker: 'serviceWorker' in navigator ? (navigator.serviceWorker.controller ? 'registered' : 'not controlling') : 'unsupported',
+    pushManager: 'PushManager' in window ? 'present' : 'absent',
+    standalone: (window.matchMedia?.('(display-mode: standalone)').matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true) ? 'yes' : 'no',
+    userAgent: navigator.userAgent.slice(0, 120),
+  };
+  try {
+    const ep = await currentEndpoint();
+    out.subscription = ep ? ep.slice(0, 60) : 'none on this device';
+  } catch (e) {
+    out.subscription = `error: ${(e as Error).message}`;
+  }
+  return out;
+}
 
 export type PushSupport = 'ready' | 'unsupported' | 'needs-install' | 'denied';
 
@@ -46,6 +71,15 @@ async function registration(): Promise<ServiceWorkerRegistration | null> {
   } catch {
     return null;
   }
+}
+
+/** The endpoint of this device's subscription, or null if it has none. */
+export async function currentEndpoint(): Promise<string | null> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  const reg = await registration();
+  if (!reg) return null;
+  const sub = await reg.pushManager.getSubscription();
+  return sub?.endpoint ?? null;
 }
 
 /**
