@@ -132,12 +132,34 @@ console.log(`smoke: ${BASE}\n`);
 }
 
 // -------------------------------------------------------------- magic link
+// Mint throwaway accounts rather than signing in as a real crew member. Sign-in
+// goes by emailed magic link and the suite also calls adminSendMessage, so
+// reusing a real address would mail actual students every time it ran. Both use
+// example.com, which is reserved by RFC 2606 and has no MX record, so nothing is
+// ever delivered to a person.
+const ADMIN_EMAIL = 'smoke-admin@example.com';
+const CREW_EMAIL = 'smoke-crew@example.com';
+
+for (const email of [ADMIN_EMAIL, CREW_EMAIL]) {
+  await db().query(`DELETE FROM "CrewMembers" WHERE "schoolEmail" = $1`, [email]);
+}
+
 const { rows: adminRows } = await db().query(
-  `SELECT "id", "schoolEmail", "firstName" FROM "CrewMembers" WHERE "isAdmin" = true AND "isPreviewAccount" = false ORDER BY "schoolEmail" LIMIT 1`
+  `INSERT INTO "CrewMembers" ("id", "schoolEmail", "firstName", "lastName", "year", "isAdmin", "memberType", "roles", "isPreviewAccount")
+   VALUES (gen_random_uuid(), $1, 'Smoke', 'Admin', 'Staff', true, 'Teacher', ARRAY['Stage Manager'], false)
+   RETURNING "id", "schoolEmail", "firstName"`,
+  [ADMIN_EMAIL]
 );
 const admin = adminRows[0];
+
+await db().query(
+  `INSERT INTO "CrewMembers" ("id", "schoolEmail", "firstName", "lastName", "year", "isAdmin", "memberType", "roles", "isPreviewAccount")
+   VALUES (gen_random_uuid(), $1, 'Smoke', 'Crew', 'Year 12', false, 'Normal Member', ARRAY['Lighting'], false)`,
+  [CREW_EMAIL]
+);
+
 if (!admin) {
-  console.log('  FAIL no admin crew member found to sign in as');
+  console.log('  FAIL could not create the temporary admin crew member');
   failures.push('no admin crew member');
 } else {
   // Requesting a link for an address that is not on the crew list must look
@@ -146,11 +168,11 @@ if (!admin) {
   const stranger = await fetch(`${BASE}/api/auth/magic-link`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: 'nobody@ashfordschool.co.uk' }),
+    body: JSON.stringify({ email: 'nobody@example.com' }),
   });
   const strangerBody = JSON.parse((await stranger.text()) || '{}');
   check('magic link for an unknown address returns ok:true', stranger.status === 200 && strangerBody.ok === true);
-  const { rows: leaked } = await db().query(`SELECT count(*)::int AS n FROM "AuthMagicTokens" WHERE "email" = 'nobody@ashfordschool.co.uk'`);
+  const { rows: leaked } = await db().query(`SELECT count(*)::int AS n FROM "AuthMagicTokens" WHERE "email" = 'nobody@example.com'`);
   check('no token created for an unknown address', leaked[0].n === 0);
 
   const requested = await fetch(`${BASE}/api/auth/magic-link`, {
@@ -189,7 +211,12 @@ if (!admin) {
 
     const data = await call('adminGetData', {});
     check('adminGetData returns members/shows/events', data.status === 200 && Array.isArray(data.body?.members) && Array.isArray(data.body?.subEvents) && Array.isArray(data.body?.shows));
-    check('adminGetData sees the migrated rows', data.body?.members?.length === 18 && data.body?.subEvents?.length === 21 && data.body?.shows?.length === 5, `members=${data.body?.members?.length} subs=${data.body?.subEvents?.length} shows=${data.body?.shows?.length}`);
+    // The suite's own throwaway accounts are on the crew list too, so exclude
+    // them rather than letting the count drift with the fixtures.
+    const migrated = (data.body?.members ?? []).filter(
+      (m: any) => !/@example\.com$/i.test(String(m?.email ?? m?.schoolEmail ?? ''))
+    );
+    check('adminGetData sees the migrated rows', migrated.length === 18 && data.body?.subEvents?.length === 21 && data.body?.shows?.length === 5, `members=${migrated.length} subs=${data.body?.subEvents?.length} shows=${data.body?.shows?.length}`);
     check('adminGetData maps linked ids off responses/attendance', Array.isArray(data.body?.responses) && Array.isArray(data.body?.attendance));
 
     const cal = await call('getCalendar', {});
@@ -321,14 +348,13 @@ if (!admin) {
     // member asks to sign in, and each side scans the resulting QR code. This
     // also covers presenceStart/presenceEnd/presenceRequest, the last write
     // endpoints the suite was not touching.
+    //
+    // The crew member is the temporary example.com one created above, not a real
+    // student: signing them in emails a magic link, and presenceRequest mails
+    // them too.
     const { rows: crewRows } = await db().query(
-      // isStaff is derived, not a column: memberType === 'Teacher' || year === 'Staff'.
-      `SELECT "id", "schoolEmail" FROM "CrewMembers"
-        WHERE "isAdmin" = false
-          AND coalesce("memberType", '') <> 'Teacher'
-          AND coalesce("year", '') <> 'Staff'
-          AND "isPreviewAccount" = false
-        ORDER BY "schoolEmail" LIMIT 1`
+      `SELECT "id", "schoolEmail" FROM "CrewMembers" WHERE "schoolEmail" = $1`,
+      [CREW_EMAIL]
     );
     const crew = crewRows[0];
     if (!crew || !subId) {
@@ -347,7 +373,7 @@ if (!admin) {
       // Staff-but-not-admin must also be allowed to read the roster. The real
       // data has no such account (the one staff member is an admin), so mint a
       // temporary one, prove the path, then remove it.
-      const staffEmail = 'smoke-staff@ashfordschool.co.uk';
+      const staffEmail = 'smoke-staff@example.com';
       await db().query(`DELETE FROM "CrewMembers" WHERE "schoolEmail" = $1`, [staffEmail]);
       await db().query(
         `INSERT INTO "CrewMembers" ("id", "schoolEmail", "firstName", "lastName", "year", "isAdmin", "memberType", "roles", "isPreviewAccount")
@@ -414,11 +440,15 @@ if (!admin) {
   }
 }
 
-// Leave no auth rows behind either: the suite mints a session per signed-in
-// member, and production will be seeded from the CSVs, not from this run.
-await db().query(`DELETE FROM "CrewMembers" WHERE "schoolEmail" = 'smoke-staff@ashfordschool.co.uk'`);
-await db().query('DELETE FROM "AuthMagicTokens"');
-await db().query('DELETE FROM "AuthSessions"');
+// Leave no auth rows behind either. Scoped to the throwaway accounts on
+// purpose: an unscoped DELETE here would sign every real crew member out and
+// void their pending magic links the moment anyone ran the suite in production.
+const SMOKE_EMAILS = [ADMIN_EMAIL, CREW_EMAIL, 'smoke-staff@example.com'];
+for (const email of SMOKE_EMAILS) {
+  await db().query(`DELETE FROM "CrewMembers" WHERE "schoolEmail" = $1`, [email]);
+}
+await db().query(`DELETE FROM "AuthMagicTokens" WHERE "email" = ANY($1)`, [SMOKE_EMAILS]);
+await db().query(`DELETE FROM "AuthSessions" WHERE "email" = ANY($1)`, [SMOKE_EMAILS]);
 
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
