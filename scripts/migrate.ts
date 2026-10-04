@@ -180,6 +180,15 @@ const D: Record<string, Desc> = {
 };
 
 async function main() {
+  // Apply the schema first so `npm run migrate` works against an empty database.
+  // The DDL is idempotent (CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT
+  // EXISTS), so this is safe on a database that is already populated.
+  {
+    const schema = readFileSync(new URL('../server/db/schema.sql', import.meta.url), 'utf8');
+    await db().query(schema);
+    console.log('  applied server/db/schema.sql');
+  }
+
   const dirArg = process.argv.indexOf('--dir');
   const dir = dirArg !== -1 ? process.argv[dirArg + 1] : join(process.env.HOME!, 'Downloads');
 
