@@ -38,7 +38,7 @@ function Shell() {
     { to: '/', label: 'My Events', icon: CalendarCheck },
     { to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null },
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
-    { to: '/profile', label: 'My Profile', icon: User },
+    { to: '/profile', label: 'Settings', icon: User },
     { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },
   ];
 
@@ -61,7 +61,7 @@ function Shell() {
         </div>
       )}
       <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold shrink-0">
             <Lightbulb className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">{PLATFORM}</span>
@@ -147,7 +147,7 @@ function Shell() {
           </div>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 pt-8 pb-20">
+      <main className="max-w-7xl mx-auto px-4 pt-8 pb-20">
         <PresenceBanner hide={loc.pathname === '/attendance'} />
         <Outlet />
       </main>

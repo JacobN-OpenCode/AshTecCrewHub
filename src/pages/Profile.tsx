@@ -50,8 +50,8 @@ export default function Profile() {
 
   if (previewing) {
     return (
-      <div className="max-w-2xl space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+      <div className="mx-auto max-w-2xl space-y-6 lg:max-w-3xl">
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-6 flex gap-3">
           <Lock className="h-5 w-5 shrink-0 text-orange-400" />
           <div className="space-y-1">
@@ -70,17 +70,21 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+    <div className="mx-auto max-w-2xl space-y-6 lg:max-w-5xl">
+      <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
-      <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
-        <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />
-        <Field k="Member type" v={me.memberType} />
-        <Field k="Assigned roles" v={me.roles.length ? <div className="flex flex-wrap gap-1">{me.roles.map((r) => <Badge key={r} variant="outline">{r}</Badge>)}</div> : null} />
-        <Field k="Head of" v={me.headOf.length ? <div className="flex flex-wrap gap-1">{me.headOf.map((r) => <Badge key={r} className="bg-primary/20 text-primary border-primary/30" variant="outline">{r}</Badge>)}</div> : null} />
-      </div>
+      {/* Two columns on desktop: the editable details on the left, the toggles
+          and extras on the right, instead of one narrow strip down the middle. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-6">
+          <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
+            <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />
+            <Field k="Member type" v={me.memberType} />
+            <Field k="Assigned roles" v={me.roles.length ? <div className="flex flex-wrap gap-1">{me.roles.map((r) => <Badge key={r} variant="outline">{r}</Badge>)}</div> : null} />
+            <Field k="Head of" v={me.headOf.length ? <div className="flex flex-wrap gap-1">{me.headOf.map((r) => <Badge key={r} className="bg-primary/20 text-primary border-primary/30" variant="outline">{r}</Badge>)}</div> : null} />
+          </div>
 
-      <div className="rounded-2xl border bg-card p-6 space-y-5">
+          <div className="rounded-2xl border bg-card p-6 space-y-5">
         <div>
           <h2 className="font-semibold text-lg">Your details</h2>
           <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
@@ -134,13 +138,17 @@ export default function Profile() {
         </div>
 
         <Button data-tour="profile-save" onClick={save} disabled={busy || !p1 || !p2 || p1 === p2}>{busy ? 'Saving…' : 'Save profile'}</Button>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <Preferences />
+
+          <WhatsAppCommunity />
+
+          <CalendarIntegration />
+        </div>
       </div>
-
-      <Preferences />
-
-      <WhatsAppCommunity />
-
-      <CalendarIntegration />
     </div>
   );
 }
