@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { Button } from '@project/components/ui/button';
+import { Input } from '@project/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
+import { Loader2, Lock } from 'lucide-react';
 
 const LINES = [
   'Meow!',
@@ -12,6 +17,98 @@ const LINES = [
   '*knocks mic off stand*',
 ];
 
+/** The admins who have an emergency passphrase. Add an email here when one is set. */
+const CAT_ADMINS = ['navaratnej@ashpupil.co.uk'];
+
+/**
+ * Emergency admin sign-in, opened by tapping the cat five times quickly.
+ *
+ * Why it exists: if the magic-link email is filtered (the school does filter one
+ * of our domains) an admin can otherwise be locked out entirely. The passphrase
+ * is checked on the server; this dialog only collects it.
+ */
+function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [email, setEmail] = useState(CAT_ADMINS[0]);
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setPassword(''); setProblem(null); }
+  }, [open]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      const res = await fetch('/api/auth/cat-login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setProblem(body?.message ?? 'Those details are not right.');
+        setPassword('');
+        return;
+      }
+      toast.success('Signed in');
+      // Full reload so the app picks up the new session from scratch, exactly as
+      // a magic-link sign-in would.
+      window.location.href = '/';
+    } catch {
+      setProblem('That did not work. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-primary" /> Which admin are you?
+          </DialogTitle>
+          <DialogDescription>Emergency sign-in, for when the email will not arrive.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1">
+            <label htmlFor="cat-admin" className="text-sm font-medium">Admin</label>
+            <select
+              id="cat-admin"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              {CAT_ADMINS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="cat-pass" className="text-sm font-medium">Password</label>
+            <Input
+              id="cat-pass"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              autoFocus
+              placeholder="••••••"
+            />
+          </div>
+          {problem && <p className="text-sm text-destructive">{problem}</p>}
+          <Button className="w-full" disabled={busy || !password}>
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Sign in
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** The crew cat. Watches your cursor, jumps when poked, naps when ignored. */
 export default function LoginCat() {
   const ref = useRef<HTMLImageElement>(null);
@@ -19,7 +116,10 @@ export default function LoginCat() {
   const [say, setSay] = useState<string | null>(null);
   const [jump, setJump] = useState(0);
   const [asleep, setAsleep] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const idle = useRef<number>();
+  // Rapid-tap detector: five taps inside five seconds opens the admin sign-in.
+  const taps = useRef<number[]>([]);
 
   useEffect(() => {
     const wake = () => {
@@ -49,47 +149,59 @@ export default function LoginCat() {
     setJump((j) => j + 1);
     setSay(LINES[Math.floor(Math.random() * LINES.length)]);
     window.setTimeout(() => setSay(null), 2500);
+
+    // Keep only the taps from the last 5 seconds; five of them opens the dialog.
+    const now = Date.now();
+    taps.current = [...taps.current.filter((t) => now - t < 5000), now];
+    if (taps.current.length >= 5) {
+      taps.current = [];
+      setSay(null);
+      setAdminOpen(true);
+    }
   };
 
   return (
-    <div className="fixed bottom-2 left-3 z-40 select-none">
-      <AnimatePresence>
-        {(say || asleep) && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="absolute bottom-full left-10 mb-1 whitespace-nowrap rounded-xl border bg-card px-3 py-1.5 text-xs shadow-lg"
-          >
-            {say ?? 'Zzz…'}
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <motion.img
-        ref={ref}
-        key={jump}
-        src="/cat.png"
-        alt="The crew cat. Click it!"
-        onClick={poke}
-        width={84}
-        height={87}
-        className="cursor-pointer"
-        animate={
-          jump
-            ? { y: [0, -30, 0, -8, 0], rotate: [0, -7, 5, 0] }
-            : asleep
-              ? { rotate: [0, 3, 0], scale: [1, 0.99, 1] }
-              : { rotate: lean.x, y: [0, -2, 0] }
-        }
-        transition={
-          jump
-            ? { duration: 0.7 }
-            : asleep
-              ? { rotate: { repeat: Infinity, duration: 3.4 }, scale: { repeat: Infinity, duration: 3.4 } }
-              : { rotate: { type: 'spring', stiffness: 120, damping: 12 }, y: { repeat: Infinity, duration: 4 } }
-        }
-        draggable={false}
-      />
-    </div>
+    <>
+      <div className="fixed bottom-2 left-3 z-40 select-none">
+        <AnimatePresence>
+          {(say || asleep) && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="absolute bottom-full left-10 mb-1 whitespace-nowrap rounded-xl border bg-card px-3 py-1.5 text-xs shadow-lg"
+            >
+              {say ?? 'Zzz…'}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <motion.img
+          ref={ref}
+          key={jump}
+          src="/cat.png"
+          alt="The crew cat. Click it!"
+          onClick={poke}
+          width={84}
+          height={87}
+          className="cursor-pointer"
+          animate={
+            jump
+              ? { y: [0, -30, 0, -8, 0], rotate: [0, -7, 5, 0] }
+              : asleep
+                ? { rotate: [0, 3, 0], scale: [1, 0.99, 1] }
+                : { rotate: lean.x, y: [0, -2, 0] }
+          }
+          transition={
+            jump
+              ? { duration: 0.7 }
+              : asleep
+                ? { rotate: { repeat: Infinity, duration: 3.4 }, scale: { repeat: Infinity, duration: 3.4 } }
+                : { rotate: { type: 'spring', stiffness: 120, damping: 12 }, y: { repeat: Infinity, duration: 4 } }
+          }
+          draggable={false}
+        />
+      </div>
+      <CatAdminLogin open={adminOpen} onClose={() => setAdminOpen(false)} />
+    </>
   );
 }

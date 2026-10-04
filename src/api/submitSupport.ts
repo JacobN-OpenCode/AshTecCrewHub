@@ -4,6 +4,7 @@ import { zite } from '#db';
 import { Email } from '#email';
 import { requireMember, isEmailable, isStaff } from '../lib/server';
 import { SUPPORT_MESSAGE_MAX, noReplyNotice } from '../lib/emails';
+import { notifyNewTicket } from '../../server/notify';
 
 export default createEndpoint({
   description: 'Submits a bug report, feature request or support request and emails the right people',
@@ -41,6 +42,9 @@ export default createEndpoint({
       } catch { /* keep going */ }
     }
     if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never });
+    // Push as well as email: a feature request or bug report reaches the
+    // maintainers straight away, and General Support reaches the admins.
+    await notifyNewTicket({ id: ticket.id, type: input.type, subject: input.subject.trim(), submittedBy: me.id });
     return { id: ticket.id, notified: logs.length };
   },
 });

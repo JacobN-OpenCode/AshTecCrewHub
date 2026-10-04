@@ -257,4 +257,45 @@ CREATE TABLE IF NOT EXISTS "AuthSessions" (
 );
 CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
 
+-- Admin-notification opt-in, per member. NULL means "not chosen" and falls back
+-- to the sensible default: on for admins, off for everyone else. A column rather
+-- than a settings row because it is genuinely per-person.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "adminNotifications" boolean;
+
+-- Small key/value store for app-wide settings the server sets for itself (the
+-- generated VAPID keypair) and that an admin can flip at runtime. Created IF NOT
+-- EXISTS so it is safe to re-run.
+CREATE TABLE IF NOT EXISTS "AppSettings" (
+  "key"   text PRIMARY KEY,
+  "value" text NOT NULL
+);
+
+-- Web Push subscriptions, one row per browser/device a member has enabled
+-- notifications on. A member can have several (phone + laptop), so this is keyed
+-- by the subscription endpoint rather than by member.
+CREATE TABLE IF NOT EXISTS "PushSubscriptions" (
+  "id"         uuid PRIMARY KEY,
+  "endpoint"   text NOT NULL,
+  "member"     uuid,
+  "p256dh"     text NOT NULL,
+  "auth"       text NOT NULL,
+  "userAgent"  text NOT NULL DEFAULT '',
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "PushSubscriptions_endpoint_idx" ON "PushSubscriptions" ("endpoint");
+CREATE INDEX IF NOT EXISTS "PushSubscriptions_member_idx" ON "PushSubscriptions" ("member");
+
+-- What has already been pushed, so a scheduler that runs every minute does not
+-- send the same "your form is due" twenty times. The key is the member, the kind
+-- of notification and the thing it refers to; one row means "sent once".
+CREATE TABLE IF NOT EXISTS "NotificationLog" (
+  "id"         uuid PRIMARY KEY,
+  "dedupeKey"  text NOT NULL,
+  "member"     uuid,
+  "kind"       text NOT NULL,
+  "sentAt"     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "NotificationLog_dedupe_idx" ON "NotificationLog" ("dedupeKey");
+
 COMMIT;

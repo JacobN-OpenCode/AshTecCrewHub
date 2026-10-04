@@ -15,6 +15,7 @@ import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, ACCENTS } from '../lib/uiPrefs';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
+import { pushSupport, setAdminNotificationsEnabled } from '../lib/pushClient';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -157,12 +158,18 @@ export default function Profile() {
 }
 
 /**
- * PWA settings: whether the app is installed, the notification state, a way to
- * re-open the welcome, and install instructions when it is not installed yet.
+ * PWA settings: whether the app is installed, the notification state, the admin
+ * notifications switch, a way to re-open the welcome, and install instructions
+ * when it is not installed yet.
  */
 function PwaSettings() {
+  const { me, refreshMe } = useMe();
   const [installed] = useState(() => isStandalone());
   const [notif, setNotif] = useState(() => notificationState());
+  const [adminNotifs, setAdminNotifs] = useState<boolean>(me.adminNotifications);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const support = pushSupport();
 
   // Re-read permission when you come back from the browser's own settings.
   useEffect(() => {
@@ -174,6 +181,36 @@ function PwaSettings() {
       window.removeEventListener('focus', onVisible);
     };
   }, []);
+
+  const canToggleAdmin = me.isAdmin || me.isMaintainer;
+
+  const flip = async (next: boolean) => {
+    setBusy(true);
+    setNote(null);
+    try {
+      // Turning on opens the subscription and asks the OS; turning off drops it.
+      const r = await setAdminNotificationsEnabled(next);
+      if (!r.ok) {
+        setNote(
+          r.reason === 'needs-install'
+            ? 'Add the app to your home screen first, then turn this on.'
+            : r.reason === 'denied'
+              ? 'Your browser is blocking notifications. Allow them in browser settings, then try again.'
+              : 'This browser cannot do notifications.',
+        );
+        // Permission not granted means no subscription, so reflect that.
+        if (next) setAdminNotifs(false);
+        return;
+      }
+      setAdminNotifs(next);
+      setNotif(notificationState());
+      await refreshMe();
+    } catch (e) {
+      setNote((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const stateLabel: Record<string, string> = {
     granted: 'On',
@@ -192,7 +229,7 @@ function PwaSettings() {
         <p className="text-sm text-muted-foreground mt-1">
           {installed
             ? 'You are using the installed app.'
-            : 'You are on the website. Install the app to get the home-screen icon and full-screen view.'}
+            : 'You are on the website. Install the app to get the home-screen icon, full-screen view and notifications.'}
         </p>
       </div>
 
@@ -211,6 +248,35 @@ function PwaSettings() {
           {notif === 'granted' ? 'On' : 'Off'}
         </Badge>
       </div>
+
+      {/* Only admins and maintainers have operational notifications to receive. */}
+      {canToggleAdmin && (
+        <label className="flex items-start justify-between gap-4 border-t pt-4 cursor-pointer">
+          <span>
+            <span className="block font-medium text-sm">Admin notifications</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              {me.isMaintainer
+                ? 'New bug reports and feature requests, replies, and people waiting at venue check-in.'
+                : 'New support tickets, replies, and people waiting for you to approve a venue check-in.'}
+            </span>
+          </span>
+          <Switch
+            checked={adminNotifs}
+            disabled={busy || support !== 'ready'}
+            onCheckedChange={flip}
+            aria-label="Admin notifications"
+          />
+        </label>
+      )}
+
+      {!canToggleAdmin && (
+        <p className="border-t pt-4 text-xs text-muted-foreground">
+          You will get notifications about your own commitments — forms due, response deadlines, and checking in to the
+          venue.
+        </p>
+      )}
+
+      {note && <p className="text-xs text-amber-400">{note}</p>}
 
       <Button variant="outline" onClick={openPwaWelcome} className="w-full">
         <Info className="mr-2 h-4 w-4" />

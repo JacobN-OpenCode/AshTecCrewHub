@@ -136,6 +136,13 @@ export type CheckEmailInputType = NonNullable<_CheckEmailCfg['inputSchema']> ext
 export type CheckEmailOutputType = Awaited<ReturnType<_CheckEmailCfg['execute']>>;
 export const checkEmail = createCaller<CheckEmailInputType, CheckEmailOutputType>('checkEmail');
 
+import type { default as _DeletePushSubscriptionEp } from '../api/deletePushSubscription';
+
+type _DeletePushSubscriptionCfg = typeof _DeletePushSubscriptionEp;
+export type DeletePushSubscriptionInputType = NonNullable<_DeletePushSubscriptionCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeletePushSubscriptionCfg['execute']>[0]['input'];
+export type DeletePushSubscriptionOutputType = Awaited<ReturnType<_DeletePushSubscriptionCfg['execute']>>;
+export const deletePushSubscription = createCaller<DeletePushSubscriptionInputType, DeletePushSubscriptionOutputType>('deletePushSubscription');
+
 import type { default as _GetCalendarEp } from '../api/getCalendar';
 
 type _GetCalendarCfg = typeof _GetCalendarEp;
@@ -171,12 +178,26 @@ export type GetPublicCalendarInputType = NonNullable<_GetPublicCalendarCfg['inpu
 export type GetPublicCalendarOutputType = Awaited<ReturnType<_GetPublicCalendarCfg['execute']>>;
 export const getPublicCalendar = createCaller<GetPublicCalendarInputType, GetPublicCalendarOutputType>('getPublicCalendar');
 
+import type { default as _GetPushConfigEp } from '../api/getPushConfig';
+
+type _GetPushConfigCfg = typeof _GetPushConfigEp;
+export type GetPushConfigInputType = NonNullable<_GetPushConfigCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetPushConfigCfg['execute']>[0]['input'];
+export type GetPushConfigOutputType = Awaited<ReturnType<_GetPushConfigCfg['execute']>>;
+export const getPushConfig = createCaller<GetPushConfigInputType, GetPushConfigOutputType>('getPushConfig');
+
 import type { default as _GetStageLayoutEp } from '../api/getStageLayout';
 
 type _GetStageLayoutCfg = typeof _GetStageLayoutEp;
 export type GetStageLayoutInputType = NonNullable<_GetStageLayoutCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetStageLayoutCfg['execute']>[0]['input'];
 export type GetStageLayoutOutputType = Awaited<ReturnType<_GetStageLayoutCfg['execute']>>;
 export const getStageLayout = createCaller<GetStageLayoutInputType, GetStageLayoutOutputType>('getStageLayout');
+
+import type { default as _NotificationPassEp } from '../api/notificationPass';
+
+type _NotificationPassCfg = typeof _NotificationPassEp;
+export type NotificationPassInputType = NonNullable<_NotificationPassCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_NotificationPassCfg['execute']>[0]['input'];
+export type NotificationPassOutputType = Awaited<ReturnType<_NotificationPassCfg['execute']>>;
+export const notificationPass = createCaller<NotificationPassInputType, NotificationPassOutputType>('notificationPass');
 
 import type { default as _PresenceApprovalEp } from '../api/presenceApproval';
 
@@ -212,6 +233,20 @@ type _PresenceStartCfg = typeof _PresenceStartEp;
 export type PresenceStartInputType = NonNullable<_PresenceStartCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_PresenceStartCfg['execute']>[0]['input'];
 export type PresenceStartOutputType = Awaited<ReturnType<_PresenceStartCfg['execute']>>;
 export const presenceStart = createCaller<PresenceStartInputType, PresenceStartOutputType>('presenceStart');
+
+import type { default as _SavePushSubscriptionEp } from '../api/savePushSubscription';
+
+type _SavePushSubscriptionCfg = typeof _SavePushSubscriptionEp;
+export type SavePushSubscriptionInputType = NonNullable<_SavePushSubscriptionCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SavePushSubscriptionCfg['execute']>[0]['input'];
+export type SavePushSubscriptionOutputType = Awaited<ReturnType<_SavePushSubscriptionCfg['execute']>>;
+export const savePushSubscription = createCaller<SavePushSubscriptionInputType, SavePushSubscriptionOutputType>('savePushSubscription');
+
+import type { default as _SetAdminNotificationsEp } from '../api/setAdminNotifications';
+
+type _SetAdminNotificationsCfg = typeof _SetAdminNotificationsEp;
+export type SetAdminNotificationsInputType = NonNullable<_SetAdminNotificationsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SetAdminNotificationsCfg['execute']>[0]['input'];
+export type SetAdminNotificationsOutputType = Awaited<ReturnType<_SetAdminNotificationsCfg['execute']>>;
+export const setAdminNotifications = createCaller<SetAdminNotificationsInputType, SetAdminNotificationsOutputType>('setAdminNotifications');
 
 import type { default as _SetAttendanceEp } from '../api/setAttendance';
 
@@ -269,17 +304,22 @@ export const api = {
   adminSetMaintainer,
   adminUpdateTicket,
   checkEmail,
+  deletePushSubscription,
   getCalendar,
   getMe,
   getMyEvents,
   getPresence,
   getPublicCalendar,
+  getPushConfig,
   getStageLayout,
+  notificationPass,
   presenceApproval,
   presenceDecision,
   presenceEnd,
   presenceRequest,
   presenceStart,
+  savePushSubscription,
+  setAdminNotifications,
   setAttendance,
   setShowResponse,
   submitSupport,

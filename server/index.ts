@@ -27,6 +27,7 @@ import {
   destroySession,
   pruneAuth,
 } from './auth.js';
+import { catLogin } from './catLogin.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -194,9 +195,34 @@ app.post('/api/auth/verify', async (req, res) => {
   res.redirect(303, callbackURL);
 });
 
-app.post('/api/auth/logout', async (req, res) => {
-  await destroySession(req, res);
+app.post('/api/auth/logout', async (req, res) => {  await destroySession(req, res);
   res.json({ ok: true });
+});
+
+/**
+ * Cat easter-egg sign-in. Validates through the catAdminLogin endpoint, then sets
+ * the session cookie here so the cookie is HTTP-only and the token never has to
+ * be handled by client JavaScript.
+ */
+app.post('/api/auth/cat-login', async (req, res) => {
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  const password = String(req.body?.password ?? '');
+  if (!email || !password) return res.status(400).json({ message: 'Enter both your email and the password.' });
+  try {
+    const token = await catLogin(email, password);
+    if (!token) return res.status(401).json({ message: 'Those details are not right.' });
+    res.cookie('crew_session', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: (process.env.APP_URL ?? '').startsWith('https://'),
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error('[server] cat-login failed:', e);
+    res.status(500).json({ message: 'That did not work. Try again.' });
+  }
 });
 
 app.get('/api/auth/session', async (req, res) => {
