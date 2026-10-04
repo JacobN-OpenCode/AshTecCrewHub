@@ -69,3 +69,13 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// Register the service worker for the installed PWA (offline shell). Production
+// only: in dev it would serve stale bundles and fight Vite's HMR.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // A failed registration just means no offline shell; the app still works.
+    });
+  });
+}

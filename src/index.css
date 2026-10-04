@@ -102,3 +102,12 @@
 .spotlight {
   background-image: radial-gradient(ellipse 60% 50% at 50% -10%, hsl(var(--primary) / 0.18), transparent 70%);
 }
+
+/* Installed-PWA safe areas (notch, home indicator). viewport-fit=cover in
+   index.html lets the app draw edge to edge; these keep the header, content and
+   the floating help button clear of the hardware. No-ops on a normal browser. */
+@supports (padding: env(safe-area-inset-top)) {
+  .app-header { padding-top: env(safe-area-inset-top); }
+  .app-main { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  .app-fab { bottom: calc(1rem + env(safe-area-inset-bottom)) !important; }
+}

@@ -22,6 +22,7 @@ import Calendar from './pages/Calendar';
 import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
 import LoginCat from './components/LoginCat';
+import PwaWelcome from './components/PwaWelcome';
 import { MeContext, type Me } from './lib/me';
 import { applyAccent, getAccent } from './lib/uiPrefs';
 
@@ -83,6 +84,7 @@ export default function App() {
     <BrowserRouter>
       {isLoading ? <Spinner /> : user ? <SignedIn /> : <SignedOut />}
       <Toaster />
+      <PwaWelcome />
     </BrowserRouter>
   );
 }

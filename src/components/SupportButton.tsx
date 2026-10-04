@@ -46,13 +46,13 @@ export default function SupportButton() {
           onClick={() => setOpen(true)}
           aria-label="Help & feedback"
           title="Help & feedback"
-          className="fixed bottom-4 left-4 z-40 h-11 w-11 rounded-full shadow-lg p-0"
+          className="app-fab fixed bottom-4 left-4 z-40 h-11 w-11 rounded-full shadow-lg p-0"
           size="icon"
         >
           <LifeBuoy className="h-5 w-5" />
         </Button>
       ) : (
-        <Button data-tour="support" onClick={() => setOpen(true)} className="fixed bottom-4 left-4 z-40 rounded-full shadow-lg" size="sm">
+        <Button data-tour="support" onClick={() => setOpen(true)} className="app-fab fixed bottom-4 left-4 z-40 rounded-full shadow-lg" size="sm">
           <LifeBuoy className="h-4 w-4 mr-1.5" />Help & feedback
         </Button>
       )}

@@ -60,7 +60,7 @@ function Shell() {
           <Button size="sm" variant="secondary" className="h-7" onClick={exitPreview}>Exit preview</Button>
         </div>
       )}
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+      <header className="app-header sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold shrink-0">
             <Lightbulb className="h-5 w-5 text-primary" />
@@ -147,7 +147,7 @@ function Shell() {
           </div>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 pt-8 pb-20">
+      <main className="app-main max-w-7xl mx-auto px-4 pt-8 pb-20">
         <PresenceBanner hide={loc.pathname === '/attendance'} />
         <Outlet />
       </main>
