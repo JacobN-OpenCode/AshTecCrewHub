@@ -19,6 +19,7 @@ import EmailLog from './pages/admin/EmailLog';
 import Support from './pages/admin/Support';
 import AdminPresence from './pages/admin/AdminPresence';
 import ServerDiagnostics from './pages/admin/ServerDiagnostics';
+import Tools from './pages/Tools';
 import Calendar from './pages/Calendar';
 import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
@@ -66,6 +67,7 @@ function SignedIn() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/stage" element={<StageLayout />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
           {me.isAdmin && <Route path="/admin/members" element={<AdminMembers />} />}
           {me.isAdmin && <Route path="/admin/emails" element={<EmailLog />} />}
