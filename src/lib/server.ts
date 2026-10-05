@@ -103,7 +103,9 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   id: m.id,
   firstName: m.firstName ?? '',
   lastName: m.lastName ?? '',
-  shortUsername: `${(m.lastName ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}${(m.firstName ?? '').slice(0, 1).toLowerCase()}` || (m.schoolEmail ?? '').split('@')[0],
+  // Username is the local part of the email address, so it can never collide
+  // with another member and matches what people already type to sign in.
+  shortUsername: (m.schoolEmail ?? '').split('@')[0] || 'member',
   year: m.year ?? '',
   email: m.schoolEmail ?? '',
   isAdmin: !!m.isAdmin,

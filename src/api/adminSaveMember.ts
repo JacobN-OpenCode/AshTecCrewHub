@@ -9,7 +9,8 @@ export default createEndpoint({
   inputSchema: z.object({
     id: z.string().optional(),
     delete: z.boolean().optional(),
-    firstName: z.string().optional(),
+    // New rule: only a first initial (max 2 characters), never a full name.
+    firstName: z.string().max(2).optional(),
     lastName: z.string().optional(),
     year: z.string().optional(),
     email: z.string().optional(),

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import jsQR from 'jsqr';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
@@ -13,24 +14,26 @@ import { Camera, Keyboard, Loader2 } from 'lucide-react';
  * phone whose default is Firefox that is not the app at all. Scanning inside the
  * app sidesteps the OS entirely.
  *
- * Decoding uses the native BarcodeDetector (Chrome/Edge/Android WebView, Safari
- * 17+). Where it is missing - notably Firefox - the scanner says so and offers
- * the code typed or pasted instead, so the flow never dead-ends.
+ * ORDER MATTERS, and the first version got it wrong: it checked for the native
+ * BarcodeDetector BEFORE asking for the camera, so on any phone without that API
+ * (iOS Safari, Firefox) it claimed "this device cannot scan" without ever
+ * requesting the camera - which reads as a lie, because the camera was there all
+ * along. Now the camera is requested first, and decoding has two paths:
+ *   - the native BarcodeDetector when present (fastest), and
+ *   - a bundled jsQR decoder over a canvas frame otherwise, so iOS and Firefox
+ *     work too.
+ * Typing the code stays as a final fallback.
  */
 
 type DetectorCtor = new (opts?: { formats?: string[] }) => {
   detect: (source: HTMLVideoElement | ImageBitmap) => Promise<Array<{ rawValue: string }>>;
 };
 
-const detectorAvailable = () =>
-  typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
 /** Pull the token out of an approval URL, or accept a bare token. */
 export function tokenFromScan(raw: string): string | null {
   const value = raw.trim();
   const fromUrl = value.match(/\/a\/([A-Za-z0-9]+)/);
   if (fromUrl) return fromUrl[1];
-  // A bare token, e.g. from the manual-entry box.
   if (/^[A-Za-z0-9]{8,64}$/.test(value)) return value;
   return null;
 }
@@ -41,10 +44,12 @@ export default function QrScanner({ open, onToken, onClose }: {
   onClose: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number>();
   const [state, setState] = useState<'idle' | 'starting' | 'scanning' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [engine, setEngine] = useState<'native' | 'jsqr' | null>(null);
   const [manual, setManual] = useState('');
 
   const stop = () => {
@@ -60,57 +65,100 @@ export default function QrScanner({ open, onToken, onClose }: {
       setState('idle');
       setError(null);
       setManual('');
+      setEngine(null);
       return;
     }
     let cancelled = false;
 
     const start = async () => {
-      if (!detectorAvailable()) {
-        setState('error');
-        setError('This browser cannot scan QR codes. Type the code shown on the member’s phone instead.');
-        return;
-      }
       setState('starting');
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = stream;
-        const v = videoRef.current;
-        if (!v) return;
-        v.srcObject = stream;
-        await v.play();
-        setState('scanning');
+      setError(null);
 
-        const Detector = (window as unknown as { BarcodeDetector: DetectorCtor }).BarcodeDetector;
-        const detector = new Detector({ formats: ['qr_code'] });
-        const tick = async () => {
-          if (cancelled || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length) {
-              const token = tokenFromScan(codes[0].rawValue);
-              if (token) {
-                stop();
-                onToken(token);
-                return;
-              }
-            }
-          } catch {
-            // A single failed frame is normal while the camera settles.
-          }
-          rafRef.current = requestAnimationFrame(() => void tick());
-        };
-        void tick();
+      // 1. Camera FIRST. Never claim it is unavailable before asking.
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+        });
       } catch (e) {
         if (cancelled) return;
         setState('error');
+        const name = (e as Error)?.name;
         setError(
-          (e as Error)?.name === 'NotAllowedError'
-            ? 'Camera permission was refused. Allow it in your browser settings, or type the code instead.'
-            : 'Could not start the camera. Type the code shown on the member’s phone instead.',
+          name === 'NotAllowedError'
+            ? 'Camera permission was refused. Allow the camera for this site, then try again — or type the code below.'
+            : name === 'NotFoundError'
+              ? 'No camera was found on this device. Type the code shown on the member’s phone instead.'
+              : 'Could not start the camera. Type the code shown on the member’s phone instead.',
         );
+        return;
       }
+      if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+
+      streamRef.current = stream;
+      const v = videoRef.current;
+      if (!v) return;
+      v.srcObject = stream;
+      try {
+        await v.play();
+      } catch {
+        // Some browsers reject play() until the element is visible; the tick
+        // below still runs once frames arrive.
+      }
+      setState('scanning');
+
+      // 2. Decode. Native detector if we have it, else the bundled jsQR.
+      const hasNative = 'BarcodeDetector' in window;
+      setEngine(hasNative ? 'native' : 'jsqr');
+      const Detector = hasNative
+        ? (window as unknown as { BarcodeDetector: DetectorCtor }).BarcodeDetector
+        : null;
+      const detector = Detector ? new Detector({ formats: ['qr_code'] }) : null;
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d', { willReadFrequently: true }) ?? null;
+
+      const finish = (token: string) => {
+        stop();
+        onToken(token);
+      };
+
+      const tick = async () => {
+        if (cancelled) return;
+        const video = videoRef.current;
+        if (video && video.readyState >= 2) {
+          try {
+            if (detector) {
+              const codes = await detector.detect(video);
+              if (codes.length) {
+                const tok = tokenFromScan(codes[0].rawValue);
+                if (tok) return finish(tok);
+              }
+            } else if (ctx && canvas) {
+              // Draw a downscaled frame; full resolution is slow and jsQR does
+              // not need it.
+              const w = Math.min(video.videoWidth, 640);
+              const h = Math.round((video.videoHeight / video.videoWidth) * w);
+              if (w > 0 && h > 0) {
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(video, 0, 0, w, h);
+                const img = ctx.getImageData(0, 0, w, h);
+                const code = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+                if (code?.data) {
+                  const tok = tokenFromScan(code.data);
+                  if (tok) return finish(tok);
+                }
+              }
+            }
+          } catch {
+            // A single bad frame is normal while the camera settles.
+          }
+        }
+        rafRef.current = requestAnimationFrame(() => void tick());
+      };
+      void tick();
     };
+
     void start();
     return () => { cancelled = true; stop(); };
   }, [open, onToken]);
@@ -132,9 +180,10 @@ export default function QrScanner({ open, onToken, onClose }: {
 
         <div className="relative overflow-hidden rounded-xl border bg-black/60" style={{ aspectRatio: '1 / 1' }}>
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
+          <canvas ref={canvasRef} className="hidden" />
           {state !== 'scanning' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-sm text-white/80">
-              {state === 'starting' || state === 'idle' ? <Loader2 className="h-6 w-6 animate-spin" /> : null}
+              {(state === 'starting' || state === 'idle') && <Loader2 className="h-6 w-6 animate-spin" />}
               {state === 'error' && <p>{error}</p>}
             </div>
           )}
@@ -142,6 +191,12 @@ export default function QrScanner({ open, onToken, onClose }: {
             <div className="pointer-events-none absolute inset-8 rounded-xl border-2 border-primary/70" />
           )}
         </div>
+
+        {state === 'scanning' && engine && (
+          <p className="text-center text-[11px] text-muted-foreground">
+            {engine === 'native' ? 'Scanning (device decoder)…' : 'Scanning…'}
+          </p>
+        )}
 
         <div className="space-y-2 border-t pt-3">
           <label htmlFor="manual-code" className="flex items-center gap-1.5 text-sm font-medium">

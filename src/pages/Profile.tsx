@@ -97,8 +97,8 @@ export default function Profile() {
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="fn">First name</Label>
-            <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={80} />
+            <Label htmlFor="fn">First initial</Label>
+            <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={2} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ln">Last name</Label>
