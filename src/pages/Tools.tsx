@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMe } from '../lib/me';
 import { useAdminData, type AdminSubEvent } from '../lib/useAdminData';
 import { Button } from '@project/components/ui/button';
@@ -39,6 +39,24 @@ function PhoneExcuseForm() {
   const [year, setYear] = useState(me.year || '');
   const [teacher, setTeacher] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
+  // The school logo as a data URI, so it renders in the print window AND inside
+  // the downloaded .doc (a relative URL would break once the file leaves the app).
+  const [logo, setLogo] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/ashford-logo.jpeg')
+      .then((r) => r.blob())
+      .then((b) => new Promise<string>((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result));
+        fr.onerror = rej;
+        fr.readAsDataURL(b);
+      }))
+      .then((d) => { if (alive) setLogo(d); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // All hooks must run before any early return, so the guard lives inside.
   const events = useMemo(() => {
@@ -60,44 +78,66 @@ function PhoneExcuseForm() {
 
   const pickAllInShow = (on: boolean) => setPicked(on ? events.map((e) => e.id) : []);
 
-  /** The document, as HTML that Word and a print dialog both understand. */
+  /**
+   * The document, matched to the Word template Jacob supplied: Calibri body, the
+   * Ashford School logo and school names as a header, and the school's address
+   * block plus "A company limited by guarantee" as a footer. HTML that both the
+   * print dialog and Word (via the .doc download) render faithfully.
+   */
   const documentHtml = () => {
     const lines = selected
       .map((e) => {
         const t = eventTime(e);
-        return `<li><strong>${escapeHtml(e.title)}</strong> – ${escapeHtml(longDate(e.date))}${t ? `, ${escapeHtml(t)}` : ''}</li>`;
+        return `<li>${escapeHtml(e.title)} – ${escapeHtml(longDate(e.date))}${t ? `, ${escapeHtml(t)}` : ''}</li>`;
       })
       .join('');
     const showHeading = showId === 'all' ? 'All productions' : showName(showId);
+    const logoSrc = logo || '/ashford-logo.jpeg';
     return `<!doctype html><html><head><meta charset="utf-8"><title>Mobile Phone Excuse Form</title>
 <style>
-  body{font-family:Georgia,'Times New Roman',serif;color:#111;max-width:720px;margin:40px auto;line-height:1.55;padding:0 24px}
-  h1{font-size:22px;margin:24px 0 4px}
-  .muted{color:#555;font-size:13px}
-  ul{padding-left:22px}
+  @page { size: A4; margin: 22mm 18mm 30mm; }
+  body{font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:11pt;color:#000;line-height:1.4;margin:0}
+  .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #999;padding-bottom:8px}
+  .header img{height:54px;width:auto}
+  .schools{font-size:8pt;color:#333;text-align:right;line-height:1.35}
+  h1{font-size:15pt;text-align:center;margin:20px 0 14px}
+  p{margin:0 0 11px}
+  ul{margin:0 0 11px;padding-left:22px}
   li{margin:2px 0}
-  .sig{margin-top:36px}
-  .line{border-bottom:1px solid #111;height:34px;margin:18px 0 6px}
-  footer{margin-top:40px;font-size:11px;color:#666;border-top:1px solid #ddd;padding-top:10px}
+  .sig{margin-top:34px}
+  .line{border-bottom:1px solid #000;height:34px;margin:16px 0 6px}
+  .footer{font-size:8pt;color:#444;border-top:1px solid #ccc;padding-top:8px;line-height:1.45}
+  @media print{
+    .header{position:fixed;top:0;left:0;right:0;background:#fff}
+    .footer{position:fixed;bottom:0;left:0;right:0;background:#fff}
+    .pad-top{height:74px}.pad-bottom{height:104px}
+  }
 </style></head><body>
-<p class="muted">${escapeHtml(now.toLocaleDateString('en-GB'))}</p>
+<div class="header">
+  <img src="${logoSrc}" alt="Ashford School" />
+  <div class="schools">Senior School<br />Prep School &middot; Bridge Nursery &middot; Stables Nursery</div>
+</div>
+<div class="pad-top"></div>
+<p style="color:#555;font-size:9pt">${escapeHtml(now.toLocaleDateString('en-GB'))}</p>
 <p>Dear Whom It May Concern,</p>
 <h1>Mobile Phone Use Excuse Form</h1>
 <p>The student of ${SCHOOL}: <strong>${escapeHtml(student || 'NAME OF STUDENT')}</strong>, of Year ${escapeHtml(year || 'SCHOOL YEAR')} has hereby been granted access to use their mobile phone in and around the Brake Hall area for the theatre production, managed by the AshTec Crew.</p>
 <p>This has been granted to the student by <strong>${escapeHtml(teacher || 'TEACHER NAME')}</strong> on the date: ${escapeHtml(now.toLocaleDateString('en-GB'))} and ${escapeHtml(clock(now))}.</p>
 <p>They are permitted to use their phone for the following times:</p>
 <p><strong>${escapeHtml(showHeading)}</strong></p>
-${lines ? `<ul>${lines}</ul>` : '<p class="muted">No rehearsals or performances selected.</p>'}
-<p>They are permitted to use their phone for various tools, including but not limited to: accessing the ‘AshTec Crew Management System’ or Googling various things.</p>
+${lines ? `<ul>${lines}</ul>` : '<p style="color:#777">No rehearsals or performances selected.</p>'}
+<p>They are permitted to use their phone for various tools, including but not limited to: accessing the &lsquo;AshTec Crew Management System&rsquo; or Googling various things.</p>
 <p>If you have any concerns, please contact ${escapeHtml(teacherEmail || 'TEACHER EMAIL')}.</p>
 <p>Many Thanks,<br />AshTec Crew &amp; ${escapeHtml(teacher || 'TEACHER NAME')}</p>
 <div class="sig"><p>Signed by ${escapeHtml(teacher || 'TEACHER NAME')}</p><div class="line"></div></div>
-<footer>
-  Ashford Senior School Bridge Nursery · East Hill, Ashford, Kent, TN24 8PB · Tel: +44 (0) 1233 625171<br />
-  Ashford Prep School Stables Nursery · Great Chart, Ashford, Kent, TN23 3DJ · Tel: +44 (0) 1233 620493<br />
-  Admissions: Tel +44 (0) 1233 739030 · registrar@ashfordschool.co.uk · www.ashfordschool.co.uk<br />
-  Ashford School is a member of United Learning. Registered address: Worldwide House, Thorpe Wood, Peterborough, PE3 6SB. Registered in England No 2780748.
-</footer>
+<div class="pad-bottom"></div>
+<div class="footer">
+  Ashford Senior School Bridge Nursery &middot; East Hill, Ashford, Kent, TN24 8PB &middot; Tel: +44 (0) 1233 625171<br />
+  Ashford Prep School Stables Nursery &middot; Great Chart, Ashford, Kent, TN23 3DJ &middot; Tel: +44 (0) 1233 620493<br />
+  Admissions: Tel +44 (0) 1233 739030 &middot; registrar@ashfordschool.co.uk &middot; www.ashfordschool.co.uk<br />
+  Ashford School is a member of United Learning. Registered address: Worldwide House, Thorpe Wood, Peterborough, PE3 6SB. Registered in England No 2780748.<br />
+  A company limited by guarantee.
+</div>
 </body></html>`;
   };
 
