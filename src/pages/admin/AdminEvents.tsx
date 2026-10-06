@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminDeleteSubEvent, adminSaveShow } from '#api';
+import { adminDeleteSubEvent, adminRecomputeAttendance, adminSaveShow } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -8,7 +8,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { EyeOff, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { EyeOff, Pencil, Plus, Recycle, Trash2, Users } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAdminData, type AdminSubEvent } from '../../lib/useAdminData';
 import { dueLabel, fmtDate, IMPORTANCE_STYLE } from '../../lib/constants';
@@ -86,7 +86,30 @@ export default function AdminEvents() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
-        <Button data-tour="events-new" variant="outline" onClick={() => setShowDlg('new')}><Plus className="h-4 w-4 mr-1" />New show</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            Ticket b4be3495: a one-shot button that runs the show-response ->
+            per-event attendance sync across the whole database. Existing
+            per-event choices are preserved; only pending rows are filled in.
+            Admins run it once after deploy, then on demand. It is idempotent
+            so running it twice is harmless.
+          */}
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const r = await adminRecomputeAttendance({});
+                toast.success('Attendance recomputed', {
+                  description: `Filled in ${r.added} pending row${r.added === 1 ? '' : 's'}; cleared ${r.clearedAuto} stale automatic decline${r.clearedAuto === 1 ? '' : 's'}.`,
+                });
+                await reload();
+              } catch (e) { toast.error((e as Error).message); }
+            }}
+          >
+            <Recycle className="h-4 w-4 mr-1" />Recompute attendance
+          </Button>
+          <Button data-tour="events-new" variant="outline" onClick={() => setShowDlg('new')}><Plus className="h-4 w-4 mr-1" />New show</Button>
+        </div>
       </div>
       <div className="flex gap-2 flex-wrap">
         {data.shows.map((s) => (

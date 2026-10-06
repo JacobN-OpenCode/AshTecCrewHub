@@ -80,6 +80,13 @@ export type AdminNoteTicketInputType = NonNullable<_AdminNoteTicketCfg['inputSch
 export type AdminNoteTicketOutputType = Awaited<ReturnType<_AdminNoteTicketCfg['execute']>>;
 export const adminNoteTicket = createCaller<AdminNoteTicketInputType, AdminNoteTicketOutputType>('adminNoteTicket');
 
+import type { default as _AdminRecomputeAttendanceEp } from '../api/adminRecomputeAttendance';
+
+type _AdminRecomputeAttendanceCfg = typeof _AdminRecomputeAttendanceEp;
+export type AdminRecomputeAttendanceInputType = NonNullable<_AdminRecomputeAttendanceCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminRecomputeAttendanceCfg['execute']>[0]['input'];
+export type AdminRecomputeAttendanceOutputType = Awaited<ReturnType<_AdminRecomputeAttendanceCfg['execute']>>;
+export const adminRecomputeAttendance = createCaller<AdminRecomputeAttendanceInputType, AdminRecomputeAttendanceOutputType>('adminRecomputeAttendance');
+
 import type { default as _AdminReplyTicketEp } from '../api/adminReplyTicket';
 
 type _AdminReplyTicketCfg = typeof _AdminReplyTicketEp;
@@ -164,12 +171,26 @@ export type GetCalendarFeedInputType = NonNullable<_GetCalendarFeedCfg['inputSch
 export type GetCalendarFeedOutputType = Awaited<ReturnType<_GetCalendarFeedCfg['execute']>>;
 export const getCalendarFeed = createCaller<GetCalendarFeedInputType, GetCalendarFeedOutputType>('getCalendarFeed');
 
+import type { default as _GetCatLoginAdminsEp } from '../api/getCatLoginAdmins';
+
+type _GetCatLoginAdminsCfg = typeof _GetCatLoginAdminsEp;
+export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCatLoginAdminsCfg['execute']>[0]['input'];
+export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
+export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
+
 import type { default as _GetMeEp } from '../api/getMe';
 
 type _GetMeCfg = typeof _GetMeEp;
 export type GetMeInputType = NonNullable<_GetMeCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMeCfg['execute']>[0]['input'];
 export type GetMeOutputType = Awaited<ReturnType<_GetMeCfg['execute']>>;
 export const getMe = createCaller<GetMeInputType, GetMeOutputType>('getMe');
+
+import type { default as _GetMyCatLoginStatusEp } from '../api/getMyCatLoginStatus';
+
+type _GetMyCatLoginStatusCfg = typeof _GetMyCatLoginStatusEp;
+export type GetMyCatLoginStatusInputType = NonNullable<_GetMyCatLoginStatusCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMyCatLoginStatusCfg['execute']>[0]['input'];
+export type GetMyCatLoginStatusOutputType = Awaited<ReturnType<_GetMyCatLoginStatusCfg['execute']>>;
+export const getMyCatLoginStatus = createCaller<GetMyCatLoginStatusInputType, GetMyCatLoginStatusOutputType>('getMyCatLoginStatus');
 
 import type { default as _GetMyEventsEp } from '../api/getMyEvents';
 
@@ -276,6 +297,13 @@ export type SetAttendanceInputType = NonNullable<_SetAttendanceCfg['inputSchema'
 export type SetAttendanceOutputType = Awaited<ReturnType<_SetAttendanceCfg['execute']>>;
 export const setAttendance = createCaller<SetAttendanceInputType, SetAttendanceOutputType>('setAttendance');
 
+import type { default as _SetMyAdminSecretEp } from '../api/setMyAdminSecret';
+
+type _SetMyAdminSecretCfg = typeof _SetMyAdminSecretEp;
+export type SetMyAdminSecretInputType = NonNullable<_SetMyAdminSecretCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SetMyAdminSecretCfg['execute']>[0]['input'];
+export type SetMyAdminSecretOutputType = Awaited<ReturnType<_SetMyAdminSecretCfg['execute']>>;
+export const setMyAdminSecret = createCaller<SetMyAdminSecretInputType, SetMyAdminSecretOutputType>('setMyAdminSecret');
+
 import type { default as _SetShowResponseEp } from '../api/setShowResponse';
 
 type _SetShowResponseCfg = typeof _SetShowResponseEp;
@@ -317,6 +345,7 @@ export const api = {
   adminGetTicket,
   adminMoveRole,
   adminNoteTicket,
+  adminRecomputeAttendance,
   adminReplyTicket,
   adminSaveMember,
   adminSaveShow,
@@ -329,7 +358,9 @@ export const api = {
   deletePushSubscription,
   getCalendar,
   getCalendarFeed,
+  getCatLoginAdmins,
   getMe,
+  getMyCatLoginStatus,
   getMyEvents,
   getPresence,
   getPublicCalendar,
@@ -345,6 +376,7 @@ export const api = {
   sendTestNotification,
   setAdminNotifications,
   setAttendance,
+  setMyAdminSecret,
   setShowResponse,
   submitSupport,
   supportEscalate,

@@ -5,6 +5,7 @@ import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Loader2, Lock } from 'lucide-react';
+import { getCatLoginAdmins } from '#api';
 
 const LINES = [
   'Meow!',
@@ -17,24 +18,39 @@ const LINES = [
   '*knocks mic off stand*',
 ];
 
-/** The admins who have an emergency passphrase. Add an email here when one is set. */
-const CAT_ADMINS = ['navaratnej@ashpupil.co.uk'];
-
 /**
  * Emergency admin sign-in, opened by tapping the cat five times quickly.
  *
- * Why it exists: if the magic-link email is filtered (the school does filter one
- * of our domains) an admin can otherwise be locked out entirely. The passphrase
- * is checked on the server; this dialog only collects it.
+ * Why it exists: if the magic-link email is filtered (the school does filter
+ * one of our domains) an admin can otherwise be locked out entirely. The
+ * passphrase is checked on the server; this dialog only collects it. The list
+ * of admins in the dropdown is read from the server so it reflects everyone
+ * who actually set up a cat-login secret, not the one or two emails that
+ * happened to do so when the cat was first deployed (ticket 8cd13381).
+ *
+ * Lockout: five wrong guesses from the same (email, IP) pair pause that target
+ * for fifteen minutes; a single success clears the bucket. The error message
+ * is the same for any failure so the route cannot be used to enumerate admins.
  */
 function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [email, setEmail] = useState(CAT_ADMINS[0]);
+  const [admins, setAdmins] = useState<string[]>([]);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) { setPassword(''); setProblem(null); }
+    if (!open) return;
+    setPassword('');
+    setProblem(null);
+    getCatLoginAdmins({})
+      .then((r) => {
+        const list = r.admins ?? [];
+        setAdmins(list);
+        if (list.length && !list.includes(email)) setEmail(list[0]);
+        if (!list.length) setEmail('');
+      })
+      .catch(() => setAdmins([]));
   }, [open]);
 
   const submit = async (e: React.FormEvent) => {
@@ -55,8 +71,8 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
         return;
       }
       toast.success('Signed in');
-      // Full reload so the app picks up the new session from scratch, exactly as
-      // a magic-link sign-in would.
+      // Full reload so the app picks up the new session from scratch, exactly
+      // as a magic-link sign-in would.
       window.location.href = '/';
     } catch {
       setProblem('That did not work. Try again.');
@@ -70,40 +86,46 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-primary" /> Which admin are you?
+            <Lock className="h-4 w-4 text-primary" /> Emergency sign-in
           </DialogTitle>
-          <DialogDescription>Emergency sign-in, for when the email will not arrive.</DialogDescription>
+          <DialogDescription>For when the magic-link email can't get through.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
-          <div className="space-y-1">
-            <label htmlFor="cat-admin" className="text-sm font-medium">Admin</label>
-            <select
-              id="cat-admin"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              {CAT_ADMINS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="cat-pass" className="text-sm font-medium">Password</label>
-            <Input
-              id="cat-pass"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              autoFocus
-              placeholder="••••••"
-            />
-          </div>
-          {problem && <p className="text-sm text-destructive">{problem}</p>}
-          <Button className="w-full" disabled={busy || !password}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Sign in
-          </Button>
-        </form>
+        {admins.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+            No admin has set up an emergency sign-in yet. Ask one to register a passphrase in their Settings, then try again.
+          </p>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <div className="space-y-1">
+              <label htmlFor="cat-admin" className="text-sm font-medium">Which admin are you?</label>
+              <select
+                id="cat-admin"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                {admins.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="cat-pass" className="text-sm font-medium">Passphrase</label>
+              <Input
+                id="cat-pass"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                autoFocus
+                placeholder="Your emergency passphrase"
+              />
+            </div>
+            {problem && <p className="text-sm text-destructive">{problem}</p>}
+            <Button className="w-full" disabled={busy || !password || !email}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sign in
+            </Button>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -29,6 +29,7 @@ import {
 } from './auth.js';
 import { catLogin } from './catLogin.js';
 import { verifyCalendarToken, buildMemberFeed } from './calendar.js';
+import * as rateLimit from './rateLimit.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -204,14 +205,36 @@ app.post('/api/auth/logout', async (req, res) => {  await destroySession(req, re
  * Cat easter-egg sign-in. Validates through the catAdminLogin endpoint, then sets
  * the session cookie here so the cookie is HTTP-only and the token never has to
  * be handled by client JavaScript.
+ *
+ * Rate-limited (ticket 8cd13381): 5 wrong guesses from the same (email, IP) locks
+ * that target for 15 min, and a rolling 30 failures from one IP locks that IP
+ * for an hour. The error message is intentionally identical for every failure
+ * (wrong email, wrong password, account locked) so the endpoint cannot be used
+ * to enumerate admins.
  */
 app.post('/api/auth/cat-login', async (req, res) => {
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   const password = String(req.body?.password ?? '');
-  if (!email || !password) return res.status(400).json({ message: 'Enter both your email and the password.' });
+  const ip = String(req.ip ?? '');
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Those details are not right.' });
+  }
+  const stillLocked = rateLimit.locked(email, ip);
+  if (stillLocked) {
+    const minutes = Math.ceil(stillLocked / 60_000);
+    return res.status(429).json({ message: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
+  }
   try {
     const token = await catLogin(email, password);
-    if (!token) return res.status(401).json({ message: 'Those details are not right.' });
+    if (!token) {
+      const lock = rateLimit.recordFailure(email, ip);
+      if (lock) {
+        const minutes = Math.ceil(lock.lockMs / 60_000);
+        return res.status(429).json({ message: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
+      }
+      return res.status(401).json({ message: 'Those details are not right.' });
+    }
+    rateLimit.recordSuccess(email, ip);
     res.cookie('crew_session', token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -306,6 +329,7 @@ async function schedulerTick() {
 await pruneAuth().catch((e) => console.error('[server] pruneAuth failed:', e));
 setInterval(() => void schedulerTick(), 60_000).unref();
 setInterval(() => void pruneAuth().catch(() => {}), 3_600_000).unref();
+setInterval(() => rateLimit.gc(), 60 * 60 * 1000).unref();
 
 app.listen(PORT, () => {
   console.log(`[server] AshTec Crew Hub listening on :${PORT} (app url ${process.env.APP_URL ?? 'unset'})`);

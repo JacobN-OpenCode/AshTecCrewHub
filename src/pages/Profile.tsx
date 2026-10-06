@@ -1,7 +1,7 @@
 import { previewId, pv } from '../lib/preview';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, getCalendar, getCalendarFeed } from '#api';
+import { updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -9,7 +9,7 @@ import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Switch } from '@project/components/ui/switch';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat } from 'lucide-react';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
@@ -149,12 +149,119 @@ export default function Profile() {
         <div className="min-w-0 space-y-6">
           <Preferences />
 
+          {me.isAdmin && <EmergencySignIn />}
+
           <PwaSettings />
 
           <WhatsAppCommunity />
 
           <CalendarIntegration />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Admin-only emergency sign-in (cat login), ticket 8cd13381.
+ *
+ * Each admin manages their own passphrase from this card. The cleartext
+ * never touches the database - it is hashed server-side - and no other admin
+ * can see whether yours is set, what it is, or how many attempts have been
+ * made against it. There are deliberately no strength requirements: the
+ * opening ticket says "no password/PIN requirements" and a 4-digit PIN is
+ * fine.
+ */
+function EmergencySignIn() {
+  const [hasSecret, setHasSecret] = useState<boolean>(false);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getMyCatLoginStatus({}).then((r) => { if (alive) setHasSecret(!!r.hasSecret); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await setMyAdminSecret({ value });
+      setHasSecret(!!r.hasSecret);
+      setValue('');
+      setRevealed(false);
+      toast.success(r.hasSecret ? 'Passphrase saved' : 'Passphrase cleared');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const clear = async () => {
+    setBusy(true);
+    try {
+      const r = await setMyAdminSecret({ value: '' });
+      setHasSecret(!!r.hasSecret);
+      toast.success('Passphrase cleared');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const placeholder = useMemo(() => (hasSecret ? 'Enter a new passphrase to replace it' : 'Choose a passphrase or PIN'), [hasSecret]);
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Cat className="h-5 w-5 text-primary" />
+        <h2 className="font-semibold text-lg">Emergency sign-in (cat)</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        For when the magic-link email can&rsquo;t get through (school mail filter, no signal on the phone). Tap the crew cat five times on
+        the sign-in screen and use this passphrase. Other admins can&rsquo;t see it, and it lives only in your account.
+      </p>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">Status</span>
+        {hasSecret ? (
+          <Badge variant="outline" className="border-emerald-500/40 text-emerald-400"><KeyRound className="h-3 w-3 mr-1" />Set</Badge>
+        ) : (
+          <Badge variant="outline" className="border-amber-500/40 text-amber-400">Not set</Badge>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="cat-secret">New passphrase</Label>
+        <div className="flex gap-2">
+          <Input
+            id="cat-secret"
+            type={revealed ? 'text' : 'password'}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholder}
+            autoComplete="new-password"
+            disabled={busy}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setRevealed((r) => !r)}
+            disabled={!value}
+          >
+            {revealed ? 'Hide' : 'Show'}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Leave blank and click <strong>Clear</strong> to remove the existing passphrase. There are no strength requirements: a 4-digit PIN is fine.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={save} disabled={busy || !value}>
+          {hasSecret ? 'Replace passphrase' : 'Save passphrase'}
+        </Button>
+        {hasSecret && (
+          <Button variant="outline" onClick={clear} disabled={busy}>
+            Clear
+          </Button>
+        )}
       </div>
     </div>
   );

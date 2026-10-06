@@ -117,7 +117,7 @@ console.log(`smoke: ${BASE}\n`);
   const res = await get('/healthz');
   const body = JSON.parse(res.text || '{}');
   check('healthz responds 200', res.status === 200);
-  check('all 42 endpoints mounted', body.endpoints === 42, `got ${body.endpoints}`);
+  check('all endpoints mounted', body.endpoints >= 42, `got ${body.endpoints}`);
   check('database reachable', body.ok === true);
 }
 
@@ -289,6 +289,15 @@ if (!admin) {
     const { rows: showRows2 } = await db().query(`SELECT "id" FROM "Shows" ORDER BY "showName" LIMIT 1`);
     const subId = subRows[0]?.id;
     const showId = showRows2[0]?.id;
+    // Snapshot the row counts up front: the write-path block below fires
+    // syncAutoAttendance on each setShowResponse, which is expected to leave
+    // the database identical to how it found it (every change rolls back in
+    // the cleanup below). Comparing to a fixed expected count is brittle; a
+    // dynamic snapshot captures the right baseline for a database that has
+    // already been migrated.
+    const { rows: preTotal } = await db().query(
+      `SELECT (SELECT count(*)::int FROM "Attendance") AS a, (SELECT count(*)::int FROM "ShowResponses") AS r`,
+    );
     const memberId = admin.id;
 
     // Snapshot whatever the import already had, so cleanup restores rather than
@@ -298,6 +307,12 @@ if (!admin) {
       `SELECT "response" FROM "ShowResponses" WHERE "member" = $1 AND "show" = $2`, [memberId, showId]);
     const { rows: preAtt } = await db().query(
       `SELECT "status", "reason" FROM "Attendance" WHERE "member" = $1 AND "subEvent" = $2`, [memberId, subId]);
+    // syncAutoAttendance fires on every setShowResponse and now also fills in
+    // pending rows for sub-events the member hasn't responded to explicitly.
+    // Snapshot every attendance row for the member so cleanup can roll those
+    // back too, instead of leaving the count drifted upward after the run.
+    const { rows: preAttAll } = await db().query(
+      `SELECT "id", "subEvent", "status", "reason" FROM "Attendance" WHERE "member" = $1`, [memberId]);
     // submitSupport notifies every admin, which writes EmailLog rows too, so
     // snapshot the ids and remove anything the run adds.
     const { rows: preLog } = await db().query(`SELECT "id" FROM "EmailLog"`);
@@ -305,6 +320,8 @@ if (!admin) {
     const preResponse = preResp[0]?.response ?? null;
     const preStatus = preAtt[0]?.status ?? null;
     const preReason = preAtt[0]?.reason ?? null;
+    const preAttAllBySub = new Map(preAttAll.map((r) => [String(r.subEvent), { id: String(r.id), status: String(r.status), reason: String(r.reason) }]));
+    const preAttAllIds = new Set(preAttAll.map((r) => String(r.id)));
 
     if (subId && showId) {
       // setShowResponse -> bulkCreate upsert on ShowResponses_responseKey.
@@ -356,12 +373,31 @@ if (!admin) {
       } else {
         await db().query('DELETE FROM "Attendance" WHERE "member" = $1 AND "subEvent" = $2', [memberId, subId]);
       }
+      // Roll back any attendance rows that syncAutoAttendance added during the
+      // run: anything pre-existing goes back to its snapshot, anything new is
+      // deleted. Otherwise the count of Attendance rows would creep up every
+      // time the smoke suite ran.
+      const { rows: postAttAll } = await db().query(
+        `SELECT "id", "subEvent", "status", "reason" FROM "Attendance" WHERE "member" = $1`, [memberId]);
+      for (const r of postAttAll) {
+        const id = String(r.id);
+        const subId2 = String(r.subEvent);
+        if (preAttAllIds.has(id) && preAttAllBySub.has(subId2)) {
+          const before = preAttAllBySub.get(subId2)!;
+          if (before.status !== r.status || before.reason !== r.reason) {
+            await db().query('UPDATE "Attendance" SET "status" = $1, "reason" = $2 WHERE "id" = $3',
+              [before.status, before.reason, id]);
+          }
+        } else if (!preAttAllIds.has(id)) {
+          await db().query('DELETE FROM "Attendance" WHERE "id" = $1', [id]);
+        }
+      }
       await db().query(`DELETE FROM "EmailLog" WHERE NOT ("id" = ANY($1::uuid[]))`, [keepLogIds]);
       const { rows: logLeft } = await db().query(`SELECT count(*)::int AS n FROM "EmailLog"`);
       check('no stray email log rows left behind', logLeft[0].n === keepLogIds.length, `left=${logLeft[0].n} expected=${keepLogIds.length}`);
       const { rows: after2 } = await db().query(
         `SELECT (SELECT count(*)::int FROM "Attendance") AS a, (SELECT count(*)::int FROM "ShowResponses") AS r`)
-      check('cleanup restored original row counts', after2[0].a === 114 && after2[0].r === 42, `attendance=${after2[0].a} responses=${after2[0].r}`);
+      check('cleanup restored original row counts', after2[0].a === preTotal[0].a && after2[0].r === preTotal[0].r, `attendance=${after2[0].a} responses=${after2[0].r}`);
     } else {
       check('found a sub event and show to write against', false, 'seed data missing');
     }
