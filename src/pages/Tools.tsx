@@ -298,9 +298,12 @@ function ParentInfoLetter() {
     if (data.shows.length && !showId) setShowId(data.shows[0].id);
   }, [data, showId]);
 
-  if (!data) return <div className="h-64 rounded-2xl border bg-card animate-pulse" />;
-
+  // All hooks are declared above the early return so the count stays
+  // identical on every render. Tickets previously got React #310 here
+  // (Rendered more hooks than during the previous render) when this
+  // useMemo lived below the `if (!data) return ...` guard.
   const events = useMemo(() => {
+    if (!data) return [] as GetMyEventsOutputType['subEvents'];
     if (showId === 'all') {
       return [...data.subEvents].sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
     }
@@ -308,6 +311,8 @@ function ParentInfoLetter() {
       .filter((e) => e.showIds.includes(showId))
       .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
   }, [data, showId]);
+
+  if (!data) return <div className="h-64 rounded-2xl border bg-card animate-pulse" />;
 
   const showName = (id: string) => data.shows.find((s) => s.id === id)?.name ?? '';
   const showDescription = (id: string) => data.shows.find((s) => s.id === id)?.description ?? '';
