@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { adminDeleteSubEvent, adminRecomputeAttendance, adminSaveShow } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -8,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { EyeOff, Pencil, Plus, Recycle, Trash2, Users } from 'lucide-react';
+import { EyeOff, Pencil, Plus, Recycle, Trash2, Users, ExternalLink } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAdminData, type AdminSubEvent } from '../../lib/useAdminData';
 import { dueLabel, fmtDate, IMPORTANCE_STYLE } from '../../lib/constants';
@@ -75,6 +76,13 @@ export default function AdminEvents() {
         <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
       </div>
       <div className="flex gap-1">
+        {e.date && (
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/calendar?date=${e.date}&event=${e.id}`} title="Open in calendar">
+              <ExternalLink className="h-4 w-4 mr-1" />Calendar
+            </Link>
+          </Button>
+        )}
         <Button size="sm" variant="outline" onClick={() => setViewing(e.id)}><Users className="h-4 w-4 mr-1" />Attendance</Button>
         <Button size="icon" variant="ghost" onClick={() => setEvDlg({ ev: e })}><Pencil className="h-4 w-4" /></Button>
         <Button size="icon" variant="ghost" onClick={() => setConfirm({ kind: 'ev', id: e.id, name: e.title })}><Trash2 className="h-4 w-4" /></Button>

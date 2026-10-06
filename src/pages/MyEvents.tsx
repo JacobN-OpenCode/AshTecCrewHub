@@ -26,10 +26,16 @@ export default function MyEvents() {
   const pendingClubs = clubSessions.filter((e) => !e.status && !isPastDue(e.dueDate, e.dueUnknown)).length;
   const todo = pendingShows + pendingEvents + pendingClubs;
 
+  // firstName is just an initial after the rename (max 2 chars) so we have to
+  // join it back with the last name for the greeting; otherwise every member
+  // saw "Hi L 👋" instead of "Hi L Paice 👋". Falls back to a single initial
+  // when no surname is set yet.
+  const who = `${me.firstName}${me.lastName ? ' ' + me.lastName : ''}`;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Hi {me.firstName} 👋</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
         <p className="text-muted-foreground mt-1">
           {todo ? <>You have <span className="text-primary font-semibold">{todo}</span> thing{todo > 1 ? 's' : ''} to respond to.</> : 'You’re all caught up.'}
         </p>

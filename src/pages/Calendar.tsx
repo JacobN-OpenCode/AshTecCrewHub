@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getCalendar, setShowResponse, setAttendance } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -64,6 +65,7 @@ const buildWeeks = (month: Date) => {
 
 export default function Calendar() {
   const { me } = useMe();
+  const [searchParams] = useSearchParams();
   const [shows, setShows] = useState<CalShow[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,20 @@ export default function Calendar() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const [month, setMonth] = useState(() => firstOfMonth(new Date()));
+  // Allow /calendar?date=YYYY-MM-DD&event=<id> to focus the requested day
+  // (admin events row links to this). The event id, if provided, opens
+  // that day's sheet so the event is front-and-center.
+  const initialDate = useMemo(() => {
+    const d = searchParams.get('date');
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+    const [y, m, day] = d.split('-').map(Number);
+    const parsed = new Date(y, m - 1, day);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }, [searchParams]);
+  const initialEventId = searchParams.get('event') ?? '';
+
+  const [month, setMonth] = useState(() => firstOfMonth(initialDate ?? new Date()));
   const [pickedShows, setPickedShows] = useState<string[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [responses, setResponses] = useState<string[]>([]);
@@ -95,6 +110,25 @@ export default function Calendar() {
   // What the detail sheet is showing: a whole day from the grid, or a single
   // undated event that has no day to sit on.
   const [sheet, setSheet] = useState<{ day: string } | { event: CalEvent } | null>(null);
+
+  // Open the focused-day sheet once the data lands and the event is known.
+  // Gated on `initialDate` so a plain /calendar visit never auto-opens.
+  useEffect(() => {
+    if (!initialDate || loading) return;
+    const focusDate = iso(initialDate);
+    if (initialEventId) {
+      const target = events.find((e) => e.id === initialEventId && e.date === focusDate);
+      if (target) {
+        setSheet({ event: target });
+        return;
+      }
+    }
+    // Fall back to the day sheet when the id missed (event moved/deleted) but
+    // the day itself still has something on it.
+    if (events.some((e) => e.date === focusDate)) {
+      setSheet({ day: focusDate });
+    }
+  }, [initialDate, initialEventId, events, loading]);
 
   const filtered = useMemo(
     () =>
