@@ -63,6 +63,9 @@ export default defineConfig({
       // the API is first-party and no CORS/SameSite=None handling is needed.
       '/api': { target: `http://127.0.0.1:${API_PORT}`, changeOrigin: false },
       '/healthz': { target: `http://127.0.0.1:${API_PORT}`, changeOrigin: false },
+      // The subscribe-to-calendar feed is served by Express, not Vite, so it
+      // needs forwarding in dev or Vite answers with the SPA shell.
+      '/calendar.ics': { target: `http://127.0.0.1:${API_PORT}`, changeOrigin: false },
     },
     hmr: {
       overlay: false,

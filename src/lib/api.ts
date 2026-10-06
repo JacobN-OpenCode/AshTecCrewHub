@@ -157,6 +157,13 @@ export type GetCalendarInputType = NonNullable<_GetCalendarCfg['inputSchema']> e
 export type GetCalendarOutputType = Awaited<ReturnType<_GetCalendarCfg['execute']>>;
 export const getCalendar = createCaller<GetCalendarInputType, GetCalendarOutputType>('getCalendar');
 
+import type { default as _GetCalendarFeedEp } from '../api/getCalendarFeed';
+
+type _GetCalendarFeedCfg = typeof _GetCalendarFeedEp;
+export type GetCalendarFeedInputType = NonNullable<_GetCalendarFeedCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCalendarFeedCfg['execute']>[0]['input'];
+export type GetCalendarFeedOutputType = Awaited<ReturnType<_GetCalendarFeedCfg['execute']>>;
+export const getCalendarFeed = createCaller<GetCalendarFeedInputType, GetCalendarFeedOutputType>('getCalendarFeed');
+
 import type { default as _GetMeEp } from '../api/getMe';
 
 type _GetMeCfg = typeof _GetMeEp;
@@ -321,6 +328,7 @@ export const api = {
   checkEmail,
   deletePushSubscription,
   getCalendar,
+  getCalendarFeed,
   getMe,
   getMyEvents,
   getPresence,

@@ -28,6 +28,7 @@ import {
   pruneAuth,
 } from './auth.js';
 import { catLogin } from './catLogin.js';
+import { verifyCalendarToken, buildMemberFeed } from './calendar.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -227,6 +228,30 @@ app.post('/api/auth/cat-login', async (req, res) => {
 
 app.get('/api/auth/session', async (req, res) => {
   res.json({ user: await getSessionUser(req) });
+});
+
+/**
+ * The subscribe-to-calendar feed (ticket ab308aca). A stable text/calendar URL a
+ * member adds to Apple/Google/Outlook once, which then updates itself as events
+ * change - unlike the one-off .ics download.
+ *
+ * Per-member and unguessable: the token is the member id plus an HMAC, so the
+ * feed only ever contains that member's events.
+ */
+app.get('/calendar.ics', async (req, res) => {
+  const token = String(req.query.token ?? '');
+  const memberId = token ? await verifyCalendarToken(token) : null;
+  if (!memberId) return res.status(404).type('text/plain').send('Not found');
+  try {
+    const ics = await buildMemberFeed(memberId);
+    res.set('Content-Type', 'text/calendar; charset=utf-8');
+    // Calendars poll; a short private cache keeps it fresh without hammering us.
+    res.set('Cache-Control', 'private, max-age=300');
+    res.send(ics);
+  } catch (e) {
+    console.error('[calendar] feed failed:', e);
+    res.status(500).type('text/plain').send('Could not build the calendar.');
+  }
 });
 
 app.get('/healthz', async (_req, res) => {

@@ -1,7 +1,7 @@
 import { previewId, pv } from '../lib/preview';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, getCalendar } from '#api';
+import { updateMyProfile, getCalendar, getCalendarFeed } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -431,6 +431,14 @@ function Preferences() {
  */
 function CalendarIntegration() {
   const [calBusy, setCalBusy] = useState(false);
+  const [feed, setFeed] = useState<{ url: string; webcal: string } | null>(null);
+
+  // Ticket ab308aca: the live subscribe feed.
+  useEffect(() => {
+    getCalendarFeed({})
+      .then((f) => setFeed(f as { url: string; webcal: string }))
+      .catch(() => {});
+  }, []);
 
   const download = async () => {
     setCalBusy(true);
@@ -449,6 +457,16 @@ function CalendarIntegration() {
     }
   };
 
+  const copy = async () => {
+    if (!feed) return;
+    try {
+      await navigator.clipboard.writeText(feed.url);
+      toast.success('Subscribe link copied');
+    } catch {
+      toast.error('Could not copy — select the link and copy it manually.');
+    }
+  };
+
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-4">
       <div>
@@ -457,14 +475,32 @@ function CalendarIntegration() {
           Add the crew calendar to yours
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Download your dates as a calendar file and they will sit next to your school timetable. Rehearsals and
-          performances you are in are included; hidden events are not.
+          Rehearsals and performances you are in, next to your school timetable. Hidden events are not included.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
+        <p className="text-sm font-medium">Subscribe (updates automatically)</p>
+        <p className="text-xs text-muted-foreground">
+          Add this once in Apple, Google or Outlook Calendar and it keeps itself in sync — no re-importing when a
+          rehearsal moves.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {feed ? (
+            <Button size="sm" asChild>
+              <a href={feed.webcal}>Subscribe in your calendar app</a>
+            </Button>
+          ) : (
+            <Button size="sm" disabled>Loading…</Button>
+          )}
+          <Button size="sm" variant="outline" onClick={copy} disabled={!feed}>Copy link</Button>
+        </div>
+        {feed && <p className="break-all font-mono text-[11px] text-muted-foreground">{feed.url}</p>}
       </div>
 
       <div className="flex flex-wrap gap-3">
         <Button variant="outline" onClick={download} disabled={calBusy} data-tour="profile-calendar">
-          {calBusy ? 'Building…' : 'Download calendar (.ics)'}
+          {calBusy ? 'Building…' : 'Download once (.ics)'}
         </Button>
         <Button variant="ghost" asChild>
           <a href="/calendar" target="_blank" rel="noreferrer">
@@ -475,7 +511,8 @@ function CalendarIntegration() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        This is a snapshot, not a live subscription. If a date changes you will need to download it again.
+        The download is a one-off snapshot — if a date changes you would download it again. The subscribe link above
+        does not have that problem.
       </p>
     </div>
   );
