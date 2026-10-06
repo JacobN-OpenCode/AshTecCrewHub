@@ -7,6 +7,7 @@
  * Usage: npx tsx scripts/recompute_attendance.ts
  */
 
+import '../server/env.js';
 import { db, closeDb } from '../server/db/index.js';
 import { zite } from '../server/db/index.js';
 import { syncAutoAttendance } from '../src/lib/server.js';
