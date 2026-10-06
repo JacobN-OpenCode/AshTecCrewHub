@@ -213,6 +213,13 @@ export type GetPublicCalendarInputType = NonNullable<_GetPublicCalendarCfg['inpu
 export type GetPublicCalendarOutputType = Awaited<ReturnType<_GetPublicCalendarCfg['execute']>>;
 export const getPublicCalendar = createCaller<GetPublicCalendarInputType, GetPublicCalendarOutputType>('getPublicCalendar');
 
+import type { default as _GetPublicParentsEp } from '../api/getPublicParents';
+
+type _GetPublicParentsCfg = typeof _GetPublicParentsEp;
+export type GetPublicParentsInputType = NonNullable<_GetPublicParentsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetPublicParentsCfg['execute']>[0]['input'];
+export type GetPublicParentsOutputType = Awaited<ReturnType<_GetPublicParentsCfg['execute']>>;
+export const getPublicParents = createCaller<GetPublicParentsInputType, GetPublicParentsOutputType>('getPublicParents');
+
 import type { default as _GetPushConfigEp } from '../api/getPushConfig';
 
 type _GetPushConfigCfg = typeof _GetPushConfigEp;
@@ -364,6 +371,7 @@ export const api = {
   getMyEvents,
   getPresence,
   getPublicCalendar,
+  getPublicParents,
   getPushConfig,
   getStageLayout,
   notificationPass,

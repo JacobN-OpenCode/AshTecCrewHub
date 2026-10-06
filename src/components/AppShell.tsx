@@ -5,7 +5,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@project/components/ui/dropdown-menu';
 import {
-  Activity, CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, LayoutGrid, LifeBuoy, Lightbulb, Wrench,
+  Activity, CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, HeartHandshake,
+  LayoutGrid, LifeBuoy, Lightbulb, Wrench,
   Mail, LogOut, Settings2, ShieldCheck, User, Users,
 } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -38,6 +39,7 @@ function Shell() {
     { to: '/', label: 'My Events', icon: CalendarCheck },
     { to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null },
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+    { to: '/parents', label: 'For parents', icon: HeartHandshake },
     { to: '/tools', label: 'Tools', icon: Wrench },
     { to: '/profile', label: 'Settings', icon: User },
     { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },

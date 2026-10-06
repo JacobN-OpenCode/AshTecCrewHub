@@ -8,6 +8,7 @@ import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import Landing from './pages/Landing';
 import PublicCalendar from './pages/PublicCalendar';
+import PublicParents from './pages/PublicParents';
 import AppShell from './components/AppShell';
 import MyEvents from './pages/MyEvents';
 import Attendance from './pages/Attendance';
@@ -67,6 +68,8 @@ function SignedIn() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/stage" element={<StageLayout />} />
           <Route path="/calendar" element={<Calendar />} />
+          {/* The parents page is public, but crew need to open it too (sidebar). */}
+          <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
           {me.isAdmin && <Route path="/admin/members" element={<AdminMembers />} />}
@@ -93,11 +96,12 @@ export default function App() {
   );
 }
 
-/** Signed-out routes. /calendar is public on purpose; everything else is the marketing home. */
+/** Signed-out routes. /calendar and /parents are public on purpose; everything else is the marketing home. */
 function SignedOut() {
   return (
     <Routes>
       <Route path="/calendar" element={<PublicCalendar />} />
+      <Route path="/parents" element={<PublicParents />} />
       {/* A phone camera can open an approval link before the admin is signed in. */}
       <Route path="/a/:token" element={<ApprovePresence />} />
       <Route path="*" element={<Landing />} />

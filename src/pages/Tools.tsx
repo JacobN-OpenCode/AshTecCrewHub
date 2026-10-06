@@ -7,7 +7,7 @@ import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Checkbox } from '@project/components/ui/checkbox';
-import { Wrench, Printer, FileDown, Phone, Mail } from 'lucide-react';
+import { Wrench, Printer, FileDown, Phone, Mail, ExternalLink } from 'lucide-react';
 import { fmtDate } from '../lib/constants';
 import { formatEventTimeRange } from '../lib/icsBuild';
 
@@ -101,10 +101,18 @@ function PhoneExcuseForm() {
     const logoSrc = logo || '/ashford-logo.jpeg';
     return `<!doctype html><html><head><meta charset="utf-8"><title>Mobile Phone Excuse Form</title>
 <style>
+  /* Word cannot lay out flexbox (it sizes the logo at its natural 1061px and
+     drops the school names), and position:fixed in print lets later pages flow
+     underneath the header and footer, which cropped the body text. So: a
+     borderless table for the header with explicit image dimensions Word
+     honours, and nothing pinned over the content. */
   @page { size: A4; margin: 22mm 18mm 30mm; }
+  @page Section1 { size: A4; margin: 22mm 18mm 30mm; }
+  div.Section1 { page: Section1; }
   body{font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:11pt;color:#000;line-height:1.4;margin:0}
-  .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #999;padding-bottom:8px}
-  .header img{height:54px;width:auto}
+  .header{width:100%;border-collapse:collapse;border-bottom:1px solid #999}
+  .header td{padding:0 0 8px;vertical-align:middle}
+  .header img{width:282px;height:54px}
   .schools{font-size:8pt;color:#333;text-align:right;line-height:1.35}
   h1{font-size:15pt;text-align:center;margin:20px 0 14px}
   p{margin:0 0 11px}
@@ -113,17 +121,12 @@ function PhoneExcuseForm() {
   .sig{margin-top:34px}
   .line{border-bottom:1px solid #000;height:34px;margin:16px 0 6px}
   .footer{font-size:8pt;color:#444;border-top:1px solid #ccc;padding-top:8px;line-height:1.45}
-  @media print{
-    .header{position:fixed;top:0;left:0;right:0;background:#fff}
-    .footer{position:fixed;bottom:0;left:0;right:0;background:#fff}
-    .pad-top{height:74px}.pad-bottom{height:104px}
-  }
 </style></head><body>
-<div class="header">
-  <img src="${logoSrc}" alt="Ashford School" />
-  <div class="schools">Senior School<br />Prep School &middot; Bridge Nursery &middot; Stables Nursery</div>
-</div>
-<div class="pad-top"></div>
+<div class="Section1">
+<table class="header"><tr>
+  <td><img src="${logoSrc}" width="282" height="54" alt="Ashford School" /></td>
+  <td align="right" class="schools">Senior School<br />Prep School &middot; Bridge Nursery &middot; Stables Nursery</td>
+</tr></table>
 <p style="color:#555;font-size:9pt">${escapeHtml(now.toLocaleDateString('en-GB'))}</p>
 <p>Dear Whom It May Concern,</p>
 <h1>Mobile Phone Use Excuse Form</h1>
@@ -136,13 +139,13 @@ ${lines ? `<ul>${lines}</ul>` : '<p style="color:#777">No rehearsals or performa
 <p>If you have any concerns, please contact ${escapeHtml(teacherEmail || 'TEACHER EMAIL')}.</p>
 <p>Many Thanks,<br />AshTec Crew &amp; ${escapeHtml(teacher || 'TEACHER NAME')}</p>
 <div class="sig"><p>Signed by ${escapeHtml(teacher || 'TEACHER NAME')}</p><div class="line"></div></div>
-<div class="pad-bottom"></div>
 <div class="footer">
   Ashford Senior School Bridge Nursery &middot; East Hill, Ashford, Kent, TN24 8PB &middot; Tel: +44 (0) 1233 625171<br />
   Ashford Prep School Stables Nursery &middot; Great Chart, Ashford, Kent, TN23 3DJ &middot; Tel: +44 (0) 1233 620493<br />
   Admissions: Tel +44 (0) 1233 739030 &middot; registrar@ashfordschool.co.uk &middot; www.ashfordschool.co.uk<br />
   Ashford School is a member of United Learning. Registered address: Worldwide House, Thorpe Wood, Peterborough, PE3 6SB. Registered in England No 2780748.<br />
   A company limited by guarantee.
+</div>
 </div>
 </body></html>`;
   };
@@ -350,10 +353,17 @@ function ParentInfoLetter() {
 
     return `<!doctype html><html><head><meta charset="utf-8"><title>AshTec Crew - Parent Information</title>
 <style>
+  /* Same two Word constraints as the excuse form: no flexbox, no position:fixed
+     in print (a fixed header/footer is what cropped the body text on page 2
+     onwards). The header is a table with explicit image dimensions so Word
+     sizes the 1061x203 logo down instead of printing it full width. */
   @page { size: A4; margin: 22mm 18mm 30mm; }
+  @page Section1 { size: A4; margin: 22mm 18mm 30mm; }
+  div.Section1 { page: Section1; }
   body{font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:11pt;color:#000;line-height:1.4;margin:0}
-  .header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #999;padding-bottom:8px}
-  .header img{height:54px;width:auto}
+  .header{width:100%;border-collapse:collapse;border-bottom:1px solid #999}
+  .header td{padding:0 0 8px;vertical-align:middle}
+  .header img{width:282px;height:54px}
   .schools{font-size:8pt;color:#333;text-align:right;line-height:1.35}
   .date{color:#555;font-size:9pt;margin-top:14px}
   h1{font-size:15pt;margin:18px 0 12px;text-align:center}
@@ -367,17 +377,12 @@ function ParentInfoLetter() {
   .note{background:#f5f5f5;border-left:3px solid #999;padding:10px 12px;margin:14px 0;font-size:10.5pt}
   .contact{margin-top:14px;font-size:10.5pt}
   .footer{font-size:8pt;color:#444;border-top:1px solid #ccc;padding-top:8px;line-height:1.45}
-  @media print{
-    .header{position:fixed;top:0;left:0;right:0;background:#fff}
-    .footer{position:fixed;bottom:0;left:0;right:0;background:#fff}
-    .pad-top{height:74px}.pad-bottom{height:104px}
-  }
 </style></head><body>
-<div class="header">
-  <img src="${logoSrc}" alt="Ashford School" />
-  <div class="schools">Senior School<br />Prep School &middot; Bridge Nursery &middot; Stables Nursery</div>
-</div>
-<div class="pad-top"></div>
+<div class="Section1">
+<table class="header"><tr>
+  <td><img src="${logoSrc}" width="282" height="54" alt="Ashford School" /></td>
+  <td align="right" class="schools">Senior School<br />Prep School &middot; Bridge Nursery &middot; Stables Nursery</td>
+</tr></table>
 <p class="date">${escapeHtml(today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</p>
 <p>${escapeHtml(recipient || 'Dear Parent / Guardian,')}</p>
 <h1>AshTec Crew &ndash; Parent Information</h1>
@@ -390,25 +395,25 @@ ${groupsHtml}
 <p>The dates and start times above are the current school plan. We will confirm every rehearsal and performance with ${escapeHtml(student || 'your child')} (and you, where helpful) closer to the time. Where a date is not yet final, you will see &ldquo;Date TBC&rdquo;.</p>
 
 <div class="cal">
-  <p style="margin:0 0 6px"><strong>Public calendar</strong></p>
-  <p style="margin:0">You can see every rehearsal and performance AshTec is involved in at <a href="https://ashtec.dino.icu/">https://ashtec.dino.icu/</a> &ndash; click <em>Public calendar</em>. Please note that the public calendar lists dates and times only; full details such as what to bring, response deadlines and member-only arrangements stay behind the sign-in pages and are not visible there.</p>
+  <p style="margin:0 0 6px"><strong>Everything for parents, in one place</strong></p>
+  <p style="margin:0">The parents page at <a href="https://ashtec.dino.icu/parents">https://ashtec.dino.icu/parents</a> lists every upcoming rehearsal and performance with its times, what to bring, the reply-by dates and a description of each production &ndash; no account needed, and it is kept in step with this letter. The shorter <em>Public calendar</em> at <a href="https://ashtec.dino.icu/calendar">https://ashtec.dino.icu/calendar</a> shows dates and times only.</p>
 </div>
 
 <p>If your child needs any help, or if you have a question about the production, please contact <strong>Mr Andrews</strong>, Head of Drama at the school. He oversees the productions and is the right person to talk to first.</p>
 
 <p class="note">If ${escapeHtml(student || 'your child')} is unable to attend a specific rehearsal or performance, please let a crew admin know as far in advance as possible so the running order can be planned around it. A quick note through the AshTec crew system is the easiest way.</p>
 
-<p class="contact">A copy of this letter is held on the AshTec Crew Hub. The information above is taken from the same source the stage manager uses, so anything you see here is what has been confirmed to the school team.</p>
+<p class="contact">A copy of this letter is held on the AshTec Crew Hub, and the same information stays live on the parents page at <a href="https://ashtec.dino.icu/parents">https://ashtec.dino.icu/parents</a>. The information above is taken from the same source the stage manager uses, so anything you see here is what has been confirmed to the school team.</p>
 
 <p class="signoff">With thanks,<br />The AshTec Crew at ${SCHOOL}</p>
 
-<div class="pad-bottom"></div>
 <div class="footer">
   Ashford Senior School Bridge Nursery &middot; East Hill, Ashford, Kent, TN24 8PB &middot; Tel: +44 (0) 1233 625171<br />
   Ashford Prep School Stables Nursery &middot; Great Chart, Ashford, Kent, TN23 3DJ &middot; Tel: +44 (0) 1233 620493<br />
   Admissions: Tel +44 (0) 1233 739030 &middot; registrar@ashfordschool.co.uk &middot; www.ashfordschool.co.uk<br />
   Ashford School is a member of United Learning. Registered address: Worldwide House, Thorpe Wood, Peterborough, PE3 6SB. Registered in England No 2780748.<br />
   A company limited by guarantee.
+</div>
 </div>
 </body></html>`;
   };
@@ -446,6 +451,16 @@ ${groupsHtml}
           selected production, and how to reach the school. Pick the production, fill in your name and year, then
           print or download.
         </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" size="sm" asChild>
+            <a href="/parents"><ExternalLink className="mr-2 h-4 w-4" />Open the parents page</a>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            The same information, kept up to date on its own and needing no account. Share that link with
+            parents alongside or instead of the letter.
+          </p>
+        </div>
 
         {data.shows.length === 0 ? (
           <p className="rounded-xl border border-dashed px-3.5 py-3 text-sm text-muted-foreground">
@@ -499,7 +514,7 @@ ${groupsHtml}
       {events.length > 0 && (
         <div className="rounded-2xl border bg-card p-5">
           <h3 className="mb-3 text-sm font-semibold">Preview</h3>
-          <iframe title="Preview" srcDoc={documentHtml()} className="h-[640px] w-full rounded-xl border bg-white" />
+          <iframe title="Preview" srcDoc={documentHtml()} className="h-[760px] w-full rounded-xl border bg-white" />
         </div>
       )}
     </div>
