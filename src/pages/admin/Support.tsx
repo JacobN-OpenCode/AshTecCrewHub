@@ -48,9 +48,22 @@ export default function Support() {
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
   const referred = tickets.filter((t) => t.referToOpencode).length;
-  const age = (iso: string) => {
-    const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-    return days <= 0 ? 'today' : days === 1 ? '1 day' : `${days} days`;
+  /**
+   * Friendly "today / 1 day / N days" label for a ticket. A handful of
+   * imported or older tickets were created without an explicit submit
+   * timestamp; without the guard, Date.parse("") returns NaN and the
+   * page rendered "NaN days" (ticket 8e0d79b8). Missing or unparseable
+   * input now yields an empty string so the caller can decide how to
+   * render the gap rather than the app inventing a value.
+   */
+  const age = (iso: string | null | undefined): string => {
+    if (!iso) return '';
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return '';
+    const days = Math.floor((Date.now() - ms) / 86_400_000);
+    if (days <= 0) return 'today';
+    if (days === 1) return '1 day';
+    return `${days} days`;
   };
 
   return (
@@ -105,7 +118,15 @@ export default function Support() {
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
                   {t.awaitingReply && ['Open', 'In Progress'].includes(t.status)
-                    ? <span className="text-orange-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />waiting on a reply · {age(t.lastReplyAt || t.submittedAt)}</span>
+                    ? (() => {
+                        const ageStr = age(t.lastReplyAt || t.submittedAt);
+                        return (
+                          <span className="text-orange-400 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            waiting on a reply{ageStr ? ` · ${ageStr}` : ''}
+                          </span>
+                        );
+                      })()
                     : <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{t.replyCount} {t.replyCount === 1 ? 'reply' : 'replies'}</span>}
                 </p>
               </div>
