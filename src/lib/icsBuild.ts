@@ -20,7 +20,10 @@ export type IcsEvent = {
   showIds?: string[];
   shows?: unknown;
   hidden: boolean;
-  timings?: string;
+  /** Structured start/end (HH:MM, 24h). Both, neither, or only one - the
+   *  rules below decide what the calendar actually publishes. */
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 /** Ids of the shows an event belongs to, from either field name. */
@@ -50,12 +53,20 @@ const esc = (s: string) =>
     .replace(/,/g, '\\,')
     .replace(/\r?\n/g, '\\n');
 
-/** "18:30" -> 183000. Falls back to the first HH:MM inside a longer string, because
- *  meetTime in the data is free text and often reads "GO TO REGISTRATION, THEN
- *  BRAKE HALL AT 8:40". Anything with no time in it becomes an all-day event. */
-function timeValue(meetTime: string): string | null {
-  const strict = /^(\d{1,2}):(\d{2})$/.exec(meetTime.trim());
-  const m = strict ?? /(\d{1,2}):(\d{2})/.exec(meetTime);
+const hhmmToIcs = (s: string): string | null => {
+  const m = /^([0-9]{1,2}):([0-9]{2})$/.exec(s.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return `${pad(h)}${pad(min)}00`;
+};
+
+/** Defensive HH:MM parser for the legacy free-text fallback (text drawn from
+ *  meetTime or a leftover timings string in case something slipped past). */
+function timeValueLoose(s: string): string | null {
+  const strict = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+  const m = strict ?? /(\d{1,2}):(\d{2})/.exec(s);
   if (!m) return null;
   const h = Number(m[1]);
   const min = Number(m[2]);
@@ -63,14 +74,34 @@ function timeValue(meetTime: string): string | null {
   return `${pad(h)}${pad(min)}00`;
 }
 
+/**
+ * Renders a "Wed 8 Oct, 19:00 – 21:00" string for member-facing event lists
+ * (and printable forms), driven by the same structured fields the calendar
+ * uses. Either time may be missing on its own.
+ */
+export function formatEventTimeRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start && !end) return '';
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `${start} (ends TBC)`;
+  return `ends ${end}`;
+}
+
 /** Start plus one hour, saturating at 23:59 rather than rolling into the next
  *  day - a DTEND dated later than DTSTART confuses importers more than an
  *  event that is a minute short. */
-function endFrom(start: string): string {
+function defaultEnd(start: string): string {
   const h = Number(start.slice(0, 2));
   const min = Number(start.slice(2, 4));
   const total = Math.min(h * 60 + min + 60, 23 * 60 + 59);
   return `${pad(Math.floor(total / 60))}${pad(total % 60)}00`;
+}
+
+/** Earlier than the start time (or equal): the calendar app ends up confused.
+ *  Clamps to the start time so at worst it ends when it starts - the admin
+ *  can fix the data. */
+function clampEnd(end: string, start: string): string {
+  if (end >= start) return end;
+  return start;
 }
 
 const fold = (line: string) => {
@@ -101,7 +132,6 @@ export function buildIcs(events: IcsEvent[], showName: (id: string) => string, c
 
   for (const e of usable) {
     const day = stamp(e.date as string);
-    const start = e.meetTime ? timeValue(e.meetTime) : null;
     const shows = showIdsOf(e).map(showName).filter(Boolean).join(', ');
 
     lines.push(
@@ -111,10 +141,26 @@ export function buildIcs(events: IcsEvent[], showName: (id: string) => string, c
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
     );
 
-    if (start) {
-      // Timed event. We do not know when it ends, so it gets a default hour:
-      // better that than an all-day block that hides the meet time entirely.
-      lines.push(`DTSTART;TZID=Europe/London:${day}T${start}`, `DTEND;TZID=Europe/London:${day}T${endFrom(start)}`);
+    // Precedence for the timed-event block: structured start/end first, then
+    // the (now legacy) meetTime text. The structured pair wins when both are
+    // present so an admin who has filled in real times is not overridden by a
+    // stray "9:45 - Brake Hall" meet time.
+    const start = e.startTime ? hhmmToIcs(e.startTime) : null;
+    const end = e.endTime ? hhmmToIcs(e.endTime) : null;
+    const looseStart = start ?? (e.meetTime ? timeValueLoose(e.meetTime) : null);
+
+    if (start && end) {
+      lines.push(
+        `DTSTART;TZID=Europe/London:${day}T${start}`,
+        `DTEND;TZID=Europe/London:${day}T${clampEnd(end, start)}`,
+      );
+    } else if (start) {
+      // Start but no end: default to +1h so the calendar shows a sensible
+      // block rather than an all-day marker.
+      lines.push(`DTSTART;TZID=Europe/London:${day}T${start}`, `DTEND;TZID=Europe/London:${day}T${defaultEnd(start)}`);
+    } else if (looseStart) {
+      // Legacy meet time fallback for events that never had structured times.
+      lines.push(`DTSTART;TZID=Europe/London:${day}T${looseStart}`, `DTEND;TZID=Europe/London:${day}T${defaultEnd(looseStart)}`);
     } else {
       lines.push(`DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${day}`);
     }

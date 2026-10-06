@@ -13,13 +13,25 @@ import { SUBTYPES, EVENT_TYPES, isClubSession } from '../../lib/constants';
 
 type Form = {
   title: string; type: 'Rehearsal' | 'Performance' | 'Club Session'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
-  description: string; meetTime: string; timings: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
+  description: string; meetTime: string; startTime: string; endTime: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
   dueDate: string | null; dueUnknown: boolean; hidden: boolean;
 };
 const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
   title: '', type, subtype: SUBTYPES[type][0], showIds: showId ? [showId] : [], date: null, dateTbc: false,
-  description: '', meetTime: '', timings: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
+  description: '', meetTime: '', startTime: '', endTime: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
 });
+
+/**
+ * Two structured HH:MM fields replace the old free-text "Timings" string, so
+ * the calendar feed and every list in the app get a real start/end pair
+ * instead of guessing from a meet time.
+ *
+ * Both-or-neither: leaving one half empty (start with no end, or vice
+ * versa) is rejected on save, because a half-range would render as an
+ * accidental 1-hour event in subscribers' calendars.
+ */
+const HHMM_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+const hhmmHint = 'HH:MM (24-hour)';
 
 export default function SubEventDialog({ open, ev, shows, defaultShowId, defaultType, onClose, onSaved }: {
   open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; defaultShowId?: string; defaultType?: Form['type']; onClose: () => void; onSaved: () => void;
@@ -28,18 +40,46 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, default
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
-    setF(ev ? { ...ev, type: ev.type as Form['type'], importance: ev.importance as Form['importance'] } : blank(defaultShowId, defaultType));
+    setF(ev
+      ? {
+          ...ev,
+          type: ev.type as Form['type'],
+          importance: ev.importance as Form['importance'],
+          startTime: ev.startTime ?? '',
+          endTime: ev.endTime ?? '',
+        }
+      : blank(defaultShowId, defaultType));
   }, [open, ev, defaultShowId, defaultType]);
   const set = (p: Partial<Form>) => setF((x) => ({ ...x, ...p }));
   // A club session is not part of a production, so it is the only type that may
   // be saved with no show attached.
   const club = isClubSession(f.type);
-  const valid = f.title.trim() && (club || f.showIds.length) && (f.dateTbc || f.date);
+  // A half-filled time range is useless on the calendar.
+  const halfFilled = (!!f.startTime) !== (!!f.endTime);
+  const bothBlank = !f.startTime && !f.endTime;
+  const valid =
+    f.title.trim() &&
+    (club || f.showIds.length) &&
+    (f.dateTbc || f.date) &&
+    ((f.startTime === '' && f.endTime === '') || (!halfFilled && HHMM_RE.test(f.startTime) && HHMM_RE.test(f.endTime)));
+  const timeHelp = f.startTime && !HHMM_RE.test(f.startTime)
+    ? `Use ${hhmmHint}, e.g. 09:00 or 19:30.`
+    : f.endTime && !HHMM_RE.test(f.endTime)
+      ? `Use ${hhmmHint}, e.g. 16:00 or 21:30.`
+      : 'Leave both blank if the times are not yet known; the subscribe feed renders them as an all-day block.';
 
   const save = async () => {
     setBusy(true);
-    try { await adminSaveSubEvent({ id: ev?.id, ...f }); toast.success('Saved'); onSaved(); }
-    catch (e) { toast.error((e as Error).message); }
+    try {
+      await adminSaveSubEvent({
+        id: ev?.id,
+        ...f,
+        startTime: f.startTime || null,
+        endTime: f.endTime || null,
+      });
+      toast.success('Saved');
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
 
@@ -85,8 +125,20 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, default
               <SelectContent>{['High', 'Medium', 'Low'].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1"><L>Meet time</L><Input value={f.meetTime} onChange={(e) => set({ meetTime: e.target.value })} placeholder="08:45, Main Hall stage door" /></div>
-          <div className="space-y-1"><L>Timings</L><Input value={f.timings} onChange={(e) => set({ timings: e.target.value })} placeholder="09:00 – 16:00" /></div>
+          <div className="space-y-1 sm:col-span-2">
+            <L>Meet time</L>
+            <Input value={f.meetTime} onChange={(e) => set({ meetTime: e.target.value })} placeholder="08:45, Main Hall stage door" />
+            <p className="text-xs text-muted-foreground">Where the crew should be, and at what time. Free text - "8:45 - Brake Hall" works.</p>
+          </div>
+          <div className="space-y-1">
+            <L>Start time</L>
+            <Input value={f.startTime} onChange={(e) => set({ startTime: e.target.value })} placeholder={hhmmHint} />
+          </div>
+          <div className="space-y-1">
+            <L>End time</L>
+            <Input value={f.endTime} onChange={(e) => set({ endTime: e.target.value })} placeholder={hhmmHint} />
+          </div>
+          <p className="sm:col-span-2 text-xs text-muted-foreground">{timeHelp}</p>
           <div className="sm:col-span-2 space-y-1"><L>Description</L><Textarea value={f.description} onChange={(e) => set({ description: e.target.value })} /></div>
           <div className="sm:col-span-2 space-y-1"><L>Things to bring</L><Textarea rows={2} value={f.thingsToBring} onChange={(e) => set({ thingsToBring: e.target.value })} placeholder="Blacks, torch, packed lunch" /></div>
           <div className="sm:col-span-2 space-y-1"><L>Response due date</L>

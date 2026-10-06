@@ -79,6 +79,68 @@ const keyPair = (v: string): [string, string] => {
   return i === -1 ? ['', ''] : [v.slice(0, i), v.slice(i + 1)];
 };
 
+/**
+ * Splits a free-text timings string into structured start/end. Accepts both
+ * hyphen and en-dash separators since the CSV has used both:
+ *   "10:00 - 16:00"   "10:00-16:00"   "8:40 - 16:00"   "19:00 – 21:00"
+ * Anything we cannot parse (TBC, plain text, empty) returns nulls.
+ */
+function parseTimingsRange(raw: string): { startTime: string | null; endTime: string | null } {
+  const m = raw.match(/^([0-9]{1,2}):([0-9]{2})\s*[-–]\s*([0-9]{1,2}):([0-9]{2})\s*$/);
+  if (!m) return { startTime: null, endTime: null };
+  const [, h1, m1, h2, m2] = m;
+  if (Number(h1) > 23 || Number(m1) > 59 || Number(h2) > 23 || Number(m2) > 59) {
+    return { startTime: null, endTime: null };
+  }
+  return {
+    startTime: `${String(h1).padStart(2, '0')}:${String(m1).padStart(2, '0')}`,
+    endTime: `${String(h2).padStart(2, '0')}:${String(m2).padStart(2, '0')}`,
+  };
+}
+
+/**
+ * Older SubEvents tables have a "timings" free-text column instead of the
+ * structured startTime/endTime pair. This step finds any rows whose timings
+ * value can be parsed into a range, writes the start/end, then drops the
+ * legacy column. Idempotent: re-running on an already-migrated database is
+ * a no-op because no row will have a parseable timings value (the column
+ * would be gone) and the parsed pair is already present.
+ */
+async function migrateTimingsIntoStartEnd(): Promise<void> {
+  const pool = db();
+  let hasTimings = false;
+  try {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'SubEvents' AND column_name = 'timings'`,
+    );
+    hasTimings = !!rows[0];
+  } catch {
+    return; // table missing - schema hasn't run yet, nothing to do
+  }
+  if (!hasTimings) {
+    console.log('  SubEvents.timings: not present, no migration needed');
+    return;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT "id", "timings" FROM "SubEvents"
+     WHERE ("startTime" IS NULL OR "startTime" = '')`,
+  );
+  let updated = 0;
+  for (const r of rows) {
+    const parsed = parseTimingsRange(String(r.timings ?? ''));
+    if (!parsed.startTime) continue;
+    await pool.query(
+      `UPDATE "SubEvents" SET "startTime" = $1, "endTime" = $2 WHERE "id" = $3`,
+      [parsed.startTime, parsed.endTime, r.id],
+    );
+    updated++;
+  }
+  await pool.query(`ALTER TABLE "SubEvents" DROP COLUMN "timings"`);
+  console.log(`  SubEvents: migrated ${updated} timings -> startTime/endTime and dropped the column`);
+}
+
 // ---------------------------------------------------------------------------
 // Table descriptors: real (importable) columns and known rollup columns.
 // `dbColumns` maps CSV header -> Postgres column. Anything in `rollups` is
@@ -111,7 +173,11 @@ const D: Record<string, Desc> = {
     rollups: ['Attendance', 'Presence Sessions'],
     cols: {
       ID: 'id', Title: 'title', Type: 'type', Subtype: 'subtype', Shows: 'shows', Date: 'date',
-      'Date TBC': 'dateTbc', Description: 'description', 'Meet Time': 'meetTime', Timings: 'timings',
+      'Date TBC': 'dateTbc', Description: 'description', 'Meet Time': 'meetTime',
+      // The CSV still has a "Timings" column; the importer parses it into
+      // startTime/endTime below so the new schema (which has no "timings"
+      // column) can be served by a fresh import without a re-import.
+      Timings: '__parsed_into_startend',
       Importance: 'importance', 'Things To Bring': 'thingsToBring', 'Response Due Date': 'responseDueDate',
       'Due Date Unknown': 'dueDateUnknown', Hidden: 'hidden',
     },
@@ -188,6 +254,13 @@ async function main() {
     await db().query(schema);
     console.log('  applied server/db/schema.sql');
   }
+
+  // Volunteer data migrations that fit any database the schema has been
+  // applied to. Run before the CSV import so a fresh import lands with the
+  // new shape, and so a re-run on a populated live database carries its old
+  // "timings" free-text across to the structured columns without having to
+  // re-import the CSV.
+  await migrateTimingsIntoStartEnd();
 
   // --schema-only stops here. This exists because re-running the full migrate on
   // a live database re-imports the CSV snapshot and overwrites rows that have
@@ -280,7 +353,11 @@ async function main() {
       id: str(r.ID), title: str(r.Title), type: str(r.Type) || 'Rehearsal', subtype: str(r.Subtype),
       shows: splitList(r.Shows).map((n) => nameToId(n)).filter(Boolean),
       date: dateOrNull(r.Date), dateTbc: bool(r['Date TBC']), description: str(r.Description),
-      meetTime: str(r['Meet Time']), timings: str(r.Timings),
+      meetTime: str(r['Meet Time']),
+      // The CSV still has "Timings"; we split it into the structured
+      // startTime/endTime pair that the schema now exposes, so a fresh
+      // import lands in the new shape with no legacy column.
+      ...parseTimingsRange(str(r.Timings)),
       importance: str(r.Importance) || 'Medium', thingsToBring: str(r['Things To Bring']),
       responseDueDate: dateOrNull(r['Response Due Date']),
       dueDateUnknown: bool(r['Due Date Unknown']), hidden: bool(r.Hidden),

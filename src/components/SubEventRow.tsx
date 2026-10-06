@@ -3,6 +3,7 @@ import { cn } from '@project/components/lib/utils';
 import { Clock, MapPin, Backpack, CalendarDays } from 'lucide-react';
 import type { GetMyEventsOutputType } from '#api';
 import { fmtDate, dueLabel, isPastDue, IMPORTANCE_STYLE } from '../lib/constants';
+import { formatEventTimeRange } from '../lib/icsBuild';
 
 export type MySubEvent = GetMyEventsOutputType['subEvents'][number];
 type Status = 'Expected Arrival' | 'Maybe' | 'Not Attending';
@@ -28,7 +29,11 @@ export default function SubEventRow({ ev, onPick, disabled }: { ev: MySubEvent; 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{fmtDate(ev.date, ev.dateTbc)}</span>
             {ev.meetTime && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />Meet {ev.meetTime}</span>}
-            {ev.timings && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{ev.timings}</span>}
+            {(ev.startTime || ev.endTime) && (
+              <span className="flex items-center gap-1 font-mono">
+                <Clock className="h-3.5 w-3.5" />{formatEventTimeRange(ev.startTime ?? null, ev.endTime ?? null)}
+              </span>
+            )}
           </div>
           {ev.description && <p className="text-sm">{ev.description}</p>}
           {ev.thingsToBring && (

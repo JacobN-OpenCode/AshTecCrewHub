@@ -16,6 +16,7 @@ import SubEventDialog from '../components/admin/SubEventDialog';
 import ReasonDialog from '../components/ReasonDialog';
 import { type AdminShow, type AdminSubEvent } from '../lib/useAdminData';
 import { buildIcs, downloadIcs } from '../lib/ics';
+import { formatEventTimeRange } from '../lib/icsBuild';
 import { isClubSession } from '../lib/constants';
 
 type CalShow = AdminShow;
@@ -24,7 +25,7 @@ type CalResponse = { showId: string; response: string | null };
 type CalEvent = {
   id: string; title: string; type: string; subtype?: string; showIds: string[];
   date: string | null; dateTbc: boolean; meetTime?: string; importance: string; hidden: boolean;
-  description?: string; timings?: string; thingsToBring?: string;
+  description?: string; startTime?: string | null; endTime?: string | null; thingsToBring?: string;
   dueDate?: string | null; dueUnknown?: boolean; responses?: CalResponse[]; status?: string | null;
 };
 
@@ -117,7 +118,7 @@ export default function Calendar() {
       map.set(e.date, list);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.meetTime || '99').localeCompare(b.meetTime || '99'));
+      list.sort((a, b) => (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'));
     }
     return map;
   }, [filtered]);
@@ -226,7 +227,11 @@ export default function Calendar() {
       {e.meetTime && (
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 shrink-0" /> Meet {e.meetTime}
-          {e.timings && ` · ${e.timings}`}
+        </p>
+      )}
+      {(e.startTime || e.endTime) && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
+          <span className="text-primary">●</span> {formatEventTimeRange(e.startTime ?? null, e.endTime ?? null)}
         </p>
       )}
       {e.description && <p className="text-sm leading-relaxed whitespace-pre-line">{e.description}</p>}
@@ -319,7 +324,7 @@ export default function Calendar() {
 
   const Chip = ({ e }: { e: CalEvent }) => (
     <div
-      title={[e.title, e.subtype || e.type, e.meetTime, showName(e)].filter(Boolean).join(' · ')}
+      title={[e.title, e.subtype || e.type, formatEventTimeRange(e.startTime ?? null, e.endTime ?? null), e.meetTime, showName(e)].filter(Boolean).join(' · ')}
       className={cn(
         'text-[11px] leading-tight rounded-md px-1.5 py-1 border truncate',
         typeChip(e.type),
@@ -327,7 +332,7 @@ export default function Calendar() {
       )}
     >
       <div className="flex items-center gap-1">
-        {e.meetTime && <span className="font-mono opacity-80 shrink-0">{e.meetTime}</span>}
+        {e.startTime && <span className="font-mono opacity-80 shrink-0">{e.startTime}</span>}
         <span className="truncate">{e.title}</span>
         {e.hidden && <EyeOff className="h-3 w-3 shrink-0 opacity-70" />}
       </div>
@@ -501,7 +506,7 @@ export default function Calendar() {
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
                   {e.subtype || e.type} · {showName(e) || 'No show'}
-                  {e.meetTime && ` · meet ${e.meetTime}`}
+                  {(e.startTime || e.endTime) && ` · ${formatEventTimeRange(e.startTime ?? null, e.endTime ?? null)}`}
                 </p>
                 {e.description && <p className="text-xs text-muted-foreground line-clamp-2">{e.description}</p>}
                 <p className="text-[11px] text-primary">Click for details</p>

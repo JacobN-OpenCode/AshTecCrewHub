@@ -93,6 +93,11 @@ export async function buildMemberFeed(memberId: string): Promise<string> {
       date: e.date ?? null,
       dateTbc: !!e.dateTbc,
       meetTime: e.meetTime ?? '',
+      // Structured start/end drive the calendar's DTSTART/DTEND: when both
+      // are present, the calendar uses them directly instead of falling back
+      // to a guess from the meet-time text.
+      startTime: e.startTime ?? null,
+      endTime: e.endTime ?? null,
       showIds: ids(e.shows),
       hidden: !!e.hidden,
     }));

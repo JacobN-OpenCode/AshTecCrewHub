@@ -74,7 +74,12 @@ CREATE TABLE IF NOT EXISTS "SubEvents" (
   "dateTbc"           boolean NOT NULL DEFAULT false,
   "description"       text NOT NULL DEFAULT '',
   "meetTime"          text NOT NULL DEFAULT '',
-  "timings"           text NOT NULL DEFAULT '',
+  -- Structured start/end for the calendar feed. Both are HH:MM in 24-hour
+  -- time (so "19:30"), nullable because dates can still be set ahead of
+  -- times. The previous free-text "timings" column was dropped when these
+  -- landed, and the live data was migrated from it.
+  "startTime"         text,
+  "endTime"           text,
   "importance"        text NOT NULL DEFAULT 'Medium',
   "thingsToBring"     text NOT NULL DEFAULT '',
   "responseDueDate"   date,
@@ -84,6 +89,14 @@ CREATE TABLE IF NOT EXISTS "SubEvents" (
   "updatedAt"         timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS "SubEvents_date_idx" ON "SubEvents" ("date");
+-- Bring any older SubEvents table up to date: add the structured times so
+-- the data-migration script (scripts/migrate.ts end-of-run step) can find
+-- a place to land the parsed values. The actual row-by-row migration runs
+-- in TypeScript so the parsing is easy to test; setting them up here
+-- makes the rest of the schema apply idempotently even on a freshly
+-- imported database that never had "timings".
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "startTime" text;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "endTime" text;
 
 CREATE TABLE IF NOT EXISTS "ShowResponses" (
   "id"               uuid PRIMARY KEY,

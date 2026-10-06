@@ -91,7 +91,11 @@ export const mapSubEvent = (e: SubEventsRecordType) => ({
   dateTbc: !!e.dateTbc,
   description: e.description ?? '',
   meetTime: e.meetTime ?? '',
-  timings: e.timings ?? '',
+  // Structured start/end, both "HH:MM" 24-hour or null. The calendar feed
+  // uses these directly; admin pages and the member event row show them as
+  // "19:00 - 21:00" rather than the old free-text "timings" string.
+  startTime: e.startTime ?? null,
+  endTime: e.endTime ?? null,
   thingsToBring: e.thingsToBring ?? '',
   importance: e.importance ?? 'Medium',
   dueDate: e.responseDueDate ?? null,

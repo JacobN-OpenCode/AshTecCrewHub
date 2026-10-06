@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Wrench, Printer, FileDown, Phone } from 'lucide-react';
 import { fmtDate } from '../lib/constants';
+import { formatEventTimeRange } from '../lib/icsBuild';
 
 /**
  * Tools tab. Deliberately not admin-only: the tab is where member tools will
@@ -26,8 +27,12 @@ const longDate = (iso: string | null) =>
 
 const clock = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-/** The permitted time for one event: prefer an explicit timing, else the meet time. */
-const eventTime = (e: AdminSubEvent) => (e.timings || e.meetTime || '').trim();
+/** The permitted time for one event: prefer the structured start/end range,
+ *  falling back to the meet time only when no real times are set. */
+const eventTime = (e: AdminSubEvent): string => {
+  const range = formatEventTimeRange(e.startTime ?? null, e.endTime ?? null);
+  return range || e.meetTime?.trim() || '';
+};
 
 function PhoneExcuseForm() {
   const { me } = useMe();

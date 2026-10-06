@@ -3,6 +3,14 @@ import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, syncAutoAttendance } from '../lib/server';
 
+/** HH:MM in 24h, normalising inputs like "9:00" or "19:30" — server-side
+ *  validation that runs again on save so the whole app agrees on the shape. */
+const hhmm = z
+  .string()
+  .trim()
+  .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Use HH:MM in 24-hour time (e.g. 09:00 or 19:30)')
+  .transform((s) => (s.length === 4 ? `0${s}` : s));
+
 export default createEndpoint({
   description: 'Creates or updates a rehearsal/performance/club session (admins)',
   authenticated: true,
@@ -18,7 +26,12 @@ export default createEndpoint({
     dateTbc: z.boolean(),
     description: z.string(),
     meetTime: z.string(),
-    timings: z.string(),
+    // Structured start/end: "HH:MM" 24-hour strings, or null/omitted if the
+    // event has no confirmed times yet. The free-text "timings" field has
+    // been retired: the calendar, the public calendar and the member UI all
+    // read these two columns directly.
+    startTime: hhmm.nullish(),
+    endTime: hhmm.nullish(),
     thingsToBring: z.string(),
     importance: z.enum(['High', 'Medium', 'Low']),
     dueDate: z.string().nullable(),
@@ -31,6 +44,14 @@ export default createEndpoint({
     if (input.type !== 'Club Session' && input.showIds.length === 0) {
       throw new Error('Pick at least one show, or make this a club session.');
     }
+    // Both or neither: the calendar feed renders either-or as an all-day
+    // block, which is wrong if you only entered one end. Pin the boundary
+    // cases so an admin who meant a range cannot quietly save a half-range.
+    const start = input.startTime ?? null;
+    const end = input.endTime ?? null;
+    if ((start == null) !== (end == null)) {
+      throw new Error('Give both a start time and an end time, or neither.');
+    }
     const record = {
       title: input.title,
       type: input.type,
@@ -40,7 +61,8 @@ export default createEndpoint({
       dateTbc: input.dateTbc,
       description: input.description,
       meetTime: input.meetTime,
-      timings: input.timings,
+      startTime: start,
+      endTime: end,
       thingsToBring: input.thingsToBring,
       importance: input.importance,
       responseDueDate: input.dueUnknown ? null : input.dueDate,

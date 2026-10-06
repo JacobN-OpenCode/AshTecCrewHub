@@ -4,6 +4,7 @@ import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { CalendarDays, Clock, Lightbulb, MapPin, LogIn } from 'lucide-react';
 import { PLATFORM, SCHOOL } from '../lib/constants';
+import { formatEventTimeRange } from '../lib/icsBuild';
 import LoginCat from '../components/LoginCat';
 
 type PublicEvent = {
@@ -13,6 +14,8 @@ type PublicEvent = {
   subtype: string;
   date: string;
   meetTime: string;
+  startTime: string | null;
+  endTime: string | null;
   showNames: string[];
 };
 
@@ -70,7 +73,8 @@ export default function PublicCalendar() {
     }
     return [...map.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([date, list]) => [date, list.sort((a, b) => a.meetTime.localeCompare(b.meetTime))] as const);
+      // Sort within a day by start time so the calendar reads chronologically.
+      .map(([date, list]) => [date, list.sort((a, b) => (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'))] as const);
   }, [events]);
 
   const today = iso(new Date());
@@ -91,6 +95,11 @@ export default function PublicCalendar() {
         {e.subtype || e.type}
         {e.showNames.length > 0 && ` · ${e.showNames.join(', ')}`}
       </p>
+      {(e.startTime || e.endTime) && (
+        <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-mono">
+          <span className="text-primary">●</span> {formatEventTimeRange(e.startTime, e.endTime)}
+        </p>
+      )}
       {e.meetTime && (
         <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 shrink-0" /> Meet {e.meetTime}
