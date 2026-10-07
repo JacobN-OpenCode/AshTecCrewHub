@@ -311,4 +311,34 @@ CREATE TABLE IF NOT EXISTS "NotificationLog" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "NotificationLog_dedupe_idx" ON "NotificationLog" ("dedupeKey");
 
+-- ---------------------------------------------------------------------------
+-- Activity log: one row per HTTP request plus client-reported page views.
+-- ---------------------------------------------------------------------------
+-- Feeds the "Logs" popup on Server diagnostics. Every request the Express
+-- server handles is recorded here (method, path, status, latency, who made it,
+-- from which device/IP and referring page). Member page views are added by the
+-- client via /analyticsView so SPA navigation is captured too, and the browser
+-- reports how long someone stayed on a view via /analyticsLeave, which fills in
+-- "viewSeconds" in place. Both kinds share one row shape: API calls and static
+-- file loads carry latencyMs and status, views carry viewSeconds.
+--
+-- Retention: 30 days, enforced by the hourly prune in server/index.ts.
+CREATE TABLE IF NOT EXISTS "RequestLogs" (
+  "id"           uuid PRIMARY KEY,
+  "at"           timestamptz NOT NULL DEFAULT now(),
+  "method"       text NOT NULL DEFAULT '',
+  "path"         text NOT NULL DEFAULT '',
+  "status"       integer NOT NULL DEFAULT 0,
+  "latencyMs"    integer NOT NULL DEFAULT 0,
+  "viewSeconds"  integer NOT NULL DEFAULT 0,
+  "authorized"   boolean NOT NULL DEFAULT false,
+  "email"        text NOT NULL DEFAULT '',
+  "ip"           text NOT NULL DEFAULT '',
+  "userAgent"    text NOT NULL DEFAULT '',
+  "referer"      text NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS "RequestLogs_at_idx" ON "RequestLogs" ("at" DESC);
+CREATE INDEX IF NOT EXISTS "RequestLogs_email_idx" ON "RequestLogs" ("email");
+CREATE INDEX IF NOT EXISTS "RequestLogs_path_idx" ON "RequestLogs" ("path");
+
 COMMIT;

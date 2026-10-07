@@ -30,6 +30,7 @@ import {
 import { catLogin } from './catLogin.js';
 import { verifyCalendarToken, buildMemberFeed } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
+import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,6 +61,36 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
+
+// ----------------------------------------------------------------- activity log
+// Records every request (method, path, status, latency, member, device,
+// referrer) for the Logs popup on Server diagnostics. Runs after body parsing
+// and before everything else; the queries happen inside the 'finish' handler
+// so they never delay the response they describe.
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    void logRequest(req, { latencyMs: Date.now() - start, status: res.statusCode });
+  });
+  next();
+});
+
+// The client reports SPA page views and how long someone stayed, because
+// clicking around the app never hits the server as a request.
+app.post('/api/analyticsView', async (req, res) => {
+  const viewId = typeof req.body?.viewId === 'string' && req.body.viewId ? req.body.viewId : undefined;
+  const path = typeof req.body?.path === 'string' ? req.body.path : '';
+  const referer = typeof req.body?.referer === 'string' ? req.body.referer : '';
+  const id = await logPageView(req, { viewId, path, referer }).catch(() => null);
+  res.json({ ok: true, viewId: id });
+});
+
+app.post('/api/analyticsLeave', async (req, res) => {
+  const viewId = typeof req.body?.viewId === 'string' ? req.body.viewId : '';
+  const seconds = Number(req.body?.seconds ?? 0);
+  if (viewId) await setViewDuration({ viewId, seconds }).catch(() => {});
+  res.json({ ok: true });
+});
 
 const endpoints = await loadEndpoints();
 const byName = new Map(endpoints.map((e) => [e.name, e]));
@@ -329,6 +360,7 @@ async function schedulerTick() {
 await pruneAuth().catch((e) => console.error('[server] pruneAuth failed:', e));
 setInterval(() => void schedulerTick(), 60_000).unref();
 setInterval(() => void pruneAuth().catch(() => {}), 3_600_000).unref();
+setInterval(() => void pruneActivity().catch(() => {}), 3_600_000).unref();
 setInterval(() => rateLimit.gc(), 60 * 60 * 1000).unref();
 
 app.listen(PORT, () => {

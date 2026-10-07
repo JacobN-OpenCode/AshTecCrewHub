@@ -31,6 +31,20 @@ export type AdminGetEmailLogInputType = NonNullable<_AdminGetEmailLogCfg['inputS
 export type AdminGetEmailLogOutputType = Awaited<ReturnType<_AdminGetEmailLogCfg['execute']>>;
 export const adminGetEmailLog = createCaller<AdminGetEmailLogInputType, AdminGetEmailLogOutputType>('adminGetEmailLog');
 
+import type { default as _AdminGetLogsEp } from '../api/adminGetLogs';
+
+type _AdminGetLogsCfg = typeof _AdminGetLogsEp;
+export type AdminGetLogsInputType = NonNullable<_AdminGetLogsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetLogsCfg['execute']>[0]['input'];
+export type AdminGetLogsOutputType = Awaited<ReturnType<_AdminGetLogsCfg['execute']>>;
+export const adminGetLogs = createCaller<AdminGetLogsInputType, AdminGetLogsOutputType>('adminGetLogs');
+
+import type { default as _AdminGetMemberDetailEp } from '../api/adminGetMemberDetail';
+
+type _AdminGetMemberDetailCfg = typeof _AdminGetMemberDetailEp;
+export type AdminGetMemberDetailInputType = NonNullable<_AdminGetMemberDetailCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetMemberDetailCfg['execute']>[0]['input'];
+export type AdminGetMemberDetailOutputType = Awaited<ReturnType<_AdminGetMemberDetailCfg['execute']>>;
+export const adminGetMemberDetail = createCaller<AdminGetMemberDetailInputType, AdminGetMemberDetailOutputType>('adminGetMemberDetail');
+
 import type { default as _AdminGetPresenceEp } from '../api/adminGetPresence';
 
 type _AdminGetPresenceCfg = typeof _AdminGetPresenceEp;
@@ -345,6 +359,8 @@ export const api = {
   adminGetData,
   adminGetDiagnostics,
   adminGetEmailLog,
+  adminGetLogs,
+  adminGetMemberDetail,
   adminGetPresence,
   adminGetPresenceHistory,
   adminGetSessionDetail,
