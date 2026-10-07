@@ -3,7 +3,8 @@ import { adminGetDiagnostics } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
-import { CheckCircle2, RefreshCw, ServerCog, TriangleAlert, XCircle } from 'lucide-react';
+import { CheckCircle2, History, RefreshCw, ServerCog, TriangleAlert, XCircle } from 'lucide-react';
+import LogsDialog from '../../components/admin/LogsDialog';
 
 type Diag = Awaited<ReturnType<typeof adminGetDiagnostics>>;
 
@@ -46,6 +47,7 @@ export default function ServerDiagnostics() {
   const [d, setD] = useState<Diag | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
 
   const load = async () => {
     setBusy(true);
@@ -89,10 +91,15 @@ export default function ServerDiagnostics() {
             <span className="ml-2">Generated {new Date(d.generatedAt).toLocaleTimeString('en-GB')}</span>
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={() => setLogsOpen(true)}>
+          <History className="mr-2 h-4 w-4" />Logs
+        </Button>
         <Button variant="outline" onClick={load} disabled={busy}>
           <RefreshCw className={`mr-2 h-4 w-4 ${busy ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
+        </div>
       </div>
 
       {d.schema.missingTables.length > 0 && (
@@ -157,6 +164,7 @@ export default function ServerDiagnostics() {
         <Row k="Missing tables" v={d.schema.missingTables.length ? d.schema.missingTables.join(', ') : <span className="inline-flex items-center gap-1 text-emerald-400"><CheckCircle2 className="h-4 w-4" />none</span>} />
       </Card>
 
+      <LogsDialog open={logsOpen} onClose={() => setLogsOpen(false)} />
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Secrets are never shown — only whether they are set. Job times are inferred from the newest row each job writes,

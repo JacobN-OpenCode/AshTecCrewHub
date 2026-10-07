@@ -42,10 +42,25 @@ export const ${endpoint} = createCaller<${T}InputType, ${T}OutputType>('${endpoi
   })
   .join('\n\n');
 
+const extras = `// SPA analytics beacons: these are plain routes in server/index.ts (not zod
+// endpoints, so they never appear in the api/ folder), emitted by hand here.
+
+export type AnalyticsViewInputType = { viewId: string; path: string; referer?: string };
+export type AnalyticsViewOutputType = { ok: boolean };
+export const analyticsView = createCaller<AnalyticsViewInputType, AnalyticsViewOutputType>('analyticsView');
+
+export type AnalyticsLeaveInputType = { viewId: string; path: string };
+export type AnalyticsLeaveOutputType = { ok: boolean };
+export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLeaveOutputType>('analyticsLeave');`;
+
+const ns = [
+  ...files.map((f) => `  ${path.basename(f, '.ts')},`),
+  '  analyticsLeave,',
+  '  analyticsView,',
+].join('\n');
+
 writeFileSync(
   path.join(root, 'src', 'lib', 'api.ts'),
-  `${header}\n${body}\n\n/** Namespace object, kept for parity with the original generated client. */\nexport const api = {\n${files
-    .map((f) => `  ${path.basename(f, '.ts')},`)
-    .join('\n')}\n};\n`
+  `${header}\n${body}\n${extras}\n\n/** Namespace object, kept for parity with the original generated client. */\nexport const api = {\n${ns}\n};\n`
 );
 console.log(`src/lib/api.ts: ${files.length} endpoints`);

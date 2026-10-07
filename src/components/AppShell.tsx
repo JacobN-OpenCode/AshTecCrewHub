@@ -12,6 +12,7 @@ import {
 import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
 import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
+import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview } from '../lib/preview';
 import { cn } from '@project/components/lib/utils';
@@ -31,6 +32,7 @@ export default function AppShell() {
 function Shell() {
   const { me, supportAwaiting } = useMe();
   const loc = useLocation();
+  usePageView(loc.pathname);
   const { session } = useLivePresence();
   // Staff get the roster read-only; only admins get the controls.
   const canRunCheckIn = me.isAdmin || me.isStaff;

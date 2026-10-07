@@ -359,6 +359,16 @@ type _UpdateMyProfileCfg = typeof _UpdateMyProfileEp;
 export type UpdateMyProfileInputType = NonNullable<_UpdateMyProfileCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_UpdateMyProfileCfg['execute']>[0]['input'];
 export type UpdateMyProfileOutputType = Awaited<ReturnType<_UpdateMyProfileCfg['execute']>>;
 export const updateMyProfile = createCaller<UpdateMyProfileInputType, UpdateMyProfileOutputType>('updateMyProfile');
+// SPA analytics beacons: these are plain routes in server/index.ts (not zod
+// endpoints, so they never appear in the api/ folder), emitted by hand here.
+
+export type AnalyticsViewInputType = { viewId: string; path: string; referer?: string };
+export type AnalyticsViewOutputType = { ok: boolean };
+export const analyticsView = createCaller<AnalyticsViewInputType, AnalyticsViewOutputType>('analyticsView');
+
+export type AnalyticsLeaveInputType = { viewId: string; path: string };
+export type AnalyticsLeaveOutputType = { ok: boolean };
+export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLeaveOutputType>('analyticsLeave');
 
 /** Namespace object, kept for parity with the original generated client. */
 export const api = {
@@ -413,4 +423,6 @@ export const api = {
   submitSupport,
   supportEscalate,
   updateMyProfile,
+  analyticsLeave,
+  analyticsView,
 };
