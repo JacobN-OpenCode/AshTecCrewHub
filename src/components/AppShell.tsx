@@ -35,17 +35,22 @@ function Shell() {
   // Staff get the roster read-only; only admins get the controls.
   const canRunCheckIn = me.isAdmin || me.isStaff;
 
+  const isStaffUser = me.isStaff && me.memberType !== 'Actor';
+  // Staff land on the roster, not "My Events", and the parents page is for
+  // adults who run the club, so ordinary members never see it in the bar.
   const links = me.memberType === 'Actor' ? [{ to: '/', label: 'Who to Contact', icon: LayoutGrid }] : [
-    { to: '/', label: 'My Events', icon: CalendarCheck },
+    { to: '/', label: isStaffUser ? 'Roster' : 'My Events', icon: isStaffUser ? Users : CalendarCheck },
     { to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null },
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
-    { to: '/parents', label: 'For parents', icon: HeartHandshake },
+    ...(me.isAdmin || isStaffUser ? [{ to: '/parents', label: 'For parents', icon: HeartHandshake }] : []),
     { to: '/tools', label: 'Tools', icon: Wrench },
     { to: '/profile', label: 'Settings', icon: User },
     { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },
   ];
 
   // Every admin page lives behind one dropdown so the top bar stays short.
+  // Staff who are not admins only get the check-in controls; everything deeper
+  // stays admin-only.
   const adminLinks = [
     ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Venue Check-in', icon: DoorOpen }] : []),
     { to: '/admin/events', label: 'Manage Events', icon: Settings2 },
@@ -53,7 +58,7 @@ function Shell() {
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
-  ];
+  ].filter((l) => me.isAdmin || l.to === '/admin/attendance');
   const inAdmin = loc.pathname.startsWith('/admin');
 
   return (

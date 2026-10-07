@@ -11,6 +11,7 @@ import PublicCalendar from './pages/PublicCalendar';
 import PublicParents from './pages/PublicParents';
 import AppShell from './components/AppShell';
 import MyEvents from './pages/MyEvents';
+import StaffHub from './pages/StaffHub';
 import Attendance from './pages/Attendance';
 import Profile from './pages/Profile';
 import StageLayout from './pages/StageLayout';
@@ -63,7 +64,7 @@ function SignedIn() {
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />
         <Route element={<AppShell />}>
-          <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : <MyEvents />} />
+          <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : me.isStaff ? <StaffHub /> : <MyEvents />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/stage" element={<StageLayout />} />
