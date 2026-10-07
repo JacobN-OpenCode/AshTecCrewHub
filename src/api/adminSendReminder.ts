@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { Email } from '#email';
-import { requireAdmin, ids, mapShow, mapSubEvent } from '../lib/server';
+import { requireAdmin, ids, isStaff, mapShow, mapSubEvent } from '../lib/server';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
 import { pendingForms } from '../lib/reminders';
 
@@ -22,6 +22,7 @@ export default createEndpoint({
     if (!member?.schoolEmail) throw new Error('Member has no email address.');
     if (member.isPreviewAccount) throw new Error('Preview accounts can’t receive emails.');
     if (member.memberType === 'Actor') throw new Error('Actors don’t have crew forms.');
+    if (isStaff(member)) throw new Error('Staff don’t have crew forms.');
     const [shows, subs, resps, att] = await Promise.all([
       zite.shows.findAll({ limit: 200 }),
       zite.subEvents.findAll({ limit: 2000 }),

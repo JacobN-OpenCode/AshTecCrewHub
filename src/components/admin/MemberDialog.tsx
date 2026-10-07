@@ -63,7 +63,7 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES} ph="—" /></div>
           <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES} ph="—" /></div>
           <div className="sm:col-span-2 space-y-1"><label className="text-sm">Admin notes (things said in person, etc.)</label><Textarea value={f.adminNotes} onChange={(e) => set({ adminNotes: e.target.value })} /></div>
-          {member && (
+          {member && !member.isStaff && (
             <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
               <p className="text-sm font-medium">Show participation (record on their behalf)</p>
               {data.shows.map((s) => (

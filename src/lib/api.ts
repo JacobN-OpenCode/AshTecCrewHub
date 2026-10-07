@@ -241,6 +241,13 @@ export type GetPushConfigInputType = NonNullable<_GetPushConfigCfg['inputSchema'
 export type GetPushConfigOutputType = Awaited<ReturnType<_GetPushConfigCfg['execute']>>;
 export const getPushConfig = createCaller<GetPushConfigInputType, GetPushConfigOutputType>('getPushConfig');
 
+import type { default as _GetStaffHomeEp } from '../api/getStaffHome';
+
+type _GetStaffHomeCfg = typeof _GetStaffHomeEp;
+export type GetStaffHomeInputType = NonNullable<_GetStaffHomeCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetStaffHomeCfg['execute']>[0]['input'];
+export type GetStaffHomeOutputType = Awaited<ReturnType<_GetStaffHomeCfg['execute']>>;
+export const getStaffHome = createCaller<GetStaffHomeInputType, GetStaffHomeOutputType>('getStaffHome');
+
 import type { default as _GetStageLayoutEp } from '../api/getStageLayout';
 
 type _GetStageLayoutCfg = typeof _GetStageLayoutEp;
@@ -389,6 +396,7 @@ export const api = {
   getPublicCalendar,
   getPublicParents,
   getPushConfig,
+  getStaffHome,
   getStageLayout,
   notificationPass,
   presenceApproval,

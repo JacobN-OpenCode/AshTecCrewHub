@@ -35,6 +35,7 @@ export default function AdminMembers() {
     const counts = new Map<string, number>();
     if (!data) return counts;
     for (const m of data.members) {
+      if (m.isStaff) continue; // staff have no crew forms
       const n = pendingForms(m.id, {
         shows: data.shows,
         subEvents: data.subEvents,

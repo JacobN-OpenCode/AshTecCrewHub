@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireAdmin, ids } from '../lib/server';
+import { requireAdmin, ids, isStaff } from '../lib/server';
 import { pendingForms, type RShow, type RSub, type RResp, type RAtt } from '../lib/reminders';
 import { notifyFormDue, notifyCheckInPrompt, notifyOverdueReturn } from '../../server/notify';
 
@@ -65,9 +65,10 @@ export default createEndpoint({
     let checkins = 0;
     let overdue = 0;
 
-    // 1. Forms due soon, per member.
+    // 1. Forms due soon, per member. Staff have no crew forms, so they are
+    //    skipped with the preview puppets.
     for (const m of members.records) {
-      if (m.isPreviewAccount) continue;
+      if (m.isPreviewAccount || isStaff(m)) continue;
       for (const form of pendingForms(m.id, formData)) {
         const due = Date.parse(`${form.dueDate}T23:59:59Z`);
         if (Number.isNaN(due)) continue;
@@ -101,7 +102,7 @@ export default createEndpoint({
       for (const id of expected) {
         if (!id || roster.has(id)) continue;
         const m = members.records.find((x) => x.id === id);
-        if (!m || m.isPreviewAccount) continue;
+        if (!m || m.isPreviewAccount || isStaff(m)) continue;
         await notifyCheckInPrompt(id, session.id, title);
         checkins++;
       }
