@@ -63,7 +63,7 @@ if (submitterEmail) {
     await zite.emailLog.create({
       record: {
         subject, member: submitter?.id, recipientEmail: submitterEmail, purpose: 'Support Reply',
-        body, sentBy: adminName, batchId: '',
+        body, sentBy: adminName, sentAt, batchId: '',
       } as never,
     });
     console.log(`Reply emailed to ${submitterEmail} (messageId=${result?.messageId ?? 'none'})`);
