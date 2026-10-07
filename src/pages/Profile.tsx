@@ -144,6 +144,8 @@ export default function Profile() {
 
         <Button data-tour="profile-save" onClick={save} disabled={busy || !p1 || !p2 || p1 === p2}>{busy ? 'Saving…' : 'Save profile'}</Button>
           </div>
+
+          <CalendarIntegration />
         </div>
 
         <div className="min-w-0 space-y-6">
@@ -154,8 +156,6 @@ export default function Profile() {
           <PwaSettings />
 
           <WhatsAppCommunity />
-
-          <CalendarIntegration />
         </div>
       </div>
     </div>
