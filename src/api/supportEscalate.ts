@@ -53,7 +53,7 @@ export default createEndpoint({
           });
           sent++;
           await zite.emailLog.create({
-            record: { subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Support Reply', body, sentBy: 'AshTec Support', batchId: targets.length > 1 ? ticket.id : '' } as never,
+            record: { subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Support Reply', body, sentBy: 'AshTec Support', sentAt: new Date().toISOString(), batchId: targets.length > 1 ? ticket.id : '' } as never,
           });
         } catch { /* keep going */ }
       }

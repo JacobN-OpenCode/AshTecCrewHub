@@ -38,7 +38,7 @@ export default createEndpoint({
     for (const r of recipients) {
       try {
         await Email.send({ to: r.schoolEmail!, subject, body: [{ type: 'text', content: body }, { type: 'button', label: 'Open Support tab', href: `${process.env.APP_URL}/admin/support` }] });
-        logs.push({ subject, member: r.id, recipientEmail: r.schoolEmail, purpose: 'Support', body, sentBy: who, batchId: recipients.length > 1 ? ticket.id : '' });
+        logs.push({ subject, member: r.id, recipientEmail: r.schoolEmail, purpose: 'Support', body, sentBy: who, sentAt: new Date().toISOString(), batchId: recipients.length > 1 ? ticket.id : '' });
       } catch { /* keep going */ }
     }
     if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never });

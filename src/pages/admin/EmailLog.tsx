@@ -29,6 +29,12 @@ export default function EmailLog() {
   useEffect(() => { loadLog(); }, []);
 
   const name = (id: string) => { const m = data?.members.find((x) => x.id === id); return m ? `${m.firstName} ${m.lastName}` : 'Unknown'; };
+  // Old rows can carry an empty or unparseable sentAt; "Invalid Date" in the
+  // list made emails look missing, so fall back rather than render garbage.
+  const fmtWhen = (iso: string) => {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  };
   const purposes = [...new Set((emails ?? []).map((e) => e.purpose).filter(Boolean))];
   const list = useMemo(() => (emails ?? []).filter((e) =>
     (member === 'all' || e.memberId === member) && (purpose === 'all' || e.purpose === purpose) &&
@@ -65,7 +71,7 @@ export default function EmailLog() {
     <div className="flex flex-wrap gap-1.5 items-center">
       <Badge variant="outline" className="border-primary/40 text-primary">{e.purpose}</Badge>
       {e.showIds.map((id) => <Badge key={id} variant="secondary">{data.shows.find((s) => s.id === id)?.code || '?'}</Badge>)}
-      <span className="text-xs font-mono text-muted-foreground ml-2">{new Date(e.sentAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+      <span className="text-xs font-mono text-muted-foreground ml-2">{fmtWhen(e.sentAt)}</span>
     </div>
   );
 

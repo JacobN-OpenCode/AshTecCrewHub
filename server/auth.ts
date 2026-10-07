@@ -76,20 +76,36 @@ export async function requestMagicLink(email: string, name: string, callbackURL 
 
   const link = `${appUrl()}/api/auth/verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`;
   const first = name?.trim().split(/\s+/)[0] || 'there';
+  const text =
+    `Hi ${first}!\n\n` +
+    `Click the button below to sign in to the AshTec crew hub. The link works once and ` +
+    `expires in ${TOKEN_TTL_MIN} minutes. If you did not ask for it, you can ignore this email.`;
   await Email.send({
     to: email,
     subject: 'Your AshTec Crew sign-in link',
     body: [
-      {
-        type: 'text',
-        content:
-          `Hi ${first}!\n\n` +
-          `Click the button below to sign in to the AshTec crew hub. The link works once and ` +
-          `expires in ${TOKEN_TTL_MIN} minutes. If you did not ask for it, you can ignore this email.`,
-      },
+      { type: 'text', content: text },
       { type: 'button', label: 'Sign in to the crew hub', href: link },
     ],
   });
+  // Log the send so the admin Emails tab shows every message the system emits.
+  // Only the plain text is stored, never the button href: that href carries the
+  // one-time token, and anyone able to read this tab would otherwise be able to
+  // sign in as the recipient for the next TOKEN_TTL_MIN minutes. A failure here
+  // must not break sign-in, hence the catch.
+  try {
+    const { rows: mm } = await db().query(
+      `SELECT "id" FROM "CrewMembers" WHERE lower("schoolEmail") = lower($1)`,
+      [email]
+    );
+    await db().query(
+      `INSERT INTO "EmailLog" ("id", "subject", "member", "recipientEmail", "purpose", "body", "sentBy", "sentAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, 'Sign-in Link', $4, '', now())`,
+      ['Your AshTec Crew sign-in link', mm[0]?.id ?? null, email, text]
+    );
+  } catch (err) {
+    console.warn('[email] could not log sign-in email:', (err as Error).message);
+  }
 }
 
 /**

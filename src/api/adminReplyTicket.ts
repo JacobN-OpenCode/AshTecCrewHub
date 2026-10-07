@@ -51,7 +51,7 @@ export default createEndpoint({
     await zite.emailLog.create({
       record: {
         subject, member: submitter.id, recipientEmail: submitter.schoolEmail, purpose: 'Support Reply',
-        body, sentBy: adminName, batchId: '',
+        body, sentBy: adminName, sentAt, batchId: '',
       } as never,
     });
     // Replying re-arms the escalation clock and moves an untouched ticket along.

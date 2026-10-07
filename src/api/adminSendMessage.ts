@@ -41,7 +41,7 @@ export default createEndpoint({
           ],
         });
         sent++;
-        logs.push({ subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Admin Message', body, sentBy: adminName, batchId: targets.length > 1 ? batchId : '' });
+        logs.push({ subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Admin Message', body, sentBy: adminName, sentAt: new Date().toISOString(), batchId: targets.length > 1 ? batchId : '' });
       } catch {
         failed++;
       }

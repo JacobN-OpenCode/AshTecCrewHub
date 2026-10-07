@@ -66,6 +66,7 @@ export default createEndpoint({
         shows: [...new Set(pending.flatMap((p) => p.showIds))],
         body: text,
         sentBy: `${admin.firstName ?? ''} ${admin.lastName ?? ''}`.trim(),
+        sentAt: new Date().toISOString(),
       },
     });
     return { sent: pending.length };
