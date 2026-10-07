@@ -15,6 +15,7 @@ import { useAdminData, type AdminMember } from '../../lib/useAdminData';
 import { ROLES, YEARS, MEMBER_TYPES } from '../../lib/constants';
 import { pendingForms } from '../../lib/reminders';
 import MemberDialog from '../../components/admin/MemberDialog';
+import MemberProfileDialog from '../../components/admin/MemberProfileDialog';
 import RemindButton from '../../components/admin/RemindButton';
 import MultiFilter from '../../components/admin/MultiFilter';
 
@@ -28,6 +29,7 @@ export default function AdminMembers() {
   const [roles, setRoles] = useState<string[]>([]);
   const [flags, setFlags] = useState<string[]>([]);
   const [editing, setEditing] = useState<{ m: AdminMember | null; preview?: boolean } | null>(null);
+  const [profile, setProfile] = useState<AdminMember | null>(null);
   const [del, setDel] = useState<AdminMember | null>(null);
 
   /** How many forms each member still owes, so the list can filter on it. */
@@ -117,7 +119,7 @@ export default function AdminMembers() {
       <div className="rounded-2xl border bg-card divide-y">
         {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No crew members match these filters.</p>}
         {list.map((m) => (
-          <div key={m.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 hover:bg-muted/40 cursor-pointer" onClick={() => setEditing({ m })}>
+          <div key={m.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 hover:bg-muted/40 cursor-pointer" onClick={() => setProfile(m)}>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{m.firstName} {m.lastName}</span>
@@ -155,6 +157,8 @@ export default function AdminMembers() {
           </div>
         ))}
       </div>
+      <MemberProfileDialog member={profile} data={data} onClose={() => setProfile(null)}
+        onEdit={(m) => { setProfile(null); setEditing({ m }); }} />
       <MemberDialog open={!!editing} member={editing?.m ?? null} data={data} onClose={() => setEditing(null)}
         preview={editing?.preview} onSaved={async () => { await reload(); }} />
       <AlertDialog open={!!del} onOpenChange={(o) => !o && setDel(null)}>
