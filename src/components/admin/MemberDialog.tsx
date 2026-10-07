@@ -41,7 +41,7 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>{member ? `${member.firstName} ${member.lastName}` : f.isPreview ? 'Add preview account' : 'Add crew member'}</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1"><label className="text-sm">First initial *</label><Input value={f.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={2} /></div>

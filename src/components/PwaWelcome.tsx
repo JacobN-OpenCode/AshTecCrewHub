@@ -118,7 +118,7 @@ export default function PwaWelcome() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && dismiss()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <img src="/icons/icon-192.png" alt="" className="mx-auto mb-2 h-14 w-14 rounded-2xl border border-primary/30" />
           <DialogTitle className="text-center text-2xl">Welcome to PWA mode!</DialogTitle>

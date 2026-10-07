@@ -200,7 +200,7 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
   return (
     <div className="min-h-screen">
       {!inShell && (
-        <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur pt-[env(safe-area-inset-top)]">
           <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
             <div className="flex items-center gap-2.5 font-bold tracking-tight">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">

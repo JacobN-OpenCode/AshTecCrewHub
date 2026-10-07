@@ -70,12 +70,12 @@ export default function AdminEvents() {
         </div>
         <p className="text-sm text-muted-foreground mt-1">{fmtDate(e.date, e.dateTbc)}{e.meetTime && ` · Meet ${e.meetTime}`} · <span className="font-mono text-xs">{dueLabel(e.dueDate, e.dueUnknown)}</span></p>
       </div>
-      <div className="flex items-center gap-3 text-sm font-mono">
+      <div className="flex flex-wrap items-center gap-3 text-sm font-mono">
         <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
         <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
         <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
       </div>
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
         {e.date && (
           <Button size="sm" variant="outline" asChild>
             <Link to={`/calendar?date=${e.date}&event=${e.id}`} title="Open in calendar">
@@ -168,7 +168,10 @@ export default function AdminEvents() {
                 <Badge variant="outline">No reply {data.members.length - resp.length}</Badge>
               </div>
             </div>
-            <div className="flex gap-2">
+            {/* flex-wrap: without it this row was 241px wider than a phone, which
+                pushed the page's scrollWidth to 466px and made mobile scale the
+                whole layout down ("the site thinks it's zoomed in"). */}
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setShowDlg('edit')}><Pencil className="h-4 w-4 mr-1" />Edit show</Button>
               <Button variant="outline" onClick={() => setConfirm({ kind: 'show', id: show.id, name: show.name })}><Trash2 className="h-4 w-4" /></Button>
               <Button onClick={() => setEvDlg({ ev: null })}><Plus className="h-4 w-4 mr-1" />Add rehearsal / performance</Button>

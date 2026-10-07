@@ -86,7 +86,7 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, default
   const L = ({ children }: { children: React.ReactNode }) => <label className="text-sm">{children}</label>;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>{ev ? 'Edit' : 'Add'} event</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2 space-y-1"><L>Title *</L><Input value={f.title} onChange={(e) => set({ title: e.target.value })} placeholder="Tech run – Act 1" /></div>

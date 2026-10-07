@@ -52,7 +52,7 @@ export default function ComposeDialog({ open, data, onClose, onSent }: { open: b
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>New message</DialogTitle><DialogDescription>Each person gets their own copy, so recipients can’t see each other.</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
