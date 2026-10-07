@@ -27,24 +27,32 @@ export default createEndpoint({
     let recipients = input.type === 'General Support' ? adminsNoStaff : records.filter((m) => m.isMaintainer && isEmailable(m));
     if (!recipients.length) recipients = adminsNoStaff;
 
-    const subject = `[${input.type}] ${input.subject.trim()} - AshTec Support`;
-    const quoted = input.message.trim().split('\n').map((l) => `> ${l}`).join('\n');
-    const body =
-      `**${who}** (${me.schoolEmail}) submitted a **${input.type.toLowerCase()}**` +
-      (input.page ? ` from the \`${input.page}\` page` : '') + `:\n\n**${input.subject.trim()}**\n\n${quoted}\n\n---\n\n` +
-      `Track and update it in the Support tab.\n\n${noReplyNotice('the AshTec crew', '')}\n\n` +
-      `To answer them, reply to ${who} directly at [${me.schoolEmail}](mailto:${me.schoolEmail}).`;
-    const logs: Record<string, unknown>[] = [];
-    for (const r of recipients) {
-      try {
-        await Email.send({ to: r.schoolEmail!, subject, body: [{ type: 'text', content: body }, { type: 'button', label: 'Open Support tab', href: `${process.env.APP_URL}/admin/support` }] });
-        logs.push({ subject, member: r.id, recipientEmail: r.schoolEmail, purpose: 'Support', body, sentBy: who, sentAt: new Date().toISOString(), batchId: recipients.length > 1 ? ticket.id : '' });
-      } catch { /* keep going */ }
-    }
-    if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never });
-    // Push as well as email: a feature request or bug report reaches the
-    // maintainers straight away, and General Support reaches the admins.
-    await notifyNewTicket({ id: ticket.id, type: input.type, subject: input.subject.trim(), submittedBy: me.id });
-    return { id: ticket.id, notified: logs.length };
+    // The save must not wait on outbound mail: a bug report can take several
+    // seconds to email every maintainer sequentially, which made the dialog
+    // hang on "Send". The ticket is already stored, so notify in the
+    // background and reply with how many people we are telling.
+    void (async () => {
+      const subject = `[${input.type}] ${input.subject.trim()} - AshTec Support`;
+      const quoted = input.message.trim().split('\n').map((l) => `> ${l}`).join('\n');
+      const body =
+        `**${who}** (${me.schoolEmail}) submitted a **${input.type.toLowerCase()}**` +
+        (input.page ? ` from the \`${input.page}\` page` : '') + `:\n\n**${input.subject.trim()}**\n\n${quoted}\n\n---\n\n` +
+        `Track and update it in the Support tab.\n\n${noReplyNotice('the AshTec crew', '')}\n\n` +
+        `To answer them, reply to ${who} directly at [${me.schoolEmail}](mailto:${me.schoolEmail}).`;
+      const logs: Record<string, unknown>[] = [];
+      const sends = recipients.map(async (r) => {
+        try {
+          await Email.send({ to: r.schoolEmail!, subject, body: [{ type: 'text', content: body }, { type: 'button', label: 'Open Support tab', href: `${process.env.APP_URL}/admin/support` }] });
+          logs.push({ subject, member: r.id, recipientEmail: r.schoolEmail, purpose: 'Support', body, sentBy: who, sentAt: new Date().toISOString(), batchId: recipients.length > 1 ? ticket.id : '' });
+        } catch { /* keep going */ }
+      });
+      await Promise.all(sends).catch(() => {});
+      if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never }).catch(() => {});
+      // Push as well as email: a feature request or bug report reaches the
+      // maintainers straight away, and General Support reaches the admins.
+      await notifyNewTicket({ id: ticket.id, type: input.type, subject: input.subject.trim(), submittedBy: me.id });
+    })();
+
+    return { id: ticket.id, notified: recipients.length };
   },
 });
