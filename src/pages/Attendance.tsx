@@ -9,7 +9,7 @@ import QrCode from '../components/QrCode';
 import { CUSTOM_REASON, SIGN_OUT_REASONS, fmtDate } from '../lib/constants';
 import { pv } from '../lib/preview';
 import { useLivePresence } from '../lib/livePresence';
-import { Clock, DoorOpen, Loader2, LogOut, MapPin, TriangleAlert } from 'lucide-react';
+import { Clock, DoorOpen, Loader2, LogOut, MapPin, TriangleAlert, X } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 
 const STATE_STYLE: Record<string, string> = {
@@ -45,6 +45,7 @@ export default function Attendance() {
   // adds no polling of its own.
   const { session, me: mine, loading, refresh } = useLivePresence();
   const [busy, setBusy] = useState(false);
+  const [showHelp, setShowHelp] = useState(() => localStorage.getItem('hc-checkin-help') !== 'hidden');
   const [asking, setAsking] = useState(false);
   const [reasonLabel, setReasonLabel] = useState('');
   const [reason, setReason] = useState('');
@@ -127,6 +128,24 @@ export default function Attendance() {
           Sign in when you arrive so the stage manager knows who is in the room.
         </p>
       </div>
+
+      {showHelp && (
+        <div className="rounded-2xl border bg-muted/30 p-4 relative">
+          <button
+            onClick={() => { setShowHelp(false); localStorage.setItem('hc-checkin-help', 'hidden'); }}
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Dismiss how check-in works"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">How check-in works</h2>
+          <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+            <li>When a check-in is open you sign in and tell the stage manager where you are, so nobody has to go looking.</li>
+            <li>If you step out, say so with a reason and whether you will be back in time.</li>
+            <li>The stage manager scans the code below to mark you in, or marks you in without it. The code is a shortcut, not a requirement.</li>
+          </ul>
+        </div>
+      )}
 
       {!session ? (
         <div className="rounded-2xl border p-6">
