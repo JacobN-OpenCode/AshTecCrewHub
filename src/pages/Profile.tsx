@@ -1,19 +1,22 @@
 import { previewId, pv } from '../lib/preview';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret } from '#api';
+import { updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Switch } from '@project/components/ui/switch';
+import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2 } from 'lucide-react';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, ACCENTS } from '../lib/uiPrefs';
+import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
+import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
 import { setAdminNotificationsEnabled, sendTest, currentEndpoint, diagnostics } from '../lib/pushClient';
 
@@ -146,6 +149,8 @@ export default function Profile() {
           </div>
 
           <CalendarIntegration />
+
+          <YourTickets />
         </div>
 
         <div className="min-w-0 space-y-6">
@@ -485,6 +490,7 @@ function WhatsAppCommunity() {
 function Preferences() {
   const [collapsed, setCollapsed] = useSupportCollapsed();
   const [accent, setAccent] = useAccent();
+  const [sameTab, setSameTab] = useSupportSameTab();
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
@@ -522,6 +528,16 @@ function Preferences() {
           </span>
         </span>
         <Switch checked={collapsed} onCheckedChange={setCollapsed} aria-label="Collapse the help button to an icon" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Open support tickets in the same tab</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            The support list opens a ticket in a new tab by default. Turn this on to open it here instead. Ticket e9993904.
+          </span>
+        </span>
+        <Switch checked={sameTab} onCheckedChange={setSameTab} aria-label="Open support tickets in the same tab" />
       </label>
     </div>
   );
@@ -621,6 +637,97 @@ function CalendarIntegration() {
         The download is a one-off snapshot — if a date changes you would download it again. The subscribe link above
         does not have that problem.
       </p>
+    </div>
+  );
+}
+
+/**
+ * The sender's view of their own support tickets (5b5f0c2a). Shows what is
+ * still editable - an Open or In Progress ticket can be corrected or fleshed
+ * out - and lets the member do it in place. Editing tells the maintainers so a
+ * change never quietly rewrites what they were already answering.
+ */
+function YourTickets() {
+  const [tickets, setTickets] = useState<Awaited<ReturnType<typeof memberGetMyTickets>>['tickets'] | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
+  useEffect(() => { load(); }, []);
+  if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
+  const save = async (t: typeof tickets[number]) => {
+    setSaving(true);
+    try {
+      await memberEditTicket({ id: t.id, subject, message });
+      toast.success('Ticket updated', { description: 'The crew has been told about the change.' });
+      setEditing(null);
+      await load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <LifeBuoy className="h-5 w-5 text-primary" />
+          Your support tickets
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
+          crew is told automatically.
+        </p>
+      </div>
+
+      {tickets.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
+
+      <ul className="space-y-3">
+        {tickets.map((t) => (
+          <li key={t.id} className="rounded-xl border p-4 space-y-3">
+            {editing === t.id ? (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="t-subject">Subject</Label>
+                  <Input id="t-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="t-message">What you want the crew to know</Label>
+                  <Textarea id="t-message" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={SUPPORT_MESSAGE_MAX} rows={4} />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={saving || !subject.trim() || !message.trim()} onClick={() => save(t)}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}Save changes
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
+                    <X className="h-4 w-4 mr-1.5" />Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium min-w-0 truncate flex-1">{t.subject}</p>
+                  {t.editable && (
+                    <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
+                  <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+                  {t.submittedAt && <span>· {new Date(t.submittedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>}
+                  <span>· {t.replyCount} {t.replyCount === 1 ? 'reply' : 'replies'}</span>
+                </div>
+                {!t.editable && <p className="text-xs text-muted-foreground">Finished, so it is locked.</p>}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

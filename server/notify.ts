@@ -94,6 +94,24 @@ export async function notifyTicketReply(ticket: {
   });
 }
 
+/** A ticket call whose details were changed by the person who raised it (5b5f0c2a). */
+export async function notifyTicketEdited(ticket: {
+  id: string;
+  type?: string;
+  subject?: string;
+}): Promise<void> {
+  const isCoding = ticket.type === 'Bug Report' || ticket.type === 'Feature Request';
+  const recipients = isCoding ? await maintainerRecipients() : await adminRecipients();
+  if (!recipients.length) return;
+
+  await sendToMembers(recipients, {
+    title: 'Ticket updated by the sender',
+    body: `${ticket.subject ?? 'a ticket'} was updated`,
+    url: `/admin/support/${ticket.id}`,
+    tag: `ticket-${ticket.id}`,
+  });
+}
+
 /** Someone is waiting for an admin to approve a venue sign-in/out. */
 export async function notifyPresenceWaiting(memberName: string, action: string): Promise<void> {
   const recipients = await adminRecipients();

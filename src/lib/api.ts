@@ -255,6 +255,20 @@ export type GetStageLayoutInputType = NonNullable<_GetStageLayoutCfg['inputSchem
 export type GetStageLayoutOutputType = Awaited<ReturnType<_GetStageLayoutCfg['execute']>>;
 export const getStageLayout = createCaller<GetStageLayoutInputType, GetStageLayoutOutputType>('getStageLayout');
 
+import type { default as _MemberEditTicketEp } from '../api/memberEditTicket';
+
+type _MemberEditTicketCfg = typeof _MemberEditTicketEp;
+export type MemberEditTicketInputType = NonNullable<_MemberEditTicketCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_MemberEditTicketCfg['execute']>[0]['input'];
+export type MemberEditTicketOutputType = Awaited<ReturnType<_MemberEditTicketCfg['execute']>>;
+export const memberEditTicket = createCaller<MemberEditTicketInputType, MemberEditTicketOutputType>('memberEditTicket');
+
+import type { default as _MemberGetMyTicketsEp } from '../api/memberGetMyTickets';
+
+type _MemberGetMyTicketsCfg = typeof _MemberGetMyTicketsEp;
+export type MemberGetMyTicketsInputType = NonNullable<_MemberGetMyTicketsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_MemberGetMyTicketsCfg['execute']>[0]['input'];
+export type MemberGetMyTicketsOutputType = Awaited<ReturnType<_MemberGetMyTicketsCfg['execute']>>;
+export const memberGetMyTickets = createCaller<MemberGetMyTicketsInputType, MemberGetMyTicketsOutputType>('memberGetMyTickets');
+
 import type { default as _NotificationPassEp } from '../api/notificationPass';
 
 type _NotificationPassCfg = typeof _NotificationPassEp;
@@ -408,6 +422,8 @@ export const api = {
   getPushConfig,
   getStaffHome,
   getStageLayout,
+  memberEditTicket,
+  memberGetMyTickets,
   notificationPass,
   presenceApproval,
   presenceDecision,

@@ -70,10 +70,10 @@ export default function Ticket() {
       </div>
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-6">
-        <div className="space-y-6">
-          <section className="space-y-2">
+        <div className="space-y-6 min-w-0">
+          <section className="space-y-2 min-w-0">
             <h2 className="text-sm font-semibold text-muted-foreground">Original message</h2>
-            <p className="whitespace-pre-wrap text-sm rounded-2xl bg-muted/40 p-4">{t.message}</p>
+            <p className="whitespace-pre-wrap break-words text-sm rounded-2xl bg-muted/40 p-4">{t.message}</p>
           </section>
 
           <section className="space-y-3">
@@ -87,7 +87,7 @@ export default function Ticket() {
                   <Badge variant="outline" className={REPLY_KIND_STYLE[r.kind]}>{r.kind}</Badge>
                   <span className="text-xs text-muted-foreground ml-auto">{when(r.sentAt)}</span>
                 </header>
-                <p className="whitespace-pre-wrap text-sm">{r.body}</p>
+                <p className="whitespace-pre-wrap break-words text-sm">{r.body}</p>
               </article>
             ))}
           </section>
@@ -113,7 +113,7 @@ export default function Ticket() {
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6 h-fit">
+        <aside className="space-y-4 lg:sticky lg:top-6 h-fit min-w-0">
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <label className="text-sm">Status</label>
             <Select value={t.status} onValueChange={(v) => run('status', () => adminUpdateTicket({ id: t.id, status: v as Status }), () => toast.success('Status updated'))}>

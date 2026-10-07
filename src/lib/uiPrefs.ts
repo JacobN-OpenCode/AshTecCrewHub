@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 
 const SUPPORT_COLLAPSED = 'ashtec-support-collapsed';
+const SUPPORT_SAME_TAB = 'ashtec-support-same-tab';
 const EVENT = 'ashtec-uiprefs';
 
 const read = (key: string) => {
@@ -37,6 +38,9 @@ function useBoolPref(key: string) {
 
 /** Ticket 9c895ffb: whether the floating help button is shrunk to just its icon. */
 export const useSupportCollapsed = () => useBoolPref(SUPPORT_COLLAPSED);
+
+/** Ticket e9993904: whether the ticket list opens a ticket in this tab instead of a new one. */
+export const useSupportSameTab = () => useBoolPref(SUPPORT_SAME_TAB);
 
 /**
  * Ticket ad8dee46: the accent colour. The whole theme is driven by --primary, so
