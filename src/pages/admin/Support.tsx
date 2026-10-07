@@ -30,6 +30,19 @@ export default function Support() {
   const [sameTab] = useSupportSameTab();
   const load = useCallback(() => adminGetSupport({}).then((r) => setTickets(r.tickets)), []);
   useEffect(() => { load(); }, [load]);
+  // Ticket 92805b9d: keep the list current without the Refresh button. A quiet
+  // poll keeps it roughly live; re-fetching on tab focus catches the "came
+  // back to the tab" case immediately. Neither one toasts, so nothing nudges
+  // the page except the people raising tickets showing up above.
+  useEffect(() => {
+    const id = window.setInterval(load, 30_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [load]);
 
   const name = (id: string) => { const m = data?.members.find((x) => x.id === id); return m ? `${m.firstName} ${m.lastName}` : 'Unknown'; };
   const list = useMemo(() => (tickets ?? []).filter((t) =>
