@@ -7,7 +7,7 @@ import {
 import {
   Activity, CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, HeartHandshake,
   LayoutGrid, LifeBuoy, Lightbulb, Wrench,
-  Mail, LogOut, Settings2, ShieldCheck, User, Users, Tv,
+  Mail, LogOut, Settings2, ShieldCheck, User, Users, Tv, Sparkles,
 } from 'lucide-react';
 import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
@@ -30,7 +30,7 @@ export default function AppShell() {
 }
 
 function Shell() {
-  const { me, supportAwaiting, liveShowActive } = useMe();
+  const { me, supportAwaiting, liveShowActive, specialNote } = useMe();
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
@@ -146,7 +146,16 @@ function Shell() {
           </nav>
           {/* Kept as one tight group so the two icon buttons sit evenly. */}
           <div className="flex items-center gap-1 shrink-0">
-            <span className="text-sm text-muted-foreground hidden sm:inline pr-1">{me.firstName}</span>
+            {specialNote ? (
+              <span className="relative hidden sm:inline pr-0.5">
+                <span title={specialNote} className="glow-pulse cursor-help text-sm font-semibold text-amber-300">
+                  {me.firstName}
+                </span>
+                <Sparkles className="absolute -right-3.5 -top-2 h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.9)]" />
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground hidden sm:inline pr-1">{me.firstName}</span>
+            )}
             <Tutorial />
             <Button
               variant="ghost"

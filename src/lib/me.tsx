@@ -7,5 +7,6 @@ export const MeContext = createContext<{
   refreshMe: () => Promise<void>;
   supportAwaiting: number;
   liveShowActive: boolean;
+  specialNote: string | null;
 } | null>(null);
 export const useMe = () => useContext(MeContext)!;

@@ -44,11 +44,13 @@ function SignedIn() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [supportAwaiting, setSupportAwaiting] = useState(0);
   const [liveShowActive, setLiveShowActive] = useState(false);
+  const [specialNote, setSpecialNote] = useState<string | null>(null);
   const refreshMe = useCallback(async () => {
     const r = await getMe(pv());
     setMe(r.member);
     setSupportAwaiting(r.supportAwaiting ?? 0);
     setLiveShowActive(!!r.liveShowActive);
+    setSpecialNote(r.specialNote ?? null);
   }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
 
@@ -63,7 +65,7 @@ function SignedIn() {
     );
 
   return (
-    <MeContext.Provider value={{ me, refreshMe, supportAwaiting, liveShowActive }}>
+    <MeContext.Provider value={{ me, refreshMe, supportAwaiting, liveShowActive, specialNote }}>
       <Routes>
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />

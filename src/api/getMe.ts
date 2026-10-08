@@ -3,6 +3,17 @@ import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { actingMember, findMemberByEmail, adminCount, mapMember } from '../lib/server';
 
+/**
+ * A warm little note that glows around the name of people who have really
+ * helped out. Keyed by email so accounts keep it without a schema change.
+ */
+const SPECIAL_NOTES: Record<string, string> = {
+  'paicel@ashpupil.co.uk': 'A note from Jacob and opencode: your comments were very nice. Thank you!',
+  'moorej@ashpupil.co.uk': 'A note from Jacob and opencode: your reviews were really nice. Thank you!',
+  'millsa@ashpupil.co.uk': 'A note from Jacob and opencode: your reviews were really nice. Thank you!',
+  'mooref@ashpupil.co.uk': 'A note from Jacob and opencode: thank you for all the help across the reviews and everything else. It means a lot!',
+};
+
 export default createEndpoint({
   description: 'Returns the signed-in crew member profile',
   authenticated: true,
@@ -10,9 +21,10 @@ export default createEndpoint({
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
     const hasOpenLiveShow = !!(await zite.liveShows.findOne({ filters: { open: true } }));
+    const specialNote = SPECIAL_NOTES[context.user.email.toLowerCase()] ?? null;
     if (input.previewAs) {
       const p = await actingMember(context.user.email, input.previewAs);
-      return { member: { ...mapMember(p), isAdmin: false }, supportAwaiting: 0, liveShowActive: hasOpenLiveShow };
+      return { member: { ...mapMember(p), isAdmin: false }, supportAwaiting: 0, liveShowActive: hasOpenLiveShow, specialNote };
     }
     let m = await findMemberByEmail(context.user.email);
     if (!m && (await adminCount()) === 0) {
@@ -33,6 +45,6 @@ export default createEndpoint({
       const { records } = await zite.supportTickets.findAll({ limit: 2000 });
       supportAwaiting = records.filter((t) => ['Open', 'In Progress'].includes(t.status ?? 'Open') && t.lastReplyFrom !== 'User').length;
     }
-    return { member: m ? mapMember(m) : null, supportAwaiting, liveShowActive: hasOpenLiveShow };
+    return { member: m ? mapMember(m) : null, supportAwaiting, liveShowActive: hasOpenLiveShow, specialNote };
   },
 });

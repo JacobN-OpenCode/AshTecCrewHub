@@ -103,6 +103,15 @@
   background-image: radial-gradient(ellipse 60% 50% at 50% -10%, hsl(var(--primary) / 0.18), transparent 70%);
 }
 
+/* Warm golden pulse for the special-note glow around a lucky name. */
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: 0 0 5px rgba(250, 204, 21, 0.55); }
+  50% { text-shadow: 0 0 14px rgba(250, 204, 21, 0.95); }
+}
+.glow-pulse {
+  animation: glow-pulse 2.2s ease-in-out infinite;
+}
+
 /* Installed-PWA safe areas (notch, home indicator). viewport-fit=cover in
    index.html lets the app draw edge to edge; these keep the header, content and
    the floating help button clear of the hardware. No-ops on a normal browser. */
