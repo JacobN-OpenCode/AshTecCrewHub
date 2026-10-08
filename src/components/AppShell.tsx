@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
@@ -18,6 +19,56 @@ import { previewId, exitPreview } from '../lib/preview';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { PLATFORM } from '../lib/constants';
+
+/**
+ * The special-note glow. The message stays hidden until you hover over the
+ * name or tap it, then a small bubble appears (and vanishes on mouse-leave,
+ * outside click, or Escape).
+ */
+function GlowNote({ text, align = 'left', className, children }: {
+  text: string;
+  align?: 'left' | 'right';
+  className?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <span
+      ref={ref}
+      className={cn('relative inline-block cursor-help', className)}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onClick={() => setOpen((s) => !s)}
+    >
+      {children}
+      {open && (
+        <span
+          role="tooltip"
+          className={cn(
+            'absolute top-full z-50 mt-2 w-max max-w-xs rounded-xl border border-amber-300/40 bg-[#10131a] p-3 text-xs leading-relaxed text-amber-100 shadow-[0_8px_30px_rgba(0,0,0,0.5)]',
+            align === 'right' ? 'right-0' : 'left-0',
+          )}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export default function AppShell() {
   // One poller for the whole shell: the header dot, the banner, and the
@@ -78,10 +129,10 @@ function Shell() {
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold shrink-0">
             <Lightbulb className="h-5 w-5 text-primary" />
-            <span className="relative hidden sm:inline">
+            <GlowNote text="TEST: this is how the thank-you note pops up when you hover or tap. From Jacob and opencode!" className="hidden sm:inline">
               <span className="glow-pulse text-amber-300">{PLATFORM}</span>
               <Sparkles className="absolute -right-5 -top-1.5 h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.9)]" />
-            </span>
+            </GlowNote>
             <span className="hidden sm:inline rounded-md border border-amber-300/40 bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">TEST</span>
           </div>
           <nav data-tour="nav" className="flex gap-1 overflow-x-auto flex-1 min-w-0">
@@ -151,12 +202,10 @@ function Shell() {
           {/* Kept as one tight group so the two icon buttons sit evenly. */}
           <div className="flex items-center gap-1 shrink-0">
             {specialNote ? (
-              <span className="relative hidden sm:inline pr-0.5">
-                <span title={specialNote} className="glow-pulse cursor-help text-sm font-semibold text-amber-300">
-                  {me.firstName}
-                </span>
+              <GlowNote text={specialNote} align="right" className="hidden sm:inline pr-0.5">
+                <span className="glow-pulse text-sm font-semibold text-amber-300">{me.firstName}</span>
                 <Sparkles className="absolute -right-3.5 -top-2 h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.9)]" />
-              </span>
+              </GlowNote>
             ) : (
               <span className="text-sm text-muted-foreground hidden sm:inline pr-1">{me.firstName}</span>
             )}
