@@ -78,7 +78,11 @@ function Shell() {
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold shrink-0">
             <Lightbulb className="h-5 w-5 text-primary" />
-            <span className="hidden sm:inline">{PLATFORM}</span>
+            <span className="relative hidden sm:inline">
+              <span className="glow-pulse text-amber-300">{PLATFORM}</span>
+              <Sparkles className="absolute -right-5 -top-1.5 h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.9)]" />
+            </span>
+            <span className="hidden sm:inline rounded-md border border-amber-300/40 bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">TEST</span>
           </div>
           <nav data-tour="nav" className="flex gap-1 overflow-x-auto flex-1 min-w-0">
             {links.map((l) => (
