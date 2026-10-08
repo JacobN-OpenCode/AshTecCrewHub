@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
@@ -534,7 +535,7 @@ function Preferences() {
         <span>
           <span className="block font-medium text-sm">Open support tickets in the same tab</span>
           <span className="block text-xs text-muted-foreground mt-0.5">
-            The support list opens a ticket in a new tab by default. Turn this on to open it here instead. Ticket e9993904.
+            The support list opens a ticket in a new tab by default. Turn this on to open it here instead.
           </span>
         </span>
         <Switch checked={sameTab} onCheckedChange={setSameTab} aria-label="Open support tickets in the same tab" />
@@ -653,9 +654,26 @@ function YourTickets() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sort, setSort] = useState<'recency' | 'category'>('recency');
+  const { me } = useMe();
+  const [sameTab] = useSupportSameTab();
   const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
   useEffect(() => { load(); }, []);
   if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  // Ticket c94884d3: the card has its own sort. "Newest first" mirrors the
+  // server order; "By category" groups the types together, newest first inside
+  // each group. Sorts in place, so editing still works exactly as before.
+  const TYPE_ORDER = ['Bug Report', 'Feature Request', 'General Support'];
+  const shown = useMemo(() => {
+    if (!tickets || sort === 'recency') return tickets;
+    return [...tickets].sort((a, b) => {
+      const aa = TYPE_ORDER.indexOf(a.type);
+      const bb = TYPE_ORDER.indexOf(b.type);
+      return (aa === -1 ? TYPE_ORDER.length : aa) - (bb === -1 ? TYPE_ORDER.length : bb) ||
+        b.submittedAt.localeCompare(a.submittedAt);
+    });
+  }, [tickets, sort]);
 
   const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
   const save = async (t: typeof tickets[number]) => {
@@ -671,21 +689,32 @@ function YourTickets() {
 
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <LifeBuoy className="h-5 w-5 text-primary" />
-          Your support tickets
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
-          crew is told automatically.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <LifeBuoy className="h-5 w-5 text-primary" />
+            Your support tickets
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
+            crew is told automatically.
+          </p>
+        </div>
+        <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'category')}>
+          <SelectTrigger className="w-[150px]" aria-label="Sort tickets">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recency">Newest first</SelectItem>
+            <SelectItem value="category">By category</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {tickets.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
+      {shown.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
 
       <ul className="space-y-3">
-        {tickets.map((t) => (
+        {shown.map((t) => (
           <li key={t.id} className="rounded-xl border p-4 space-y-3">
             {editing === t.id ? (
               <>
@@ -709,7 +738,22 @@ function YourTickets() {
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium min-w-0 truncate flex-1">{t.subject}</p>
+                  {/* Ticket 1e19f93d: an admin can open any of their tickets
+                      straight from here, honouring the same-tab preference. */}
+                  {me.isAdmin ? (
+                    <Link
+                      to={`/admin/support/${t.id}`}
+                      target={sameTab ? undefined : '_blank'}
+                      rel={sameTab ? undefined : 'noopener noreferrer'}
+                      title="Open in the support page"
+                      className="font-medium min-w-0 truncate flex-1 hover:underline inline-flex items-center gap-1.5"
+                    >
+                      {t.subject}
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </Link>
+                  ) : (
+                    <p className="font-medium min-w-0 truncate flex-1">{t.subject}</p>
+                  )}
                   {t.editable && (
                     <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
                       <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
