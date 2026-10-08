@@ -341,4 +341,65 @@ CREATE INDEX IF NOT EXISTS "RequestLogs_at_idx" ON "RequestLogs" ("at" DESC);
 CREATE INDEX IF NOT EXISTS "RequestLogs_email_idx" ON "RequestLogs" ("email");
 CREATE INDEX IF NOT EXISTS "RequestLogs_path_idx" ON "RequestLogs" ("path");
 
+-- ---------------------------------------------------------------------------
+-- Live Show: the backstage live-show dashboard (ticket 0cdcd997). One config
+-- row per show (per-show customisation), opened by an admin at runtime. When a
+-- row is "open", /show-dash is public behind a show code, the Live Show tab
+-- appears for everyone, and signed-in crew get a dashboard with slightly more
+-- access (crewCanEdit). Only one show can be open at a time, enforced by
+-- adminSaveLiveShow closing any other open row first.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "LiveShows" (
+  "id"                  uuid PRIMARY KEY,
+  "showId"              uuid,
+  "name"                text NOT NULL DEFAULT '',
+  "areaName"            text NOT NULL DEFAULT 'Stage',
+  "status"              text NOT NULL DEFAULT 'standby',
+  "open"                boolean NOT NULL DEFAULT false,
+  "code"                text NOT NULL DEFAULT '',
+  "intermissionMinutes" int NOT NULL DEFAULT 15,
+  "timerMode"           text NOT NULL DEFAULT 'stopped',
+  "timerStartAt"        timestamptz,
+  "timerElapsedMs"      bigint NOT NULL DEFAULT 0,
+  "currentSceneIndex"   int NOT NULL DEFAULT 0,
+  "crewCanEdit"         boolean NOT NULL DEFAULT false,
+  "updatedBy"           uuid,
+  "createdAt"           timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"           timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShows_showId_key" ON "LiveShows" ("showId") WHERE "showId" IS NOT NULL;
+
+-- One row per scene in the show's running order. Admin-customisable; the order
+-- comes from sortIndex (0, 1, 2...), re-written wholesale on save.
+CREATE TABLE IF NOT EXISTS "LiveShowScenes" (
+  "id"           uuid PRIMARY KEY,
+  "liveShowId"   uuid NOT NULL,
+  "label"        text NOT NULL DEFAULT '',
+  "title"        text NOT NULL DEFAULT '',
+  "minutes"      int NOT NULL DEFAULT 0,
+  "cast"         text[] NOT NULL DEFAULT '{}',
+  "notes"        text[] NOT NULL DEFAULT '{}',
+  "sortIndex"    int NOT NULL DEFAULT 0,
+  "createdAt"    timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowScenes_liveShowId_idx" ON "LiveShowScenes" ("liveShowId");
+
+-- Editable scripts (ticket 12d8df62). One shared document per live show plus
+-- one private per member; upsert targets are the two partial unique indexes.
+CREATE TABLE IF NOT EXISTS "LiveShowScripts" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "scope"       text NOT NULL,
+  "authorId"    uuid,
+  "content"     text NOT NULL DEFAULT '',
+  "updatedBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_shared_key"
+  ON "LiveShowScripts" ("liveShowId", "scope") WHERE "scope" = 'shared';
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_private_key"
+  ON "LiveShowScripts" ("liveShowId", "scope", "authorId") WHERE "scope" = 'private' AND "authorId" IS NOT NULL;
+
 COMMIT;

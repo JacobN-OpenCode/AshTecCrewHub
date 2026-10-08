@@ -27,6 +27,8 @@ import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
 import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
+import LiveShowDash from './pages/live/LiveShowDash';
+import LiveShowAdmin from './pages/admin/LiveShowAdmin';
 import { MeContext, type Me } from './lib/me';
 import { applyAccent, getAccent } from './lib/uiPrefs';
 
@@ -41,10 +43,12 @@ const Spinner = () => (
 function SignedIn() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
   const [supportAwaiting, setSupportAwaiting] = useState(0);
+  const [liveShowActive, setLiveShowActive] = useState(false);
   const refreshMe = useCallback(async () => {
     const r = await getMe(pv());
     setMe(r.member);
     setSupportAwaiting(r.supportAwaiting ?? 0);
+    setLiveShowActive(!!r.liveShowActive);
   }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
 
@@ -59,10 +63,12 @@ function SignedIn() {
     );
 
   return (
-    <MeContext.Provider value={{ me, refreshMe, supportAwaiting }}>
+    <MeContext.Provider value={{ me, refreshMe, supportAwaiting, liveShowActive }}>
       <Routes>
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />
+        {/* The live show dashboard lives outside the shell; it keeps only its own back button. */}
+        <Route path="/show-dash" element={<LiveShowDash />} />
         <Route element={<AppShell />}>
           <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : me.isStaff ? <StaffHub /> : <MyEvents />} />
           <Route path="/attendance" element={<Attendance />} />
@@ -78,6 +84,7 @@ function SignedIn() {
           {me.isAdmin && <Route path="/admin/support" element={<Support />} />}
           {(me.isAdmin || me.isStaff) && <Route path="/admin/attendance" element={<AdminPresence />} />}
           {me.isAdmin && <Route path="/admin/diagnostics" element={<ServerDiagnostics />} />}
+          {me.isAdmin && <Route path="/admin/live-show" element={<LiveShowAdmin />} />}
           {me.isAdmin && <Route path="/admin/support/:ticketId" element={<Ticket />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -105,6 +112,8 @@ function SignedOut() {
       <Route path="/parents" element={<PublicParents />} />
       {/* A phone camera can open an approval link before the admin is signed in. */}
       <Route path="/a/:token" element={<ApprovePresence />} />
+      {/* The live show dashboard is public; a code unlocks it when the show is on. */}
+      <Route path="/show-dash" element={<LiveShowDash />} />
       <Route path="*" element={<Landing />} />
     </Routes>
   );

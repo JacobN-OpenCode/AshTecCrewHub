@@ -7,7 +7,7 @@ import {
 import {
   Activity, CalendarCheck, CalendarDays, ChevronDown, DoorOpen, Eye, HeartHandshake,
   LayoutGrid, LifeBuoy, Lightbulb, Wrench,
-  Mail, LogOut, Settings2, ShieldCheck, User, Users,
+  Mail, LogOut, Settings2, ShieldCheck, User, Users, Tv,
 } from 'lucide-react';
 import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
@@ -30,7 +30,7 @@ export default function AppShell() {
 }
 
 function Shell() {
-  const { me, supportAwaiting } = useMe();
+  const { me, supportAwaiting, liveShowActive } = useMe();
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
@@ -48,6 +48,8 @@ function Shell() {
     { to: '/tools', label: 'Tools', icon: Wrench },
     { to: '/profile', label: 'Settings', icon: User },
     { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },
+    // The live show dashboard appears for admins at all times and for everyone while a show is on.
+    ...(me.isAdmin || liveShowActive ? [{ to: '/show-dash', label: 'Live Show', icon: Tv }] : []),
   ];
 
   // Every admin page lives behind one dropdown so the top bar stays short.
@@ -59,6 +61,7 @@ function Shell() {
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
+    { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
   ].filter((l) => me.isAdmin || l.to === '/admin/attendance');
   const inAdmin = loc.pathname.startsWith('/admin');

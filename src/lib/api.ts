@@ -31,6 +31,13 @@ export type AdminGetEmailLogInputType = NonNullable<_AdminGetEmailLogCfg['inputS
 export type AdminGetEmailLogOutputType = Awaited<ReturnType<_AdminGetEmailLogCfg['execute']>>;
 export const adminGetEmailLog = createCaller<AdminGetEmailLogInputType, AdminGetEmailLogOutputType>('adminGetEmailLog');
 
+import type { default as _AdminGetLiveShowEp } from '../api/adminGetLiveShow';
+
+type _AdminGetLiveShowCfg = typeof _AdminGetLiveShowEp;
+export type AdminGetLiveShowInputType = NonNullable<_AdminGetLiveShowCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetLiveShowCfg['execute']>[0]['input'];
+export type AdminGetLiveShowOutputType = Awaited<ReturnType<_AdminGetLiveShowCfg['execute']>>;
+export const adminGetLiveShow = createCaller<AdminGetLiveShowInputType, AdminGetLiveShowOutputType>('adminGetLiveShow');
+
 import type { default as _AdminGetLogsEp } from '../api/adminGetLogs';
 
 type _AdminGetLogsCfg = typeof _AdminGetLogsEp;
@@ -80,6 +87,13 @@ export type AdminGetTicketInputType = NonNullable<_AdminGetTicketCfg['inputSchem
 export type AdminGetTicketOutputType = Awaited<ReturnType<_AdminGetTicketCfg['execute']>>;
 export const adminGetTicket = createCaller<AdminGetTicketInputType, AdminGetTicketOutputType>('adminGetTicket');
 
+import type { default as _AdminLiveShowControlEp } from '../api/adminLiveShowControl';
+
+type _AdminLiveShowControlCfg = typeof _AdminLiveShowControlEp;
+export type AdminLiveShowControlInputType = NonNullable<_AdminLiveShowControlCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminLiveShowControlCfg['execute']>[0]['input'];
+export type AdminLiveShowControlOutputType = Awaited<ReturnType<_AdminLiveShowControlCfg['execute']>>;
+export const adminLiveShowControl = createCaller<AdminLiveShowControlInputType, AdminLiveShowControlOutputType>('adminLiveShowControl');
+
 import type { default as _AdminMoveRoleEp } from '../api/adminMoveRole';
 
 type _AdminMoveRoleCfg = typeof _AdminMoveRoleEp;
@@ -114,6 +128,20 @@ type _AdminReplyTicketCfg = typeof _AdminReplyTicketEp;
 export type AdminReplyTicketInputType = NonNullable<_AdminReplyTicketCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminReplyTicketCfg['execute']>[0]['input'];
 export type AdminReplyTicketOutputType = Awaited<ReturnType<_AdminReplyTicketCfg['execute']>>;
 export const adminReplyTicket = createCaller<AdminReplyTicketInputType, AdminReplyTicketOutputType>('adminReplyTicket');
+
+import type { default as _AdminSaveLiveShowEp } from '../api/adminSaveLiveShow';
+
+type _AdminSaveLiveShowCfg = typeof _AdminSaveLiveShowEp;
+export type AdminSaveLiveShowInputType = NonNullable<_AdminSaveLiveShowCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSaveLiveShowCfg['execute']>[0]['input'];
+export type AdminSaveLiveShowOutputType = Awaited<ReturnType<_AdminSaveLiveShowCfg['execute']>>;
+export const adminSaveLiveShow = createCaller<AdminSaveLiveShowInputType, AdminSaveLiveShowOutputType>('adminSaveLiveShow');
+
+import type { default as _AdminSaveLiveShowScenesEp } from '../api/adminSaveLiveShowScenes';
+
+type _AdminSaveLiveShowScenesCfg = typeof _AdminSaveLiveShowScenesEp;
+export type AdminSaveLiveShowScenesInputType = NonNullable<_AdminSaveLiveShowScenesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSaveLiveShowScenesCfg['execute']>[0]['input'];
+export type AdminSaveLiveShowScenesOutputType = Awaited<ReturnType<_AdminSaveLiveShowScenesCfg['execute']>>;
+export const adminSaveLiveShowScenes = createCaller<AdminSaveLiveShowScenesInputType, AdminSaveLiveShowScenesOutputType>('adminSaveLiveShowScenes');
 
 import type { default as _AdminSaveMemberEp } from '../api/adminSaveMember';
 
@@ -198,6 +226,20 @@ type _GetCatLoginAdminsCfg = typeof _GetCatLoginAdminsEp;
 export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCatLoginAdminsCfg['execute']>[0]['input'];
 export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
 export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
+
+import type { default as _GetLiveShowMemberEp } from '../api/getLiveShowMember';
+
+type _GetLiveShowMemberCfg = typeof _GetLiveShowMemberEp;
+export type GetLiveShowMemberInputType = NonNullable<_GetLiveShowMemberCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetLiveShowMemberCfg['execute']>[0]['input'];
+export type GetLiveShowMemberOutputType = Awaited<ReturnType<_GetLiveShowMemberCfg['execute']>>;
+export const getLiveShowMember = createCaller<GetLiveShowMemberInputType, GetLiveShowMemberOutputType>('getLiveShowMember');
+
+import type { default as _GetLiveShowStateEp } from '../api/getLiveShowState';
+
+type _GetLiveShowStateCfg = typeof _GetLiveShowStateEp;
+export type GetLiveShowStateInputType = NonNullable<_GetLiveShowStateCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetLiveShowStateCfg['execute']>[0]['input'];
+export type GetLiveShowStateOutputType = Awaited<ReturnType<_GetLiveShowStateCfg['execute']>>;
+export const getLiveShowState = createCaller<GetLiveShowStateInputType, GetLiveShowStateOutputType>('getLiveShowState');
 
 import type { default as _GetMeEp } from '../api/getMe';
 
@@ -318,6 +360,13 @@ export type PresenceStartInputType = NonNullable<_PresenceStartCfg['inputSchema'
 export type PresenceStartOutputType = Awaited<ReturnType<_PresenceStartCfg['execute']>>;
 export const presenceStart = createCaller<PresenceStartInputType, PresenceStartOutputType>('presenceStart');
 
+import type { default as _SaveLiveShowScriptEp } from '../api/saveLiveShowScript';
+
+type _SaveLiveShowScriptCfg = typeof _SaveLiveShowScriptEp;
+export type SaveLiveShowScriptInputType = NonNullable<_SaveLiveShowScriptCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveLiveShowScriptCfg['execute']>[0]['input'];
+export type SaveLiveShowScriptOutputType = Awaited<ReturnType<_SaveLiveShowScriptCfg['execute']>>;
+export const saveLiveShowScript = createCaller<SaveLiveShowScriptInputType, SaveLiveShowScriptOutputType>('saveLiveShowScript');
+
 import type { default as _SavePushSubscriptionEp } from '../api/savePushSubscription';
 
 type _SavePushSubscriptionCfg = typeof _SavePushSubscriptionEp;
@@ -397,6 +446,7 @@ export const api = {
   adminGetData,
   adminGetDiagnostics,
   adminGetEmailLog,
+  adminGetLiveShow,
   adminGetLogs,
   adminGetMemberDetail,
   adminGetPresence,
@@ -404,11 +454,14 @@ export const api = {
   adminGetSessionDetail,
   adminGetSupport,
   adminGetTicket,
+  adminLiveShowControl,
   adminMoveRole,
   adminNoteTicket,
   adminRecomputeAttendance,
   adminRemindMaintainers,
   adminReplyTicket,
+  adminSaveLiveShow,
+  adminSaveLiveShowScenes,
   adminSaveMember,
   adminSaveShow,
   adminSaveSubEvent,
@@ -421,6 +474,8 @@ export const api = {
   getCalendar,
   getCalendarFeed,
   getCatLoginAdmins,
+  getLiveShowMember,
+  getLiveShowState,
   getMe,
   getMyCatLoginStatus,
   getMyEvents,
@@ -438,6 +493,7 @@ export const api = {
   presenceEnd,
   presenceRequest,
   presenceStart,
+  saveLiveShowScript,
   savePushSubscription,
   sendTestNotification,
   setAdminNotifications,

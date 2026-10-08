@@ -9,9 +9,10 @@ export default createEndpoint({
   inputSchema: z.object({ previewAs: z.string().optional() }),
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
+    const hasOpenLiveShow = !!(await zite.liveShows.findOne({ filters: { open: true } }));
     if (input.previewAs) {
       const p = await actingMember(context.user.email, input.previewAs);
-      return { member: { ...mapMember(p), isAdmin: false } };
+      return { member: { ...mapMember(p), isAdmin: false }, supportAwaiting: 0, liveShowActive: hasOpenLiveShow };
     }
     let m = await findMemberByEmail(context.user.email);
     if (!m && (await adminCount()) === 0) {
@@ -32,6 +33,6 @@ export default createEndpoint({
       const { records } = await zite.supportTickets.findAll({ limit: 2000 });
       supportAwaiting = records.filter((t) => ['Open', 'In Progress'].includes(t.status ?? 'Open') && t.lastReplyFrom !== 'User').length;
     }
-    return { member: m ? mapMember(m) : null, supportAwaiting };
+    return { member: m ? mapMember(m) : null, supportAwaiting, liveShowActive: hasOpenLiveShow };
   },
 });
