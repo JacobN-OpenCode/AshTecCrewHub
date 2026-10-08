@@ -8,7 +8,7 @@ import {
 import { Button } from '@project/components/ui/button';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight,
+  ArrowLeft, KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, ChevronDown,
   ScrollText, Tv, Settings2, Users, Clapperboard, Lock,
 } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
@@ -158,7 +158,7 @@ function ShowBoard({
   onControl: (action: string, extra?: { status?: string; sceneIndex?: number }) => void;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const [tab, setTab] = useState<'live' | 'script'>('live');
+  const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptScope, setScriptScope] = useState<'shared' | 'private'>('shared');
   const [sharedDraft, setSharedDraft] = useState('');
   const [privateDraft, setPrivateDraft] = useState('');
@@ -208,67 +208,72 @@ function ShowBoard({
         <div className="rounded-2xl border border-sky-400/30 bg-sky-400/5 px-5 py-3 text-sm text-sky-300/80">In rehearsal — getting ready.</div>
       )}
 
+      <Panel className="p-6 relative overflow-hidden">
+        <div className={cn('absolute inset-x-0 top-0 h-1', meta.ring, board.status === 'live' && 'animate-pulse')} style={{ background: meta.dot }} />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <span
+              className={cn('h-4 w-4 rounded-full', board.status === 'live' && 'animate-pulse', meta.glow)}
+              style={{ background: meta.dot, boxShadow: board.status === 'live' ? `0 0 24px ${meta.dot}` : `0 0 0 ${meta.dot}` }}
+            />
+            <div>
+              <p className={cn('text-lg font-bold tracking-[0.2em]', meta.text)}>{meta.label}</p>
+              <p className="text-xs text-[#9aa3b2]">{board.areaName} · backstage</p>
+            </div>
+          </div>
+          <div className="ml-auto text-right">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#9aa3b2]">Show clock</p>
+            <p className="font-mono text-4xl md:text-5xl tabular-nums text-cream leading-none">{fmt(elapsed)}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 border-t border-[#1e232d] pt-5">
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-[#00ff88]" />
+            <h2 className="text-sm font-bold tracking-[0.25em] text-[#9aa3b2]">ON STAGE NOW</h2>
+          </div>
+          {current ? (
+            <div className="mt-3">
+              <p className="font-mono text-sm text-[#9aa3b2]">{current.label || `Scene ${current.sortIndex + 1}`} · {current.minutes} min</p>
+              <p className="mt-1 text-2xl sm:text-3xl font-bold text-cream leading-tight">{current.title || 'Untitled scene'}</p>
+              {current.cast.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2.5">
+                  {current.cast.map((c) => (
+                    <span key={c} className="rounded-full border-2 border-[#00ff88]/70 bg-[#0b0d12] px-4 py-1.5 text-base font-bold text-[#00ff88]">{c}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-[#9aa3b2]">No cast listed for this scene.</p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[#9aa3b2]">No scene selected yet. The stage manager advances the show from the controls.</p>
+          )}
+        </div>
+      </Panel>
+
       <div className="grid lg:grid-cols-[1fr_380px] gap-6">
         <div className="space-y-6 min-w-0">
-          <Panel className="p-6 relative overflow-hidden">
-            <div className={cn('absolute inset-x-0 top-0 h-1', meta.ring, board.status === 'live' && 'animate-pulse')} style={{ background: meta.dot }} />
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn('h-4 w-4 rounded-full', board.status === 'live' && 'animate-pulse', meta.glow)}
-                  style={{ background: meta.dot, boxShadow: board.status === 'live' ? `0 0 24px ${meta.dot}` : `0 0 0 ${meta.dot}` }}
-                />
-                <div>
-                  <p className={cn('text-lg font-bold tracking-[0.2em]', meta.text)}>{meta.label}</p>
-                  <p className="text-xs text-[#9aa3b2]">{board.areaName} · backstage</p>
-                </div>
-              </div>
-              <div className="ml-auto text-right">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9aa3b2]">Show clock</p>
-                <p className="font-mono text-4xl md:text-5xl tabular-nums text-cream leading-none">{fmt(elapsed)}</p>
-              </div>
+          <Panel className="p-5">
+            <div className="flex items-center gap-2">
+              <Clapperboard className="h-4 w-4 text-cream/60" />
+              <h2 className="text-sm font-bold tracking-[0.2em] text-[#9aa3b2]">UP NEXT</h2>
             </div>
-
-            <div className="mt-5 grid sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-[#1e232d] bg-[#0b0d12] p-4">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9aa3b2] flex items-center gap-1.5"><Clapperboard className="h-3.5 w-3.5" />On stage now</p>
-                {current ? (
-                  <>
-                    <p className="mt-2 font-mono text-sm text-[#9aa3b2]">{current.label || `Scene ${current.sortIndex + 1}`}</p>
-                    <p className="text-xl font-bold text-cream leading-tight">{current.title || 'Untitled scene'}</p>
-                    {current.cast.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {current.cast.map((c) => (
-                          <span key={c} className="text-xs rounded-lg border border-[#2a3040] bg-[#161a22] px-2 py-1 text-cream/80">{c}</span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-2 text-xs text-[#9aa3b2]">{current.minutes} min</p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-sm text-[#9aa3b2]">No scene selected</p>
+            {upNext ? (
+              <div className="mt-3">
+                <p className="font-mono text-xs text-[#9aa3b2]">{upNext.label || `Scene ${upNext.sortIndex + 1}`} · {upNext.minutes} min</p>
+                <p className="mt-1 text-xl font-bold text-cream leading-tight">{upNext.title || 'Untitled scene'}</p>
+                {upNext.cast.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {upNext.cast.map((c) => (
+                      <span key={c} className="rounded-full border border-[#2a3040] bg-[#161a22] px-3 py-1 text-xs text-cream/60">{c}</span>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="rounded-xl border border-[#1e232d] bg-[#0b0d12] p-4">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#9aa3b2] flex items-center gap-1.5"><Users className="h-3.5 w-3.5" />Up next</p>
-                {upNext ? (
-                  <>
-                    <p className="mt-2 font-mono text-sm text-[#9aa3b2]">{upNext.label || `Scene ${upNext.sortIndex + 1}`}</p>
-                    <p className="text-xl font-bold text-cream leading-tight">{upNext.title || 'Untitled scene'}</p>
-                    {upNext.cast.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {upNext.cast.map((c) => (
-                          <span key={c} className="text-xs rounded-lg border border-[#2a3040] bg-[#161a22] px-2 py-1 text-cream/60">{c}</span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-2 text-xs text-[#9aa3b2]">{upNext.minutes} min</p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-sm text-[#9aa3b2]">Last scene</p>
-                )}
-              </div>
-            </div>
+            ) : (
+              <p className="mt-3 text-sm text-[#9aa3b2]">Last scene.</p>
+            )}
           </Panel>
 
           <Panel className="p-5">
@@ -354,14 +359,13 @@ function ShowBoard({
 
       {canEdit && (
         <Panel className="p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-semibold text-cream flex items-center gap-2"><ScrollText className="h-4 w-4 text-cream/60" />Script {!isAdmin && '(crew editing is on)'}</span>
-            <div className="flex gap-1 rounded-lg bg-[#0b0d12] border border-[#1e232d] p-1">
-              <button onClick={() => setTab('live')} className={cn('px-3 py-1 text-sm rounded-md', tab === 'live' ? 'bg-[#1e232d] text-cream' : 'text-[#9aa3b2]')}>Live dashboard</button>
-              <button onClick={() => setTab('script')} className={cn('px-3 py-1 text-sm rounded-md', tab === 'script' ? 'bg-[#1e232d] text-cream' : 'text-[#9aa3b2]')}>Script</button>
-            </div>
-          </div>
-          {tab === 'script' && (
+          <button type="button" onClick={() => setScriptOpen(!scriptOpen)} className="flex w-full items-center gap-2 text-left">
+            <ScrollText className="h-4 w-4 text-cream/60" />
+            <span className="text-sm font-semibold text-cream">Show script</span>
+            {!isAdmin && <span className="text-xs text-[#9aa3b2]">(crew editing is on)</span>}
+            <ChevronDown className={cn('ml-auto h-4 w-4 text-cream/50 transition-transform', scriptOpen && 'rotate-180')} />
+          </button>
+          {scriptOpen && (
             <div className="mt-3 space-y-3">
               <div className="flex gap-1 rounded-lg bg-[#0b0d12] border border-[#1e232d] p-1 w-fit">
                 {(['shared', 'private'] as const).map((sc) => (
