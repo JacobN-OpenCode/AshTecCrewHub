@@ -101,6 +101,13 @@ export type AdminRecomputeAttendanceInputType = NonNullable<_AdminRecomputeAtten
 export type AdminRecomputeAttendanceOutputType = Awaited<ReturnType<_AdminRecomputeAttendanceCfg['execute']>>;
 export const adminRecomputeAttendance = createCaller<AdminRecomputeAttendanceInputType, AdminRecomputeAttendanceOutputType>('adminRecomputeAttendance');
 
+import type { default as _AdminRemindMaintainersEp } from '../api/adminRemindMaintainers';
+
+type _AdminRemindMaintainersCfg = typeof _AdminRemindMaintainersEp;
+export type AdminRemindMaintainersInputType = NonNullable<_AdminRemindMaintainersCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminRemindMaintainersCfg['execute']>[0]['input'];
+export type AdminRemindMaintainersOutputType = Awaited<ReturnType<_AdminRemindMaintainersCfg['execute']>>;
+export const adminRemindMaintainers = createCaller<AdminRemindMaintainersInputType, AdminRemindMaintainersOutputType>('adminRemindMaintainers');
+
 import type { default as _AdminReplyTicketEp } from '../api/adminReplyTicket';
 
 type _AdminReplyTicketCfg = typeof _AdminReplyTicketEp;
@@ -400,6 +407,7 @@ export const api = {
   adminMoveRole,
   adminNoteTicket,
   adminRecomputeAttendance,
+  adminRemindMaintainers,
   adminReplyTicket,
   adminSaveMember,
   adminSaveShow,

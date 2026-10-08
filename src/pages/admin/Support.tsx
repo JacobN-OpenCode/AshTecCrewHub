@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, type AdminGetSupportOutputType } from '#api';
+import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, Clock, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useSupportSameTab } from '../../lib/uiPrefs';
 import { TYPE_STYLE, STATUS_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
@@ -27,6 +27,7 @@ export default function Support() {
   const [onlyAwaiting, setOnlyAwaiting] = useState(false);
   const [onlyReferred, setOnlyReferred] = useState(false);
   const [busyMaint, setBusyMaint] = useState('');
+  const [reminding, setReminding] = useState(false);
   const [sameTab] = useSupportSameTab();
   const load = useCallback(() => adminGetSupport({}).then((r) => setTickets(r.tickets)), []);
   useEffect(() => { load(); }, [load]);
@@ -67,6 +68,22 @@ export default function Support() {
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
   const referred = tickets.filter((t) => t.referToOpencode).length;
+  // Ticket b9f059cf: count where a maintainer reply is the next step. A ticket
+  // last answered by a maintainer is waiting on the sender instead, so it does
+  // not belong in a maintainer reminder.
+  const maintainerTurn = tickets.filter((t) =>
+    ['Open', 'In Progress'].includes(t.status) && t.lastReplyFrom !== 'Maintainer').length;
+  const remind = async () => {
+    if (reminding) return;
+    setReminding(true);
+    try {
+      const r = await adminRemindMaintainers({});
+      if (r.reminded === 0) toast.info('Nothing is waiting on the maintainers right now.');
+      else toast.success(`Reminded maintainers about ${r.reminded} ${r.reminded === 1 ? 'ticket' : 'tickets'}${r.emailed ? ` (${r.emailed} emailed)` : ''}`);
+      await load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setReminding(false); }
+  };
   /**
    * Friendly "today / 1 day / N days" label for a ticket. A handful of
    * imported or older tickets were created without an explicit submit
@@ -138,7 +155,13 @@ export default function Support() {
               {awaiting > 0 && <span className="text-orange-400"> · {awaiting} awaiting a reply</span>}
             </p>
           </div>
-          <Button variant="outline" onClick={() => { load(); toast.success('Refreshed'); }}>Refresh</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={remind} disabled={reminding || maintainerTurn === 0}>
+              {reminding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BellRing className="h-4 w-4 mr-2" />}
+              Remind maintainers{maintainerTurn > 0 ? ` (${maintainerTurn})` : ''}
+            </Button>
+            <Button variant="outline" onClick={() => { load(); toast.success('Refreshed'); }}>Refresh</Button>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 min-w-0">

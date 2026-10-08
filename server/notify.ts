@@ -94,6 +94,24 @@ export async function notifyTicketReply(ticket: {
   });
 }
 
+/**
+ * A manual nudge (b9f059cf): someone clicked "Remind maintainers", so the
+ * people who look after a ticket get a push pointing at the support list.
+ * Only reaches maintainers who have admin notifications on, like the other
+ * admin pushes.
+ */
+export async function notifySupportReminder(memberIds: string[], notice: { count: number; url: string }): Promise<void> {
+  const wanted = new Set(memberIds);
+  const recipients = (await crew()).filter((m) => wanted.has(m.id) && mayReceiveAdmin(m)).map((m) => m.id);
+  if (!recipients.length) return;
+  await sendToMembers(recipients, {
+    title: notice.count === 1 ? 'A support ticket is waiting' : `${notice.count} support tickets are waiting`,
+    body: 'Maintainers, a reply is due on these tickets.',
+    url: notice.url,
+    tag: 'support-reminder',
+  });
+}
+
 /** A ticket call whose details were changed by the person who raised it (5b5f0c2a). */
 export async function notifyTicketEdited(ticket: {
   id: string;
