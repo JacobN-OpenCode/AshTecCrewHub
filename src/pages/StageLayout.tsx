@@ -13,7 +13,7 @@ import { useMe } from '../lib/me';
 
 type Data = GetStageLayoutOutputType;
 type Person = Data['members'][number] & { maybe: boolean };
-const AREAS = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Unassigned'];
+const AREAS = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot', 'Unassigned'];
 const collision: CollisionDetection = (a) => { const p = pointerWithin(a); return p.length ? p : rectIntersection(a); };
 
 function Card({ p, area, canDrag, overlay }: { p: Person; area: string; canDrag: boolean; overlay?: boolean }) {
@@ -92,6 +92,7 @@ export default function StageLayout() {
           <Area area="Stage Left" people={inArea('Stage Left')} canDrag={me.isAdmin} onContact={setContact} />
           <div className="rounded-2xl border-2 border-dashed flex items-center justify-center min-h-[140px] text-muted-foreground font-mono tracking-[0.3em] text-sm">STAGE</div>
           <Area area="Stage Right" people={inArea('Stage Right')} canDrag={me.isAdmin} onContact={setContact} />
+          <Area area="Follow Spot" people={inArea('Follow Spot')} canDrag={me.isAdmin} onContact={setContact} />
           <Area area="Unassigned" people={inArea('Unassigned')} canDrag={me.isAdmin} onContact={setContact} className="md:col-span-3" />
         </div>
         <DragOverlay>{activeP && active ? <Card p={activeP} area={active.split('|')[0]} canDrag overlay /> : null}</DragOverlay>

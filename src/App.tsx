@@ -73,6 +73,8 @@ function SignedIn() {
         <Route path="/show-dash" element={<LiveShowDash />} />
         <Route element={<AppShell />}>
           <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : me.isStaff ? <StaffHub /> : <MyEvents />} />
+          {/* Ticket f455bb8c: non-staff admins asked for the roster too. */}
+          {me.isAdmin && <Route path="/roster" element={<StaffHub />} />}
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/stage" element={<StageLayout />} />

@@ -6,10 +6,13 @@
  *    from the script's own "Scenes, Characters, Musical Numbers and Pages" index;
  *    props come from Prop Lists.xlsx, matched to the scene that covers their
  *    script page. Material-backed, page for page.
- *  - High School Musical: no script was supplied, so this is the rehearsal-era
- *    running order derived from Rehearsal Schedule.xlsx (scenes 2/3, 5/6 and 8,
- *    plus the numbers being learned) and Prop Lists.xlsx (books p2, mic p4,
- *    smartphone p6, mic p8). Treat it as a first draft to edit in the admin UI.
+ *  - High School Musical (Broadway Junior, Music Theatre International): scenes,
+ *    times, locations and the musical numbers each scene carries come from a
+ *    full OCR of Jacob's scanned script ("HSM SCRIPT - DO NOT EDIT OR ADJUST");
+ *    cast is who actually appears somewhere in the scene. Where an OCR line was
+ *    missed (scene headers 4, 5, 7, 14) the location/time is taken from the
+ *    script's own flow and the MTI song order. Props are from Prop Lists.xlsx
+ *    (books, mics, smartphones) mapped onto the scenes that actually use them.
  *
  * Idempotent: upserts the LiveShows row by showId and replaces its scenes.
  *
@@ -83,35 +86,80 @@ const ADDAMS: Scene[] = [
     notes: ['#22 Tango De Amor (cont.)', '#22A Before Move Toward the Darkness', '#23 Finale: Move Toward the Darkness', "#24 Bows — When You're An Addams (Reprise)"] },
 ];
 
-// Rehearsal-era draft. Labels keep the script scene numbers so it lines up with
-// Rehearsal Schedule.xlsx; titles are the numbers/beats being worked.
+// Script-derived running order, page by page from the OCR'd Director's Guide.
+// Labels keep the script's scene numbers so the crew can cross-reference the
+// printed book; titles are location + day/time exactly as the script names them.
+// Minutes are staging estimates - nudge them (and props/cast/notes) in the
+// admin UI as the show settles.
 const HSM: Scene[] = [
-  { label: 'Scene 1', title: 'Start of Something New (read-through / opening)', minutes: 6,
-    cast: ['Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Ensemble'], props: [],
-    notes: ['Block the opening', "#1 Start of Something New"] },
-  { label: 'Scene 2', title: "Get'cha Head in the Game", minutes: 5,
-    cast: ['Troy', 'Chad', 'Zeke', 'Basketball team', 'Ensemble'], props: ['Books'],
-    notes: ["#2 Get'cha Head in the Game — rehearse with Scene 3"] },
-  { label: 'Scene 3', title: 'East High (blocked with Scene 2)', minutes: 5,
-    cast: ['Sharpay', 'Ryan', 'Kelsi', 'Ms Darbus', 'Ensemble'], props: [], notes: ['Rehearsed with Scene 2'] },
-  { label: 'Scene 4', title: 'Audition announcement', minutes: 4,
-    cast: ['Sharpay', 'Ryan', 'Kelsi', 'Troy', 'Gabriella', 'Ensemble'], props: [], notes: [] },
-  { label: 'Scene 5', title: "What I've Been Looking For", minutes: 5,
-    cast: ['Sharpay', 'Ryan', 'Kelsi', 'Ensemble'], props: ['Handheld microphones'],
-    notes: ["The Audition / What I've Been Looking For — rehearse with Scene 6"] },
-  { label: 'Scene 6', title: 'The callback', minutes: 5,
-    cast: ['Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Kelsi', 'Ensemble'], props: ['Smartphones'],
-    notes: ["Rehearsed with Scene 5"] },
-  { label: 'Scene 7', title: 'Jocks, brainiacs and the in-between', minutes: 4,
-    cast: ['Chad', 'Taylor', 'Zeke', 'Martha', 'Ensemble'], props: [], notes: [] },
-  { label: 'Scene 8', title: "What I've Been Looking For (Reprise)", minutes: 5,
-    cast: ['Troy', 'Gabriella', 'Ensemble'], props: ['Handheld microphone'],
-    notes: ['#? Reprise'] },
-  { label: 'Scene 9', title: 'Stick to the Status Quo', minutes: 6,
-    cast: ['Chad', 'Taylor', 'Zeke', 'Martha', 'Sharpay', 'Ryan', 'Ensemble'], props: ['Mobile phones (cardboard)'],
-    notes: ['# Stick to the Status Quo'] },
-  { label: 'Scene 10', title: 'All in This Together / finale', minutes: 6,
-    cast: ['Full company'], props: ['Red lockers', 'Notice board'], notes: ['# All in This Together', '# Bows'] },
+  { label: 'Scene 1', title: 'East High School — Monday, 7:45 A.M.', minutes: 6,
+    cast: ['Full ensemble', 'Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Chad', 'Taylor', 'Drum Major', 'Cheerleaders'],
+    props: ['Karaoke stage + mic (flashback)'],
+    notes: ['#1 Wildcat Cheer', '#2 Start of Something New', '#3 Start of Something New (Playoff)'] },
+  { label: 'Scene 2', title: 'Homeroom (Ms. Darbus) — Monday, 8 A.M.', minutes: 4,
+    cast: ['Ms. Darbus', 'Troy', 'Gabriella', 'Chad', 'Sharpay', 'Ryan', 'Students'],
+    props: ['Smartphones (confiscated)'],
+    notes: ['#4 Homeroom', '#5 Gabriella\'s Phone', 'Auditions for "Juliet and Romeo" announced'] },
+  { label: 'Scene 3', title: 'Hallway — Monday, 8:15 A.M.', minutes: 3,
+    cast: ['Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Students'],
+    props: ['Bulletin board', 'Audition sign-up sheet', 'Books'],
+    notes: ['#8 Hallway', 'Sharpay signs the entire audition sheet'] },
+  { label: 'Scene 4', title: 'Gym — Monday, 8:30 A.M.', minutes: 4,
+    cast: ['Troy', 'Chad', 'Zeke', 'Jocks'],
+    props: ['Basketballs'],
+    notes: ["#9 Get'cha Head in the Game", "Get'cha Head in the Game (Playoff)"] },
+  { label: 'Scene 5', title: 'Chemistry Lab (Ms. Tenny) — Monday, 2 P.M.', minutes: 3,
+    cast: ['Gabriella', 'Taylor', 'Martha', 'Kratnoff', 'Ms. Tenny', 'Sharpay', 'Ryan'],
+    props: ['Smartphones'],
+    notes: ['#11 Sharpay Dials', '#12 The Plot Thickens', 'Decathlon printouts planted'] },
+  { label: 'Scene 6', title: 'Theater — Monday, 3 P.M.', minutes: 5,
+    cast: ['Ms. Darbus', 'Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Students in detention'],
+    props: ['Gong', 'Clipboard', 'Sheet music'],
+    notes: ['Detention (animal exercises)', '#15 Announcement Transition 3', 'Kelsi\'s music revealed'] },
+  { label: 'Scene 7', title: 'Theater (auditions) — Tuesday, 3 P.M.', minutes: 6,
+    cast: ['Ms. Darbus', 'Kelsi', 'Sharpay', 'Ryan', 'Susan', 'Troy', 'Gabriella', 'Students trying out'],
+    props: ['Piano', 'Sheet music', 'Clipboard', 'Handheld mics'],
+    notes: ['#17 What I\'ve Been Looking For', '#18 School Bell', '#19 What I\'ve Been Looking For (Reprise)'] },
+  { label: 'Scene 8', title: 'Hallway — Wednesday, 8:15 A.M.', minutes: 2,
+    cast: ['Full ensemble', 'Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Chad', 'Taylor', 'Zeke', 'Martha'],
+    props: ['Callback list'],
+    notes: ['#20 The Callback List', 'Troy and Gabriella both got callbacks'] },
+  { label: 'Scene 9', title: 'Cafeteria — Wednesday, 12 P.M.', minutes: 7,
+    cast: ['Full ensemble', 'Chad', 'Taylor', 'Zeke', 'Martha', 'Sharpay', 'Ryan', 'Troy', 'Gabriella'],
+    props: ['Cafeteria tables', 'Lunch trays'],
+    notes: ['#21 Stick to the Status Quo', '#22 Status Quo (Playoff)'] },
+  { label: 'Scene 10', title: 'Horticulture Headquarters — Wednesday, 12:30 P.M.', minutes: 2,
+    cast: ['Troy', 'Gabriella'],
+    props: ['Horticulture plants'],
+    notes: ["Troy's private hideout"] },
+  { label: 'Scene 11', title: 'Study Hall — Wednesday, 1 P.M.', minutes: 3,
+    cast: ['Chad', 'Taylor', 'Jocks', 'Brainiacs', 'Sharpay', 'Ryan'],
+    props: [],
+    notes: ['#23 Study Hall', 'Jock/brainiac summit; Sharpay\'s lie to Ms. Darbus'] },
+  { label: 'Scene 12', title: 'Gym — Wednesday, 3:30 P.M.', minutes: 3,
+    cast: ['Coach Bolton', 'Ms. Darbus', 'Troy', 'Jocks'],
+    props: ['Basketballs'],
+    notes: ['#24 Gym', 'Coach vs. Ms. Darbus confrontation'] },
+  { label: 'Scene 13', title: 'Locker Room / Lab — Wednesday, 4 P.M.', minutes: 6,
+    cast: ['Troy', 'Chad', 'Zeke', 'Jocks', 'Gabriella', 'Taylor', 'Brainiacs'],
+    props: ['Smartphones', 'Lockers'],
+    notes: ['Counting On You', '#26 Taylor\'s Phone', 'Gabriella pulls out of the callbacks'] },
+  { label: 'Scene 14', title: 'Theater — Wednesday, 5 P.M.', minutes: 4,
+    cast: ['Troy', 'Gabriella', 'Kelsi'],
+    props: ['Smartphones'],
+    notes: ['The reconciliation (a cappella "Start of Something New")', '#29 Study Hall transition'] },
+  { label: 'Scene 15', title: 'Cafeteria — Thursday, 1 P.M.', minutes: 6,
+    cast: ['Full ensemble', 'Jack Scott', 'Ms. Darbus', 'Troy', 'Gabriella', 'Sharpay', 'Ryan', 'Chad', 'Taylor', 'Zeke', 'Martha', 'Kelsi'],
+    props: ['Announcement microphone', 'Cafeteria tables'],
+    notes: ['#30 Announcement Transition 4', '#31 Sorry, Troy', '#32 We\'re All in This Together'] },
+  { label: 'Scene 16', title: 'Lab / Theater / Gym (split scene) — Friday, 3 P.M.', minutes: 8,
+    cast: ['Gabriella', 'Taylor', 'Brainiacs', 'Moderator', 'Ms. Darbus', 'Sharpay', 'Ryan', 'Kelsi', 'Troy', 'Coach Bolton', 'Jocks', 'Cheerleaders', 'Jack Scott'],
+    props: ['Gong', 'Clipboard', 'Sheet music', 'Basketballs', 'Announcement microphone'],
+    notes: ['#33 Bop to the Top', '#34 Meltdown', '#36 In the Theater', '#37 Kelsi Tries', 'Decathlon / callbacks / championship all at once'] },
+  { label: 'Scene 17', title: 'Gym — Friday, 5 P.M. / Finale', minutes: 6,
+    cast: ['Full company', 'Coach Bolton', 'Jack Scott'],
+    props: ['Basketballs'],
+    notes: ['#39 Game Buzzer', '#40 We\'re All in This Together (Reprise)', '#41 High School Musical Megamix (Bows)', '#42 Bop to the Top (Exit Music)'] },
 ];
 
 const SPACES = (s: string) => s.replace(/\s+/g, ' ').trim();

@@ -11,6 +11,7 @@ export default function RemindButton({ memberId, data }: { memberId: string; dat
   const mem = data.members.find((m) => m.id === memberId);
   const isActor = mem?.memberType === 'Actor' || !!mem?.isPreview;
   if (mem?.isStaff) return null; // staff have no crew forms, nothing to remind about
+  if (mem?.isAdmin) return null; // ticket ffe32315: never remind admins about forms
   const pending = isActor ? [] : pendingForms(memberId, data);
   const send = async (e: React.MouseEvent) => {
     e.stopPropagation();

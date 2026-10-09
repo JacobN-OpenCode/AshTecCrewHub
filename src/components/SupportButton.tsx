@@ -10,7 +10,6 @@ import { Bug, LifeBuoy, Lightbulb, Loader2, MessageCircleQuestion } from 'lucide
 import { cn } from '@project/components/lib/utils';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { useSupportCollapsed } from '../lib/uiPrefs';
-import { SEVERITIES, SEVERITY_STYLE } from '../lib/supportStyle';
 
 type T = SubmitSupportInputType['type'];
 const TYPES: { v: T; icon: typeof Bug; hint: string }[] = [
@@ -23,7 +22,6 @@ export default function SupportButton() {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<T>('Bug Report');
-  const [severity, setSeverity] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -33,9 +31,9 @@ export default function SupportButton() {
   const send = async () => {
     setBusy(true);
     try {
-      const r = await submitSupport({ type, subject, message, page: loc.pathname, severity: (severity || undefined) as 'Low' | 'Medium' | 'High' | 'Urgent' | undefined });
+      const r = await submitSupport({ type, subject, message, page: loc.pathname });
       toast.success(`Sent! ${r.notified} ${r.notified === 1 ? 'person was' : 'people were'} notified.`);
-      setOpen(false); setSubject(''); setMessage(''); setSeverity('');
+      setOpen(false); setSubject(''); setMessage('');
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -75,21 +73,6 @@ export default function SupportButton() {
           </div>
           <div className="space-y-1"><label className="text-sm">Subject</label>
             <Input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} placeholder="Short summary" /></div>
-          {type === 'Bug Report' && (
-            <div className="space-y-1.5">
-              <label className="text-sm">How bad is it? <span className="text-muted-foreground">(optional)</span></label>
-              <div className="flex flex-wrap gap-2">
-                {SEVERITIES.map((s) => (
-                  <button key={s} type="button"
-                    onClick={() => setSeverity(severity === s ? '' : s)}
-                    className={cn('rounded-full border px-3 py-1 text-xs transition-colors',
-                      severity === s ? SEVERITY_STYLE[s] : 'border-border text-muted-foreground hover:text-foreground')}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="space-y-1"><label className="text-sm">Details</label>
             <Textarea rows={6} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={SUPPORT_MESSAGE_MAX}
               placeholder={type === 'Bug Report' ? 'What happened, and what did you expect?' : 'Tell us more…'} />

@@ -95,6 +95,8 @@ function Shell() {
   // adults who run the club, so ordinary members never see it in the bar.
   const links = me.memberType === 'Actor' ? [{ to: '/', label: 'Who to Contact', icon: LayoutGrid }] : [
     { to: '/', label: isStaffUser ? 'Roster' : 'My Events', icon: isStaffUser ? Users : CalendarCheck },
+    // Ticket f455bb8c: non-staff admins get their own Roster entry (staff already land on it at "/").
+    ...(me.isAdmin && !isStaffUser ? [{ to: '/roster', label: 'Roster', icon: Users }] : []),
     { to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null },
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     ...(me.isAdmin || isStaffUser ? [{ to: '/parents', label: 'For parents', icon: HeartHandshake }] : []),
@@ -149,7 +151,7 @@ function Shell() {
                 }
               >
                 <l.icon className="h-4 w-4" />
-                <span className={cn('hidden md:inline', collapseTabs && 'hidden')}>{l.label}</span>
+                {collapseTabs ? null : <span className="hidden md:inline">{l.label}</span>}
                 {'live' in l && l.live && (
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="check-in is open" />
                 )}
@@ -166,7 +168,7 @@ function Shell() {
                     )}
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    <span className={cn('hidden md:inline', collapseTabs && 'hidden')}>{me.isAdmin ? 'Admin' : 'Staff'}</span>
+                    {collapseTabs ? null : <span className="hidden md:inline">{me.isAdmin ? 'Admin' : 'Staff'}</span>}
                     <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                     {supportAwaiting > 0 && (
                       <span className="ml-0.5 min-w-4 h-4 px-1 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-semibold inline-flex items-center justify-center">

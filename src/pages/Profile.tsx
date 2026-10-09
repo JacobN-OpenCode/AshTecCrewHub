@@ -127,26 +127,31 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="border-t pt-5 space-y-4">
-          <div>
-            <h3 className="font-semibold">Preferred roles</h3>
-            <p className="text-sm text-muted-foreground">Pick your top two. Admins make the final assignments.</p>
+        {!me.isAdmin && (
+          <div className="border-t pt-5 space-y-4">
+            <div>
+              <h3 className="font-semibold">Preferred roles</h3>
+              <p className="text-sm text-muted-foreground">Pick your top two. Admins make the final assignments.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[{ v: p1, set: setP1, l: '1st choice' }, { v: p2, set: setP2, l: '2nd choice' }].map((c) => (
+                <div key={c.l} className="space-y-1">
+                  <Label>{c.l}</Label>
+                  <Select value={c.v || undefined} onValueChange={c.set}>
+                    <SelectTrigger><SelectValue placeholder="Choose a role" /></SelectTrigger>
+                    <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+            {p1 && p1 === p2 && <p className="text-sm text-destructive">Choose two different roles.</p>}
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[{ v: p1, set: setP1, l: '1st choice' }, { v: p2, set: setP2, l: '2nd choice' }].map((c) => (
-              <div key={c.l} className="space-y-1">
-                <Label>{c.l}</Label>
-                <Select value={c.v || undefined} onValueChange={c.set}>
-                  <SelectTrigger><SelectValue placeholder="Choose a role" /></SelectTrigger>
-                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-          {p1 && p1 === p2 && <p className="text-sm text-destructive">Choose two different roles.</p>}
-        </div>
+        )}
 
-        <Button data-tour="profile-save" onClick={save} disabled={busy || !p1 || !p2 || p1 === p2}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        {/* Ticket 2ffb3a6d: admins assign their own roles, so they never see the
+            preferred-roles picker. Saving their details must not then demand two
+            choices it does not show them. */}
+        <Button data-tour="profile-save" onClick={save} disabled={busy || (!me.isAdmin && (!p1 || !p2 || p1 === p2))}>{busy ? 'Saving…' : 'Save profile'}</Button>
           </div>
 
           <CalendarIntegration />
@@ -666,6 +671,9 @@ function YourTickets() {
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [sort, setSort] = useState<'recency' | 'category'>('recency');
+  // Ticket bb37a31b: vast ticket histories flattened the card, so the list is
+  // truncated to the most recent five with a reveal button for the rest.
+  const [expanded, setExpanded] = useState(false);
   const { me } = useMe();
   const [sameTab] = useSupportSameTab();
   const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
@@ -689,6 +697,9 @@ function YourTickets() {
   }, [tickets, sort]);
 
   if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  // The hook-discipline version of the trim: slice below the early return.
+  const visible = expanded ? shown : shown.slice(0, 5);
 
   const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
   const save = async (t: typeof tickets[number]) => {
@@ -729,7 +740,7 @@ function YourTickets() {
       {shown.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
 
       <ul className="space-y-3">
-        {shown.map((t) => (
+        {visible.map((t) => (
           <li key={t.id} className="rounded-xl border p-4 space-y-3">
             {editing === t.id ? (
               <>
@@ -787,6 +798,12 @@ function YourTickets() {
           </li>
         ))}
       </ul>
+
+      {shown.length > 5 && (
+        <Button variant="outline" size="sm" className="w-full" onClick={() => setExpanded((e) => !e)}>
+          {expanded ? 'Show fewer' : `Show all ${shown.length} tickets`}
+        </Button>
+      )}
     </div>
   );
 }

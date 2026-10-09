@@ -23,6 +23,9 @@ export default createEndpoint({
     if (member.isPreviewAccount) throw new Error('Preview accounts can’t receive emails.');
     if (member.memberType === 'Actor') throw new Error('Actors don’t have crew forms.');
     if (isStaff(member)) throw new Error('Staff don’t have crew forms.');
+    // Ticket ffe32315. Admins assign their own roles, so a form reminder to an
+    // admin is just noise. Never send one.
+    if (member.isAdmin) throw new Error('Admins are never sent form reminders.');
     const [shows, subs, resps, att] = await Promise.all([
       zite.shows.findAll({ limit: 200 }),
       zite.subEvents.findAll({ limit: 2000 }),

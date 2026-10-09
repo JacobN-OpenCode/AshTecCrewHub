@@ -4,7 +4,7 @@ export const SCHOOL = 'Ashford School Tech Crew';
 /** Ticket d6b098db: the club's WhatsApp community, offered on the profile page. */
 export const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/JhA4KCg171A0iabtZEshFv';
 
-export const ROLES = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound'];
+export const ROLES = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'];
 export const YEARS = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'];
 
 /** Years a member may set for themselves. Staff is admin-managed so nobody self-promotes. */
