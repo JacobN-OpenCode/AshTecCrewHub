@@ -39,6 +39,7 @@ type SceneRow = {
   title: string;
   minutes: string;
   castText: string;
+  propsText: string;
   notesText: string;
 };
 
@@ -48,11 +49,12 @@ type CanScene = {
   title: string;
   minutes: number;
   cast: string[];
+  props: string[];
   notes: string[];
   sortIndex: number;
 };
 
-const newRow = (): SceneRow => ({ key: Math.random().toString(36).slice(2), label: '', title: '', minutes: '0', castText: '', notesText: '' });
+const newRow = (): SceneRow => ({ key: Math.random().toString(36).slice(2), label: '', title: '', minutes: '0', castText: '', propsText: '', notesText: '' });
 
 const rowsFrom = (scenes: CanScene[]): SceneRow[] =>
   scenes.map((s) => ({
@@ -61,6 +63,7 @@ const rowsFrom = (scenes: CanScene[]): SceneRow[] =>
     title: s.title,
     minutes: String(s.minutes),
     castText: s.cast.join(', '),
+    propsText: (s.props ?? []).join('\n'),
     notesText: s.notes.join('\n'),
   }));
 
@@ -99,6 +102,8 @@ export default function LiveShowAdmin() {
   const [form, setForm] = useState<FormState>(defaultForm());
   const [rows, setRows] = useState<SceneRow[]>([]);
   const [shared, setShared] = useState('');
+  const [sharedLink, setSharedLink] = useState('');
+  const [privateLink, setPrivateLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingScenes, setSavingScenes] = useState(false);
@@ -127,6 +132,8 @@ export default function LiveShowAdmin() {
         : defaultForm(seedName));
       setRows(rowsFrom((r.scenes as CanScene[]) ?? []));
       setShared(r.scripts?.shared ?? '');
+      setSharedLink(r.scripts?.sharedLink ?? '');
+      setPrivateLink(r.scripts?.privateLink ?? '');
     } finally {
       setLoading(false);
     }
@@ -187,6 +194,7 @@ export default function LiveShowAdmin() {
           title: row.title,
           minutes: Math.max(0, Number(row.minutes) || 0),
           cast: splitCast(row.castText),
+          props: splitNotes(row.propsText),
           notes: splitNotes(row.notesText),
         })),
       });
@@ -204,7 +212,7 @@ export default function LiveShowAdmin() {
     if (!ls) return;
     setSavingScript(true);
     try {
-      await saveLiveShowScript({ liveShowId: ls.id, scope: 'shared', content: shared });
+      await saveLiveShowScript({ liveShowId: ls.id, scope: 'shared', content: shared, sharedLink, privateLink });
       toast.success('Shared script saved');
     } catch (e) {
       toast.error((e as Error).message);
@@ -276,7 +284,7 @@ export default function LiveShowAdmin() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm">Show code (guests need this)</label>
-                <Input value={form.code} onChange={(e) => setField('code', e.target.value)} placeholder="e.g. MACBETH" className="uppercase" />
+                <Input value={form.code} onChange={(e) => setField('code', e.target.value)} placeholder="e.g. HSM" className="uppercase" />
               </div>
               <div className="space-y-1">
                 <label className="text-sm">Intermission length (minutes)</label>
@@ -376,7 +384,8 @@ export default function LiveShowAdmin() {
                       <Input type="number" min={0} value={row.minutes} placeholder="mins" onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, minutes: e.target.value } : x)))} />
                     </div>
                     <Input value={row.castText} placeholder="Cast on stage (comma separated)" onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, castText: e.target.value } : x)))} />
-                    <Textarea value={row.notesText} placeholder="Director notes, props to reset, tech cues. One note per line." rows={2} onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, notesText: e.target.value } : x)))} />
+                    <Textarea value={row.propsText} placeholder="Props on stage / to hand (one per line)" rows={2} onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, propsText: e.target.value } : x)))} />
+                    <Textarea value={row.notesText} placeholder="Director notes, cues. One note per line." rows={2} onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, notesText: e.target.value } : x)))} />
                   </div>
                 ))}
                 <div className="flex justify-end">
@@ -396,7 +405,19 @@ export default function LiveShowAdmin() {
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">The script the whole cast reads from. Signed-in crew can also see and edit it from their dashboard when crew editing is on.</p>
-                <Textarea value={shared} onChange={(e) => setShared(e.target.value)} rows={12} placeholder="Write the shared script here..." className="font-mono" />
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Shared script link (editable doc)</label>
+                    <Input value={sharedLink} placeholder="https://docs.google.com/..." onChange={(e) => setSharedLink(e.target.value)} />
+                    <p className="text-[11px] text-muted-foreground">Everyone sees this link on the dashboard as an embedded doc.</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Private script link (view only)</label>
+                    <Input value={privateLink} placeholder="https://.../script.pdf" onChange={(e) => setPrivateLink(e.target.value)} />
+                    <p className="text-[11px] text-muted-foreground">Kept for maintainers only. Never shown to crew.</p>
+                  </div>
+                </div>
+                <Textarea value={shared} onChange={(e) => setShared(e.target.value)} rows={12} placeholder="Or paste the shared script here..." className="font-mono" />
                 <div className="flex justify-end">
                   <Button onClick={saveScript} disabled={savingScript}>
                     {savingScript ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}

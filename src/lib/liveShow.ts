@@ -32,6 +32,7 @@ export const mapScene = (s: AnyRecord) => ({
   title: s.title ?? '',
   minutes: Number(s.minutes ?? 0),
   cast: Array.isArray(s.cast) ? s.cast : [],
+  props: Array.isArray(s.props) ? s.props : [],
   notes: Array.isArray(s.notes) ? s.notes : [],
   sortIndex: Number(s.sortIndex ?? 0),
 });
@@ -60,12 +61,15 @@ export async function loadLiveShowScenes(liveShowId: string) {
   return records.map(mapScene).sort((a, b) => a.sortIndex - b.sortIndex);
 }
 
-export const loadLiveShowScripts = async (liveShowId: string, authorId?: string) => {
+export const loadLiveShowScripts = async (liveShowId: string, authorId?: string, isAdmin = false) => {
   const { records } = await zite.liveShowScripts.findAll({ filters: { liveShowId }, limit: 500 });
   const shared = records.find((r) => r.scope === 'shared');
   return {
     shared: shared?.content ?? '',
     private: authorId ? (records.find((r) => r.scope === 'private' && ids(r.authorId)[0] === authorId)?.content ?? '') : '',
+    sharedLink: shared?.sharedLink ?? '',
+    // The licensed private link is for maintainers only; never hand it to crew.
+    privateLink: isAdmin ? (shared?.privateLink ?? '') : '',
   };
 };
 

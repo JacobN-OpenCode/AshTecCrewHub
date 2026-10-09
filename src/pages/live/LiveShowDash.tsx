@@ -9,7 +9,7 @@ import { Button } from '@project/components/ui/button';
 import { toast } from 'sonner';
 import {
   ArrowLeft, KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, ChevronDown,
-  ScrollText, Tv, Settings2, Users, Clapperboard, Lock,
+  ScrollText, Tv, Settings2, Users, Clapperboard, Lock, ExternalLink,
 } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 
@@ -22,6 +22,7 @@ type Scene = {
   title: string;
   minutes: number;
   cast: string[];
+  props: string[];
   notes: string[];
   sortIndex: number;
 };
@@ -76,7 +77,7 @@ const Panel = ({ className, children }: { className?: string; children: ReactNod
 function DashTopBar({ title, subtitle, right }: { title: string; subtitle: string; right?: ReactNode }) {
   const navigate = useNavigate();
   return (
-    <header className="sticky top-0 z-30 border-b border-[#1e232d] bg-[#07080a]/90 backdrop-blur">
+    <header className="dash-topbar sticky top-0 z-30 border-b border-[#1e232d] bg-[#07080a]/90 backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
         <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => (window.history.state?.idx ? navigate(-1) : navigate('/'))}>
           <ArrowLeft className="h-5 w-5" />
@@ -152,7 +153,7 @@ function ShowBoard({
   board: Board;
   scenes: Scene[];
   canEdit: boolean;
-  scripts: { shared: string; private: string } | null;
+  scripts: { shared: string; private: string; sharedLink: string; privateLink: string } | null;
   isAdmin: boolean;
   onRefresh: () => void;
   onControl: (action: string, extra?: { status?: string; sceneIndex?: number }) => void;
@@ -290,6 +291,19 @@ function ShowBoard({
             ) : (
               <p className="mt-3 text-sm text-[#9aa3b2]">No notes for {current?.title || 'the current scene'}.</p>
             )}
+            {current && current.props.length > 0 && (
+              <div className="mt-4 border-t border-[#1e232d] pt-3">
+                <div className="flex items-center gap-2">
+                  <Clapperboard className="h-4 w-4 text-cream/60" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[#9aa3b2]">Props this scene</h3>
+                </div>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {current.props.map((p, i) => (
+                    <li key={i} className="text-sm text-cream/80 rounded-full bg-[#0b0d12] border border-[#1e232d] px-3 py-1">{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Panel>
 
           {isAdmin && (
@@ -374,12 +388,38 @@ function ShowBoard({
                   </button>
                 ))}
               </div>
-              <textarea
-                value={scriptScope === 'shared' ? sharedDraft : privateDraft}
-                onChange={(e) => (scriptScope === 'shared' ? setSharedDraft(e.target.value) : setPrivateDraft(e.target.value))}
-                placeholder="Write the shared script here, or your own private one on the other tab\u2026"
-                className="w-full h-72 font-mono text-sm bg-[#0b0d12] border border-[#1e232d] rounded-xl p-3 text-cream outline-none resize-y placeholder:text-[#525b6c]"
-              />
+              {(() => {
+                const scopeLink = scriptScope === 'shared' ? (scripts?.sharedLink ?? '') : (scripts?.privateLink ?? '');
+                if (scopeLink) {
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-[#9aa3b2]">
+                          {scriptScope === 'shared' ? 'Shared document (editable).' : 'Private document (view only).'}
+                        </p>
+                        <a href={scopeLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-[#7aa2f7] hover:underline">
+                          Open in new tab <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                      <iframe
+                        title={scriptScope === 'shared' ? 'Shared show script' : 'Private show script'}
+                        src={scopeLink}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-[70vh] rounded-xl border border-[#1e232d] bg-white"
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <textarea
+                    value={scriptScope === 'shared' ? sharedDraft : privateDraft}
+                    onChange={(e) => (scriptScope === 'shared' ? setSharedDraft(e.target.value) : setPrivateDraft(e.target.value))}
+                    placeholder="Write the shared script here, or your own private one on the other tab\u2026"
+                    className="w-full h-72 font-mono text-sm bg-[#0b0d12] border border-[#1e232d] rounded-xl p-3 text-cream outline-none resize-y placeholder:text-[#525b6c]"
+                  />
+                );
+              })()}
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="outline" onClick={onRefresh}>Reload</Button>
                 <Button size="sm" onClick={saveScript} disabled={saving}>
@@ -401,7 +441,7 @@ export default function LiveShowDash() {
   const [board, setBoard] = useState<Board | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [canEdit, setCanEdit] = useState(false);
-  const [scripts, setScripts] = useState<{ shared: string; private: string } | null>(null);
+  const [scripts, setScripts] = useState<{ shared: string; private: string; sharedLink: string; privateLink: string } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const guestCode = useRef<string | null>(null);
 
@@ -413,7 +453,7 @@ export default function LiveShowDash() {
     setBoard(r.liveShow as unknown as Board);
     setScenes((r.scenes ?? []) as Scene[]);
     setCanEdit(!!r.canEdit);
-    setScripts(r.scripts ? { shared: r.scripts.shared ?? '', private: r.scripts.private ?? '' } : null);
+    setScripts(r.scripts ? { shared: r.scripts.shared ?? '', private: r.scripts.private ?? '', sharedLink: r.scripts.sharedLink ?? '', privateLink: r.scripts.privateLink ?? '' } : null);
     setPhase('board');
   }, []);
 

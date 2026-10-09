@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useCollapseTopTabs, ACCENTS } from '../lib/uiPrefs';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
@@ -492,6 +492,7 @@ function Preferences() {
   const [collapsed, setCollapsed] = useSupportCollapsed();
   const [accent, setAccent] = useAccent();
   const [sameTab, setSameTab] = useSupportSameTab();
+  const [collapseTabs, setCollapseTabs] = useCollapseTopTabs();
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
@@ -539,6 +540,16 @@ function Preferences() {
           </span>
         </span>
         <Switch checked={sameTab} onCheckedChange={setSameTab} aria-label="Open support tickets in the same tab" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Collapse the top tabs into icons</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Hides the labels on the top navigation so the bar is just icons, giving you more room. Hover a tab to see its name.
+          </span>
+        </span>
+        <Switch checked={collapseTabs} onCheckedChange={setCollapseTabs} aria-label="Collapse the top tabs into icons" />
       </label>
     </div>
   );
@@ -659,14 +670,16 @@ function YourTickets() {
   const [sameTab] = useSupportSameTab();
   const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
   useEffect(() => { load(); }, []);
-  if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   // Ticket c94884d3: the card has its own sort. "Newest first" mirrors the
   // server order; "By category" groups the types together, newest first inside
   // each group. Sorts in place, so editing still works exactly as before.
+  // Must run on every render (not below the early return) so the hook count
+  // never changes once the ticket list arrives -- an early-returned loader
+  // skips useMemo and the next render explodes with "more hooks than before".
   const TYPE_ORDER = ['Bug Report', 'Feature Request', 'General Support'];
   const shown = useMemo(() => {
-    if (!tickets || sort === 'recency') return tickets;
+    if (!tickets || sort === 'recency') return tickets ?? [];
     return [...tickets].sort((a, b) => {
       const aa = TYPE_ORDER.indexOf(a.type);
       const bb = TYPE_ORDER.indexOf(b.type);
@@ -674,6 +687,8 @@ function YourTickets() {
         b.submittedAt.localeCompare(a.submittedAt);
     });
   }, [tickets, sort]);
+
+  if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
   const save = async (t: typeof tickets[number]) => {

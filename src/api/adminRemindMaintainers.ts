@@ -20,13 +20,20 @@ const ACTIVE = ['Open', 'In Progress'];
 export default createEndpoint({
   description: 'Emails and pushes each maintainer a digest of the tickets that are waiting on them (admins)',
   authenticated: true,
-  inputSchema: z.object({}),
+  inputSchema: z.object({
+    // Ticket 28cd7c54: restrict the reminder to specific tickets, so a
+    // maintainer can nudge about one report instead of all of them. Omitted
+    // (the list page button) keeps the original all-at-once digest.
+    ids: z.array(z.string()).optional(),
+  }),
   outputSchema: z.object({ reminded: z.number(), emailed: z.number() }),
-  execute: async ({ context }) => {
+  execute: async ({ input, context }) => {
     await requireAdmin(context.user.email);
     const { records: tickets } = await zite.supportTickets.findAll({ limit: 2000 });
     const { records: replyRows } = await zite.supportReplies.findAll({ limit: 2000 });
     const { records: members } = await zite.crewMembers.findAll({ limit: 2000 });
+
+    const only = input.ids?.length ? new Set(input.ids) : null;
 
     const byTicket = new Map<string, typeof replyRows>();
     for (const r of replyRows) {
@@ -40,6 +47,7 @@ export default createEndpoint({
     // maintainer" filter uses: active, and the last real message is not from a
     // maintainer (i.e. nobody has answered yet, or the sender replied last).
     const pending = tickets.filter((t) => {
+      if (only && !only.has(t.id)) return false;
       if (!ACTIVE.includes(t.status ?? 'Open')) return false;
       const replies = (byTicket.get(t.id) ?? [])
         .filter((r) => r.kind !== REPLY_KIND.note)

@@ -14,13 +14,16 @@ export default createEndpoint({
     subject: z.string().min(1).max(200),
     message: z.string().min(1).max(SUPPORT_MESSAGE_MAX),
     page: z.string().optional(),
+    // Ticket de51f9e1: how urgent the report is. Optional - an unrated ticket
+    // stays blank rather than guessing.
+    severity: z.enum(['Low', 'Medium', 'High', 'Urgent']).optional(),
   }),
   outputSchema: z.object({ id: z.string(), notified: z.number() }),
   execute: async ({ input, context }) => {
     const me = await requireMember(context.user.email);
     const who = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim();
     const ticket = await zite.supportTickets.create({
-      record: { subject: input.subject.trim(), type: input.type, message: input.message.trim(), submittedBy: me.id, status: 'Open', page: input.page ?? '' } as never,
+      record: { subject: input.subject.trim(), type: input.type, severity: input.severity ?? '', message: input.message.trim(), submittedBy: me.id, status: 'Open', page: input.page ?? '' } as never,
     });
     const { records } = await zite.crewMembers.findAll({ limit: 2000 });
     const adminsNoStaff = records.filter((m) => m.isAdmin && !isStaff(m) && isEmailable(m));
@@ -36,6 +39,7 @@ export default createEndpoint({
       const quoted = input.message.trim().split('\n').map((l) => `> ${l}`).join('\n');
       const body =
         `**${who}** (${me.schoolEmail}) submitted a **${input.type.toLowerCase()}**` +
+        (input.severity ? ` rated **${input.severity}**` : '') +
         (input.page ? ` from the \`${input.page}\` page` : '') + `:\n\n**${input.subject.trim()}**\n\n${quoted}\n\n---\n\n` +
         `Track and update it in the Support tab.\n\n${noReplyNotice('the AshTec crew', '')}\n\n` +
         `To answer them, reply to ${who} directly at [${me.schoolEmail}](mailto:${me.schoolEmail}).`;

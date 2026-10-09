@@ -18,7 +18,7 @@ export default createEndpoint({
       liveShow: mapLiveShow(liveShow),
       scenes: await loadLiveShowScenes(liveShow.id),
       canEdit,
-      scripts: canEdit ? await loadLiveShowScripts(liveShow.id, me.id) : undefined,
+      scripts: canEdit ? await loadLiveShowScripts(liveShow.id, me.id, !!me.isAdmin) : undefined,
     };
   },
 });

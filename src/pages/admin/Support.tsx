@@ -8,10 +8,10 @@ import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, BellRing, Clock, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useSupportSameTab } from '../../lib/uiPrefs';
-import { TYPE_STYLE, STATUS_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
+import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
 
 type Ticket = AdminGetSupportOutputType['tickets'][number];
 
@@ -23,11 +23,16 @@ export default function Support() {
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('active');
+  const [severity, setSeverity] = useState('all');
   const [sort, setSort] = useState<'recency' | 'status'>('recency');
-  const [onlyAwaiting, setOnlyAwaiting] = useState(false);
+  // Ticket edf25b3d: this checkbox is "waiting on a maintainer", which is the
+  // maintainerTurn rule (see adminGetSupport), not awaitingReply - that asks
+  // whether the sender still owes us a reply.
+  const [onlyMaintainerTurn, setOnlyMaintainerTurn] = useState(false);
   const [onlyReferred, setOnlyReferred] = useState(false);
   const [busyMaint, setBusyMaint] = useState('');
   const [reminding, setReminding] = useState(false);
+  const [remindingId, setRemindingId] = useState('');
   const [sameTab] = useSupportSameTab();
   const load = useCallback(() => adminGetSupport({}).then((r) => setTickets(r.tickets)), []);
   useEffect(() => { load(); }, [load]);
@@ -48,11 +53,12 @@ export default function Support() {
   const name = (id: string) => { const m = data?.members.find((x) => x.id === id); return m ? `${m.firstName} ${m.lastName}` : 'Unknown'; };
   const list = useMemo(() => (tickets ?? []).filter((t) =>
     (type === 'all' || t.type === type) &&
+    (severity === 'all' || t.severity === severity) &&
     (status === 'all' || (status === 'active' ? ['Open', 'In Progress'].includes(t.status) : t.status === status)) &&
-    (!onlyAwaiting || t.awaitingReply) &&
+    (!onlyMaintainerTurn || t.maintainerTurn) &&
     (!onlyReferred || t.referToOpencode) &&
     `${t.subject} ${t.message}`.toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '')), [tickets, type, status, onlyAwaiting, onlyReferred, q]);
+    .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '')), [tickets, type, severity, status, onlyMaintainerTurn, onlyReferred, q]);
 
   if (!tickets || !data) return <Skeleton className="h-96 rounded-2xl" />;
   // Maintainers must be admins, so that's all we offer.
@@ -68,11 +74,20 @@ export default function Support() {
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
   const referred = tickets.filter((t) => t.referToOpencode).length;
-  // Ticket b9f059cf: count where a maintainer reply is the next step. A ticket
-  // last answered by a maintainer is waiting on the sender instead, so it does
-  // not belong in a maintainer reminder.
-  const maintainerTurn = tickets.filter((t) =>
-    ['Open', 'In Progress'].includes(t.status) && t.lastReplyFrom !== 'Maintainer').length;
+  // Ticket b9f059cf: count where a maintainer reply is the next step. Mirrors
+  // the digest rule server-side (maintainerTurn) so the number matches.
+  const maintainerTurn = tickets.filter((t) => t.maintainerTurn).length;
+  const remindOne = async (id: string) => {
+    if (remindingId) return;
+    setRemindingId(id);
+    try {
+      const r = await adminRemindMaintainers({ ids: [id] });
+      if (r.emailed) toast.success(`Reminded the maintainers about this ticket (${r.emailed} emailed)`);
+      else toast.info('No maintainer could be emailed for this ticket.');
+      await load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setRemindingId(''); }
+  };
   const remind = async () => {
     if (reminding) return;
     setReminding(true);
@@ -133,6 +148,11 @@ export default function Support() {
         </p>
       </div>
       <div className="flex gap-1.5 shrink-0">
+        {t.severity && (
+          <Badge variant="outline" className={SEVERITY_STYLE[t.severity]}>
+            <Flag className="h-3 w-3 mr-1" />{t.severity}
+          </Badge>
+        )}
         {t.referToOpencode && (
           <Badge variant="outline" className={OPENCODE_TAG_STYLE}>
             <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
@@ -140,6 +160,16 @@ export default function Support() {
         )}
         <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
         <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+        {t.maintainerTurn && (
+          <Button
+            variant="ghost" size="sm" className="h-7 px-2 text-xs"
+            disabled={remindingId === t.id}
+            title="Remind the maintainers about just this ticket"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); remindOne(t.id); }}
+          >
+            {remindingId === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
+          </Button>
+        )}
       </div>
     </Link>
   );
@@ -164,10 +194,12 @@ export default function Support() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 min-w-0">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 min-w-0">
           <div className="relative min-w-0"><AlertCircle className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" /><Input data-tour="support-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <Select value={type} onValueChange={setType}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">All types</SelectItem>{Object.keys(TYPE_STYLE).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+          <Select value={severity} onValueChange={setSeverity}><SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All severities</SelectItem>{SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="active">Open & in progress</SelectItem><SelectItem value="all">All statuses</SelectItem>{Object.keys(STATUS_STYLE).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
           <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'status')}><SelectTrigger><SelectValue /></SelectTrigger>
@@ -179,7 +211,7 @@ export default function Support() {
 
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Checkbox checked={onlyAwaiting} onCheckedChange={(c) => setOnlyAwaiting(!!c)} />
+            <Checkbox checked={onlyMaintainerTurn} onCheckedChange={(c) => setOnlyMaintainerTurn(!!c)} />
             Only tickets waiting on a maintainer
           </label>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">

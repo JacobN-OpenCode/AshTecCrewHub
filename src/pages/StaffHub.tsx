@@ -129,10 +129,22 @@ export default function StaffHub() {
                     const dot = status ? DOT[status] ?? NO_ANSWER : NO_ANSWER;
                     return (
                       <td key={e.id} className="px-3 py-1.5 text-center">
+                        {/* Ticket 4b7afc54: a title-only tooltip never fires on
+                            a touchscreen (and was clipped by the scroll
+                            container). This shows the reason on hover AND on
+                            tap/focus, from a slightly larger hit area. */}
                         <span
-                          className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`}
-                          title={cell?.reason ? `${status ?? 'No answer'} — ${cell.reason}` : status ?? 'No answer'}
-                        />
+                          tabIndex={0}
+                          role="button"
+                          aria-label={cell?.reason ? `${status ?? 'No answer'}: ${cell.reason}` : status ?? 'No answer'}
+                          className="group relative inline-flex cursor-pointer items-center justify-center p-1 -m-1 align-middle outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        >
+                          <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} />
+                          <span className="pointer-events-none invisible absolute left-1/2 top-full z-20 mt-1 w-max max-w-[220px] -translate-x-1/2 rounded-lg border bg-popover px-2 py-1 text-left text-xs leading-snug text-popover-foreground opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
+                            <span className="font-medium">{status ?? 'No answer'}</span>
+                            {cell?.reason && <> — {cell.reason}</>}
+                          </span>
+                        </span>
                       </td>
                     );
                   })}
@@ -152,7 +164,7 @@ export default function StaffHub() {
         <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" /> Maybe</span>
         <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Not attending</span>
         <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-muted ring-1 ring-border" /> No answer</span>
-        <span className="ml-auto">Hover a dot for the reason.</span>
+        <span className="ml-auto">Hover or tap a dot for the reason.</span>
       </div>
     </div>
   );

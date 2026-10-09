@@ -56,7 +56,7 @@ const TABLES = {
   pushSubscriptions: { table: 'PushSubscriptions', arr: [] },
   notificationLog: { table: 'NotificationLog', arr: [] },
   liveShows: { table: 'LiveShows', arr: [] },
-  liveShowScenes: { table: 'LiveShowScenes', arr: ['cast', 'notes'] },
+  liveShowScenes: { table: 'LiveShowScenes', arr: ['cast', 'props', 'notes'] },
   liveShowScripts: { table: 'LiveShowScripts', arr: [] },
 } as const satisfies Record<string, TableDef>;
 

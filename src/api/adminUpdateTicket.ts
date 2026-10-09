@@ -12,6 +12,7 @@ export default createEndpoint({
   inputSchema: z.object({
     id: z.string(),
     status: z.enum(['Open', 'In Progress', 'Resolved', 'Closed']).optional(),
+    severity: z.enum(['', 'Low', 'Medium', 'High', 'Urgent']).optional(),
     adminNotes: z.string().optional(),
     assignedMaintainerIds: z.array(z.string()).optional(),
     referToOpencode: z.boolean().optional(),
@@ -23,6 +24,7 @@ export default createEndpoint({
     if (input.delete) { await zite.supportTickets.delete({ id: input.id }); return { success: true }; }
     const record: Record<string, unknown> = {};
     if (input.status) record.status = input.status;
+    if (input.severity !== undefined) record.severity = input.severity;
     if (input.adminNotes !== undefined) record.adminNotes = input.adminNotes;
     if (input.referToOpencode !== undefined) {
       // A label for humans only, so only the types that describe a real piece

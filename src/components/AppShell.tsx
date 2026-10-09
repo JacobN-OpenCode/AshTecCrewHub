@@ -16,6 +16,7 @@ import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
 import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview } from '../lib/preview';
+import { useCollapseTopTabs } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { PLATFORM } from '../lib/constants';
@@ -85,6 +86,7 @@ function Shell() {
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
+  const [collapseTabs] = useCollapseTopTabs();
   // Staff get the roster read-only; only admins get the controls.
   const canRunCheckIn = me.isAdmin || me.isStaff;
 
@@ -129,11 +131,7 @@ function Shell() {
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 font-bold shrink-0">
             <Lightbulb className="h-5 w-5 text-primary" />
-            <GlowNote text="TEST: this is how the thank-you note pops up when you hover or tap. From Jacob and opencode!" className="hidden sm:inline">
-              <span className="glow-pulse text-amber-300">{PLATFORM}</span>
-              <Sparkles className="absolute -right-5 -top-1.5 h-3.5 w-3.5 text-amber-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.9)]" />
-            </GlowNote>
-            <span className="hidden sm:inline rounded-md border border-amber-300/40 bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">TEST</span>
+            <span className="hidden sm:inline">{PLATFORM}</span>
           </div>
           <nav data-tour="nav" className="flex gap-1 overflow-x-auto flex-1 min-w-0">
             {links.map((l) => (
@@ -142,6 +140,7 @@ function Shell() {
                 to={l.to}
                 end
                 data-tour={`nav-${l.to}`}
+                title={collapseTabs ? l.label : undefined}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors',
@@ -150,7 +149,7 @@ function Shell() {
                 }
               >
                 <l.icon className="h-4 w-4" />
-                <span className="hidden md:inline">{l.label}</span>
+                <span className={cn('hidden md:inline', collapseTabs && 'hidden')}>{l.label}</span>
                 {'live' in l && l.live && (
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-label="check-in is open" />
                 )}
@@ -167,7 +166,7 @@ function Shell() {
                     )}
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    <span className="hidden md:inline">{me.isAdmin ? 'Admin' : 'Staff'}</span>
+                    <span className={cn('hidden md:inline', collapseTabs && 'hidden')}>{me.isAdmin ? 'Admin' : 'Staff'}</span>
                     <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                     {supportAwaiting > 0 && (
                       <span className="ml-0.5 min-w-4 h-4 px-1 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-semibold inline-flex items-center justify-center">

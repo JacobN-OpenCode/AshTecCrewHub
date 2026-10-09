@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 
 const SUPPORT_COLLAPSED = 'ashtec-support-collapsed';
 const SUPPORT_SAME_TAB = 'ashtec-support-same-tab';
+const COLLAPSE_TOP_TABS = 'ashtec-collapse-top-tabs';
 const EVENT = 'ashtec-uiprefs';
 
 const read = (key: string) => {
@@ -41,6 +42,9 @@ export const useSupportCollapsed = () => useBoolPref(SUPPORT_COLLAPSED);
 
 /** Ticket e9993904: whether the ticket list opens a ticket in this tab instead of a new one. */
 export const useSupportSameTab = () => useBoolPref(SUPPORT_SAME_TAB);
+
+/** Ticket e9889d62: collapse the top navigation tabs down to just their icons. */
+export const useCollapseTopTabs = () => useBoolPref(COLLAPSE_TOP_TABS);
 
 /**
  * Ticket ad8dee46: the accent colour. The whole theme is driven by --primary, so

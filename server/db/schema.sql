@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS "SupportTickets" (
   "id"                   uuid PRIMARY KEY,
   "subject"              text NOT NULL,
   "type"                 text NOT NULL DEFAULT '',
+  "severity"             text NOT NULL DEFAULT '',
   "message"              text NOT NULL DEFAULT '',
   "submittedBy"          uuid,
   "status"               text NOT NULL DEFAULT 'Open',
@@ -378,6 +379,7 @@ CREATE TABLE IF NOT EXISTS "LiveShowScenes" (
   "title"        text NOT NULL DEFAULT '',
   "minutes"      int NOT NULL DEFAULT 0,
   "cast"         text[] NOT NULL DEFAULT '{}',
+  "props"        text[] NOT NULL DEFAULT '{}',
   "notes"        text[] NOT NULL DEFAULT '{}',
   "sortIndex"    int NOT NULL DEFAULT 0,
   "createdAt"    timestamptz NOT NULL DEFAULT now(),
@@ -393,6 +395,8 @@ CREATE TABLE IF NOT EXISTS "LiveShowScripts" (
   "scope"       text NOT NULL,
   "authorId"    uuid,
   "content"     text NOT NULL DEFAULT '',
+  "sharedLink"  text NOT NULL DEFAULT '',
+  "privateLink" text NOT NULL DEFAULT '',
   "updatedBy"   uuid,
   "createdAt"   timestamptz NOT NULL DEFAULT now(),
   "updatedAt"   timestamptz NOT NULL DEFAULT now()
@@ -401,5 +405,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_shared_key"
   ON "LiveShowScripts" ("liveShowId", "scope") WHERE "scope" = 'shared';
 CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_private_key"
   ON "LiveShowScripts" ("liveShowId", "scope", "authorId") WHERE "scope" = 'private' AND "authorId" IS NOT NULL;
+
+-- Additive changes for databases created before these columns existed. The
+-- CREATE TABLE IF NOT EXISTS statements above cannot add columns, so idempotent
+-- ALTERs bring older databases up to date. No-ops on a fresh install.
+ALTER TABLE "SupportTickets"  ADD COLUMN IF NOT EXISTS "severity"    text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShowScenes"  ADD COLUMN IF NOT EXISTS "props"        text[] NOT NULL DEFAULT '{}';
+ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "sharedLink"  text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "privateLink" text NOT NULL DEFAULT '';
 
 COMMIT;

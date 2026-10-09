@@ -11,13 +11,13 @@ export default createEndpoint({
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
     await requireAdmin(context.user.email);
-    if (!input.showId) return { liveShow: null, scenes: [], scripts: { shared: '' } };
+    if (!input.showId) return { liveShow: null, scenes: [], scripts: null };
     const liveShow = await zite.liveShows.findOne({ filters: { showId: input.showId } });
-    if (!liveShow) return { liveShow: null, scenes: [], scripts: { shared: '' } };
+    if (!liveShow) return { liveShow: null, scenes: [], scripts: null };
     return {
       liveShow: mapLiveShow(liveShow),
       scenes: await loadLiveShowScenes(liveShow.id),
-      scripts: await loadLiveShowScripts(liveShow.id),
+      scripts: await loadLiveShowScripts(liveShow.id, undefined, true),
     };
   },
 });

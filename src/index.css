@@ -119,4 +119,8 @@
   .app-header { padding-top: env(safe-area-inset-top); }
   .app-main { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
   .app-fab { bottom: calc(1rem + env(safe-area-inset-bottom)) !important; }
+  /* The live-show dashboard renders outside the shell and keeps its own top
+     bar; without this the notch covers the back button on iOS (ticket 899c34a6). */
+  .dash-topbar { padding-top: env(safe-area-inset-top); }
+  .dash-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
