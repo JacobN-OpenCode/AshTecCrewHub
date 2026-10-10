@@ -64,11 +64,13 @@ export const mapDevice = (d: AnyRecord) => ({
   deviceKey: d.deviceKey ?? '',
   name: d.name ?? '',
   platform: d.platform ?? '',
+  userAgent: d.userAgent ?? '',
   member: ids(d.member)[0] ?? null,
   online: !!d.online,
   adminView: !!d.adminView,
   lastSeenAt: d.lastSeenAt ?? null,
   lastMovementAt: d.lastMovementAt ?? null,
+  connectedSince: d.createdAt ?? null,
 });
 
 export const mapMessage = (m: AnyRecord) => ({

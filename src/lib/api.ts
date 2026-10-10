@@ -227,6 +227,13 @@ export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inpu
 export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
 export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
 
+import type { default as _GetLiveShowAdminsEp } from '../api/getLiveShowAdmins';
+
+type _GetLiveShowAdminsCfg = typeof _GetLiveShowAdminsEp;
+export type GetLiveShowAdminsInputType = NonNullable<_GetLiveShowAdminsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetLiveShowAdminsCfg['execute']>[0]['input'];
+export type GetLiveShowAdminsOutputType = Awaited<ReturnType<_GetLiveShowAdminsCfg['execute']>>;
+export const getLiveShowAdmins = createCaller<GetLiveShowAdminsInputType, GetLiveShowAdminsOutputType>('getLiveShowAdmins');
+
 import type { default as _GetLiveShowMemberEp } from '../api/getLiveShowMember';
 
 type _GetLiveShowMemberCfg = typeof _GetLiveShowMemberEp;
@@ -495,6 +502,7 @@ export const api = {
   getCalendar,
   getCalendarFeed,
   getCatLoginAdmins,
+  getLiveShowAdmins,
   getLiveShowMember,
   getLiveShowState,
   getMe,

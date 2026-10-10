@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '#auth';
 import {
   getLiveShowState, getLiveShowMember, adminLiveShowControl,
-  liveShowChat, liveShowAnnouncement, liveShowMovement, getMe, getCatLoginAdmins,
+  liveShowChat, liveShowAnnouncement, liveShowMovement, getMe, getCatLoginAdmins, getLiveShowAdmins,
   type GetLiveShowStateOutputType, type GetLiveShowMemberOutputType,
 } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -41,13 +41,16 @@ type Board = {
   intermissionMinutes: number;
   crewCanEdit?: boolean;
   movementAlert?: boolean;
+  movementMessage?: string;
   movementSeconds?: number;
+  movementAdmins?: string[];
 };
 
 type Scripts = { sharedLink: string } | null;
 type ChatMessage = { id: string; author: string | null; authorName: string; body: string; kind: string; createdAt: string | null };
 type Announcement = { id: string; body: string; authorName: string; seconds: number; expiresAt: string | null; createdAt: string | null };
-type DeviceRow = { id: string; deviceKey: string; name: string; platform: string; member: string | null; online: boolean; adminView: boolean; lastSeenAt: string | null; lastMovementAt: string | null };
+type DeviceRow = { id: string; deviceKey: string; name: string; platform: string; userAgent: string; member: string | null; online: boolean; adminView: boolean; lastSeenAt: string | null; lastMovementAt: string | null; connectedSince: string | null };
+type AdminRow = { id: string; name: string };
 type Identity = { email: string; secret: string } | null;
 
 const GUEST_CODE_KEY = 'ashtec-show-code';
@@ -122,10 +125,50 @@ function deviceName(): string {
 }
 
 function platformOf(): string {
-  const ua = navigator.userAgent;
-  if (/iPad|Tablet/i.test(ua)) return 'Tablet';
-  if (/Mobi|Android|iPhone/i.test(ua)) return 'Mobile';
+  return deviceTypeOf(navigator.userAgent);
+}
+
+/** Desktop / Tablet / Mobile, from a user agent. */
+function deviceTypeOf(ua: string): string {
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return 'Tablet';
+  if (/Mobi|Android.+Mobile|iPhone|iPod|Windows Phone/i.test(ua)) return 'Mobile';
   return 'Desktop';
+}
+
+/** A human OS name, as specific as the user agent allows. */
+function osOf(ua: string): string {
+  const m = (re: RegExp) => re.exec(ua)?.[1]?.replace(/_/g, '.');
+  if (/iPhone|iPad|iPod/i.test(ua)) return `iOS ${m(/OS (\d+[._]\d+)/) ?? ''}`.trim();
+  if (/Android/i.test(ua)) return `Android ${m(/Android (\d+(?:\.\d+)?)/) ?? ''}`.trim();
+  if (/Windows NT 10/i.test(ua)) return 'Windows 10/11';
+  if (/Windows NT 6\.3/i.test(ua)) return 'Windows 8.1';
+  if (/Windows NT 6\.1/i.test(ua)) return 'Windows 7';
+  if (/Windows/i.test(ua)) return 'Windows';
+  if (/CrOS/i.test(ua)) return 'ChromeOS';
+  if (/Mac OS X/i.test(ua)) return `macOS ${(m(/Mac OS X (\d+[._]\d+(?:[._]\d+)?)/) ?? '').split('.').slice(0, 2).join('.')}`.trim();
+  if (/Linux/i.test(ua)) return 'Linux';
+  return 'Unknown OS';
+}
+
+/** A human browser name (and major version), from a user agent. */
+function browserOf(ua: string): string {
+  const ver = (re: RegExp) => re.exec(ua)?.[1] ?? '';
+  if (/Edg\//i.test(ua)) return `Edge ${ver(/Edg\/(\d+)/)}`.trim();
+  if (/OPR\/|Opera/i.test(ua)) return `Opera ${ver(/OPR\/(\d+)/)}`.trim();
+  if (/SamsungBrowser/i.test(ua)) return `Samsung Internet ${ver(/SamsungBrowser\/(\d+)/)}`.trim();
+  if (/Firefox\/|FxiOS/i.test(ua)) return `Firefox ${ver(/(?:Firefox|FxiOS)\/(\d+)/)}`.trim();
+  if (/CriOS/i.test(ua)) return `Chrome iOS ${ver(/CriOS\/(\d+)/)}`.trim();
+  if (/Chrome\//i.test(ua)) return `Chrome ${ver(/Chrome\/(\d+)/)}`.trim();
+  if (/Safari\//i.test(ua)) return `Safari ${ver(/Version\/(\d+)/)}`.trim();
+  return 'Unknown browser';
+}
+
+/** "Desktop · macOS 14 · Chrome 121" for the device list. */
+function describeDevice(d: DeviceRow): string {
+  const ua = d.userAgent || '';
+  const type = deviceTypeOf(ua) || d.platform || 'Device';
+  const parts = [type, osOf(ua), browserOf(ua)].filter((p) => p && !p.startsWith('Unknown'));
+  return parts.join(' · ');
 }
 
 /**
@@ -234,19 +277,15 @@ function AnnouncementBar({ items }: { items: Announcement[] }) {
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, []);
-  if (!items.length) return null;
+  const ann = items[0];
+  if (!ann) return null;
+  const left = ann.expiresAt ? Math.max(0, Math.ceil((new Date(ann.expiresAt).getTime() - Date.now()) / 1000)) : null;
   return (
-    <div className="space-y-2">
-      {items.map((a) => {
-        const left = a.expiresAt ? Math.max(0, Math.ceil((new Date(a.expiresAt).getTime() - Date.now()) / 1000)) : null;
-        return (
-          <div key={a.id} className="rounded-2xl border border-amber-400/50 bg-amber-400/10 px-4 py-3 flex items-start gap-3">
-            <Megaphone className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
-            <p className="text-amber-100 font-medium leading-snug flex-1 whitespace-pre-wrap">{a.body}</p>
-            <span className="text-[11px] text-amber-300/80 shrink-0">{left === null ? 'until cleared' : `${fmt(left * 1000)} left`}</span>
-          </div>
-        );
-      })}
+    <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center px-4">
+      <div className="pointer-events-auto max-w-5xl w-full rounded-3xl px-8 md:px-12 py-8 md:py-10 text-center shadow-[0_60px_160px_-40px_rgba(0,0,0,0.95)] border border-red-400/60 bg-red-600/90 text-white">
+        <div className="text-5xl md:text-7xl lg:text-8xl font-bold leading-tight tracking-tight whitespace-pre-wrap">{ann.body}</div>
+        <div className="mt-4 text-base md:text-lg opacity-90">{left === null ? 'until cleared' : `${left}s left`}</div>
+      </div>
     </div>
   );
 }
@@ -356,15 +395,19 @@ function DeviceList({ devices }: { devices: DeviceRow[] }) {
     <div className="space-y-2">
       {devices.length === 0 && <p className="text-sm text-[#9aa3b2]">No devices seen yet.</p>}
       {devices.map((d) => (
-        <div key={d.id} className="flex items-center gap-2 rounded-xl border border-[#1e232d] bg-[#0b0d12] px-3 py-2">
-          <span className={cn('h-2 w-2 rounded-full shrink-0', d.online ? 'bg-emerald-400' : 'bg-[#525b6c]')} />
-          {icon(d.platform)}
-          <span className="text-sm text-cream/85 truncate">{d.name || d.platform || 'Device'}</span>
-          <span className={cn('text-[11px] px-1.5 py-0.5 rounded', d.member ? 'bg-emerald-400/10 text-emerald-300' : 'bg-[#1e232d] text-[#9aa3b2]')}>
-            {d.member ? 'signed in' : 'guest'}
-          </span>
-          {d.adminView && <span className="text-[11px] text-[#7aa2f7]">admin</span>}
-          <span className="ml-auto text-[11px] text-[#525b6c]">{relTime(d.lastSeenAt)}</span>
+        <div key={d.id} className="rounded-xl border border-[#1e232d] bg-[#0b0d12] px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className={cn('h-2 w-2 rounded-full shrink-0', d.online ? 'bg-emerald-400' : 'bg-[#525b6c]')} />
+            {icon(d.userAgent || d.platform)}
+            <span className="text-sm text-cream/85 truncate">{d.name || describeDevice(d) || 'Device'}</span>
+            <span className={cn('text-[11px] px-1.5 py-0.5 rounded', d.member ? 'bg-emerald-400/10 text-emerald-300' : 'bg-[#1e232d] text-[#9aa3b2]')}>
+              {d.member ? 'signed in' : 'guest'}
+            </span>
+            {d.adminView && <span className="text-[11px] text-[#7aa2f7]">admin</span>}
+            <span className={cn('ml-auto text-[11px]', d.online ? 'text-emerald-300' : 'text-[#525b6c]')}>{d.online ? 'online' : relTime(d.lastSeenAt)}</span>
+          </div>
+          <p className="mt-1 pl-4 text-[11px] text-[#9aa3b2]">{describeDevice(d)}</p>
+          <p className="pl-4 text-[11px] text-[#525b6c]">last seen {relTime(d.lastSeenAt)} · connected {relTime(d.connectedSince)}</p>
         </div>
       ))}
     </div>
@@ -448,15 +491,54 @@ function MovementOverlay({ message, onAccept }: { message: string; onAccept: () 
   );
 }
 
+/** Asks for the show code before unlocking the quick controls (ticket f75f7b40). */
+function CodePrompt({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: (code: string) => Promise<void> }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async () => {
+    setBusy(true);
+    setErr('');
+    try { await onSubmit(code.trim()); }
+    catch (e) { setErr((e as Error).message || 'That code is not right.'); setBusy(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={onCancel}>
+      <div className="w-full max-w-sm rounded-2xl border border-[#2a3040] bg-[#10131a] p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <KeyRound className="h-4 w-4 text-cream/60" />
+          <h2 className="font-bold text-cream">Enter the show code</h2>
+        </div>
+        <p className="text-xs text-[#9aa3b2]">The same code the stage manager shared to open the show.</p>
+        <input
+          autoFocus
+          type="password"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submit(); if (e.key === 'Escape') onCancel(); }}
+          placeholder="Show code"
+          className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none focus:border-[#3a4356]"
+        />
+        {err && <p className="text-xs text-red-400">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button size="sm" disabled={busy || !code.trim()} onClick={() => void submit()}>
+            {busy && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Unlock
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** The stage-manager board: fills the viewport, one page. */
 function ShowBoard({
-  board, scenes, canEdit, scripts, isAdmin, identity, setIdentity, messages, announcements, devices,
-  onRefresh, onControl, onPost, onAnnounce, onClearAnnounce, onPosting,
+  board, scenes, scripts, isAdmin, identity, setIdentity, messages, announcements, devices,
+  onControl, onPost, onAnnounce, onClearAnnounce, onPosting,
   viewMode, onViewMode,
 }: {
   board: Board;
   scenes: Scene[];
-  canEdit: boolean;
   scripts: Scripts;
   isAdmin: boolean;
   identity: Identity;
@@ -464,7 +546,6 @@ function ShowBoard({
   messages: ChatMessage[];
   announcements: Announcement[];
   devices: DeviceRow[];
-  onRefresh: () => void;
   onControl: (action: string, extra?: { status?: string; sceneIndex?: number }) => void;
   onPost: (body: string, identity: Identity) => Promise<void>;
   onAnnounce: (body: string, seconds: number, identity: Identity) => Promise<void>;
@@ -617,15 +698,6 @@ function ShowBoard({
             </Panel>
           </div>
         </div>
-
-        {canEdit && (
-          <Panel className="p-4">
-            <Section title="Show script" icon={<ScrollText className="h-4 w-4 text-cream/60" />} defaultOpen={false}>
-              <ScriptEmbed link={scripts?.sharedLink ?? ''} />
-              <div className="flex justify-end mt-2"><Button size="sm" variant="outline" onClick={onRefresh}>Reload</Button></div>
-            </Section>
-          </Panel>
-        )}
       </main>
     );
   }
@@ -653,7 +725,7 @@ function ShowBoard({
           <div className="flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-amber-300" />
             <h2 className="font-bold text-cream">Announcement</h2>
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void onClearAnnounce(identity)}>Clear</Button>
+            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void onClearAnnounce(identity)}>Clear all</Button>
           </div>
           <AnnounceComposer onAnnounce={onAnnounce} identity={identity} busy={onPosting} />
         </Panel>
@@ -721,7 +793,9 @@ function Section({ title, icon, children, defaultOpen = true }: { title: string;
 
 function AnnounceComposer({ onAnnounce, identity, busy }: { onAnnounce: (body: string, seconds: number, identity: Identity) => Promise<void>; identity: Identity; busy: boolean }) {
   const [text, setText] = useState('');
-  const [seconds, setSeconds] = useState(0);
+  const [seconds, setSeconds] = useState(30);
+  const [untilCleared, setUntilCleared] = useState(false);
+  const secs = untilCleared ? 0 : Math.min(145, Math.max(2, Math.floor(seconds) || 30));
   return (
     <div className="space-y-2">
       <textarea
@@ -732,16 +806,24 @@ function AnnounceComposer({ onAnnounce, identity, busy }: { onAnnounce: (body: s
         placeholder="Broadcast to every dashboard…"
         className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none resize-y placeholder:text-[#525b6c]"
       />
-      <div className="flex items-center gap-2">
-        <select value={seconds} onChange={(e) => setSeconds(Number(e.target.value))} className="bg-[#0b0d12] border border-[#1e232d] rounded-lg px-2 py-1.5 text-sm text-cream outline-none">
-          <option value={0}>Until cleared</option>
-          <option value={30}>30 seconds</option>
-          <option value={60}>1 minute</option>
-          <option value={300}>5 minutes</option>
-          <option value={600}>10 minutes</option>
-        </select>
-        <Button size="sm" className="ml-auto" disabled={busy || !text.trim()} onClick={async () => { await onAnnounce(text.trim(), seconds, identity); setText(''); }}>
-          <Megaphone className="h-4 w-4 mr-1.5" />Announce
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs text-[#9aa3b2]">Show for</label>
+        <input
+          type="number"
+          min={2}
+          max={145}
+          value={seconds}
+          disabled={untilCleared}
+          onChange={(e) => setSeconds(Number(e.target.value))}
+          className="w-20 bg-[#0b0d12] border border-[#1e232d] rounded-lg px-2 py-1.5 text-sm text-cream outline-none disabled:opacity-40"
+        />
+        <span className="text-xs text-[#9aa3b2]">seconds</span>
+        <label className="flex items-center gap-1 text-xs text-[#9aa3b2]">
+          <input type="checkbox" checked={untilCleared} onChange={(e) => setUntilCleared(e.target.checked)} />
+          until cleared
+        </label>
+        <Button size="sm" className="ml-auto" disabled={busy || !text.trim()} onClick={() => void onAnnounce(text, secs, identity)}>
+          {busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Megaphone className="h-4 w-4 mr-1" />}Announce
         </Button>
       </div>
     </div>
@@ -782,7 +864,6 @@ export default function LiveShowDash() {
   const [phase, setPhase] = useState<'boot' | 'closed' | 'gate' | 'board'>('boot');
   const [board, setBoard] = useState<Board | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [canEdit, setCanEdit] = useState(false);
   const [scripts, setScripts] = useState<Scripts>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -794,6 +875,10 @@ export default function LiveShowDash() {
   const [posting, setPosting] = useState(false);
   const [move, setMove] = useState<{ message: string; seconds: number } | null>(null);
   const [quick, setQuick] = useState(false);
+  const [askCode, setAskCode] = useState(false);
+  const [admins, setAdmins] = useState<{ id: string; name: string }[]>([]);
+  const [moveForm, setMoveForm] = useState<{ alert: boolean; message: string; seconds: number; admins: string[] } | null>(null);
+  const [savingMove, setSavingMove] = useState(false);
   const guestCode = useRef<string | null>(null);
   const didChooseView = useRef(false);
 
@@ -808,7 +893,6 @@ export default function LiveShowDash() {
   const applyMember = useCallback((r: MemberState) => {
     if (!r.open) { setPhase('closed'); return; }
     applyCommon(r as unknown as Partial<MemberState & GuestState>);
-    setCanEdit(!!r.canEdit);
     setDevices((r.devices ?? []) as DeviceRow[]);
     setPhase('board');
   }, [applyCommon]);
@@ -817,7 +901,6 @@ export default function LiveShowDash() {
     if (!r.open) { setPhase('closed'); return; }
     if (!r.authorized || !r.liveShow) { setPhase('gate'); return; }
     applyCommon(r as unknown as Partial<MemberState & GuestState>);
-    setCanEdit(false);
     setPhase('board');
   }, [applyCommon]);
 
@@ -919,22 +1002,71 @@ export default function LiveShowDash() {
     } catch (e) { toast.error((e as Error).message); }
   }, [board]);
 
-  // -- 5x spacebar quick controls (spacebar does not count as movement) -------
+  // -- quick controls: triple-space on the normal dashboard -------------------
+  const openQuick = useCallback(() => {
+    if (board) {
+      setMoveForm({
+        alert: !!board.movementAlert,
+        message: board.movementMessage ?? '',
+        seconds: board.movementSeconds ?? 30,
+        admins: board.movementAdmins ?? [],
+      });
+    }
+    void getLiveShowAdmins({})
+      .then((r) => setAdmins((r.admins ?? []) as { id: string; name: string }[]))
+      .catch(() => {});
+    setQuick(true);
+  }, [board]);
+
+  const submitCode = useCallback(async (code: string) => {
+    const r = await getLiveShowState({ code, deviceKey: deviceKey(), deviceName: deviceName(), platform: platformOf(), userAgent: navigator.userAgent });
+    if (!r.open || !r.authorized) throw new Error('That code is not right.');
+    guestCode.current = code;
+    try { sessionStorage.setItem(GUEST_CODE_KEY, code); } catch { /* ignore */ }
+    setAskCode(false);
+    openQuick();
+  }, [openQuick]);
+
+  const saveMove = useCallback(async () => {
+    if (!board || !moveForm) return;
+    setSavingMove(true);
+    try {
+      await adminLiveShowControl({
+        liveShowId: board.id,
+        code: guestCode.current ?? undefined,
+        action: 'movement',
+        movementAlert: moveForm.alert,
+        movementMessage: moveForm.message,
+        movementSeconds: Math.min(145, Math.max(2, Math.floor(moveForm.seconds) || 30)),
+        movementAdmins: moveForm.admins,
+      });
+      toast.success('Movement alert saved');
+      void refresh();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSavingMove(false); }
+  }, [board, moveForm, refresh]);
+
   useEffect(() => {
-    if (phase !== 'board' || quick) return;
+    if (phase !== 'board' || quick || askCode || viewMode !== 'dashboard') return;
     let times: number[] = [];
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.tagName === 'SELECT')) return;
       const now = Date.now();
-      times = times.filter((x) => now - x < 1500);
+      // Reset the run after an >800ms gap so a slow triple still counts.
+      times = times.filter((x) => now - x < 800);
       times.push(now);
-      if (times.length >= 5) { times = []; e.preventDefault(); setQuick(true); }
+      if (times.length >= 3) {
+        times = [];
+        e.preventDefault();
+        if (isAdmin || guestCode.current) openQuick();
+        else setAskCode(true);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, quick]);
+  }, [phase, quick, askCode, viewMode, isAdmin, openQuick]);
 
   useEffect(() => {
     if (!quick) return;
@@ -960,27 +1092,39 @@ export default function LiveShowDash() {
   }, []);
 
   useEffect(() => {
-    if (phase !== 'board' || !board?.movementAlert || quick) return;
+    if (phase !== 'board' || !board?.movementAlert || quick || move) return;
+    const cooldown = Math.max(2, board.movementSeconds ?? 30) * 1000;
     let last = 0;
+    // Throttle to one sample per cooldown; the server decides if it is a new
+    // move or already acknowledged. Motion must be sustained past the cooldown
+    // to re-warn, so an accepted nudge stays quiet until the screen moves again.
+    const fire = () => {
+      const now = Date.now();
+      if (now - last < cooldown) return;
+      last = now;
+      void triggerMove();
+    };
     const onMotion = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
       if (!a) return;
       const mag = Math.abs(a.x ?? 0) + Math.abs(a.y ?? 0) + Math.abs(a.z ?? 0);
-      const now = Date.now();
-      if (mag > 32 && now - last > 5000) { last = now; void triggerMove(); }
+      if (mag > 32) fire();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') return; // spacebar drives the show, it is not movement
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.tagName === 'SELECT')) return;
+      fire();
     };
     const DM = window.DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> } | undefined;
     if (DM?.requestPermission) void DM.requestPermission().catch(() => 'denied');
     window.addEventListener('devicemotion', onMotion);
-    return () => window.removeEventListener('devicemotion', onMotion);
-  }, [phase, board?.movementAlert, quick, triggerMove]);
-
-  // Re-warn while a movement warning is up and not accepted.
-  useEffect(() => {
-    if (!move) return;
-    const id = window.setInterval(() => { void liveShowMovement({ deviceKey: deviceKey(), action: 'moved' }).catch(() => {}); }, Math.max(10, move.seconds) * 1000);
-    return () => window.clearInterval(id);
-  }, [move]);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('devicemotion', onMotion);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [phase, board?.movementAlert, board?.movementSeconds, quick, move, triggerMove]);
 
   const acceptMove = useCallback(async () => {
     setMove(null);
@@ -1052,7 +1196,6 @@ export default function LiveShowDash() {
       <ShowBoard
         board={board!}
         scenes={scenes}
-        canEdit={canEdit}
         scripts={scripts}
         isAdmin={isAdmin}
         identity={identity}
@@ -1060,7 +1203,6 @@ export default function LiveShowDash() {
         messages={messages}
         announcements={announcements}
         devices={devices}
-        onRefresh={() => { void refresh(); }}
         onControl={control}
         onPost={postChat}
         onAnnounce={announce}
@@ -1071,12 +1213,13 @@ export default function LiveShowDash() {
       />
 
       {askView && <ViewChooser onPick={chooseView} />}
+      {askCode && <CodePrompt onCancel={() => setAskCode(false)} onSubmit={submitCode} />}
 
       {move && <MovementOverlay message={move.message} onAccept={acceptMove} />}
 
       {quick && board && (
         <div className="fixed inset-x-0 bottom-0 z-[55] border-t border-[#2a3040] bg-[#0b0d12]/97 backdrop-blur p-4">
-          <div className="max-w-4xl mx-auto space-y-3">
+          <div className="max-w-4xl mx-auto space-y-3 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center gap-3">
               <Radio className="h-4 w-4 text-red-400" />
               <span className="text-sm font-bold tracking-widest text-red-400">QUICK CONTROLS</span>
@@ -1088,6 +1231,54 @@ export default function LiveShowDash() {
               <p className="text-xs text-[#9aa3b2]">
                 {guestCode.current || sessionStorage.getItem(GUEST_CODE_KEY) ? 'Quick controls unlocked with the show code.' : 'Enter the show code to unlock quick controls.'}
               </p>
+            )}
+            {moveForm && (
+              <div className="rounded-xl border border-[#2a3040] bg-[#0f1219] p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-amber-300" />
+                  <span className="text-xs uppercase tracking-widest text-[#9aa3b2]">Movement alert</span>
+                  <label className="ml-auto flex items-center gap-1 text-xs text-[#9aa3b2]">
+                    <input type="checkbox" checked={moveForm.alert} onChange={(e) => setMoveForm({ ...moveForm, alert: e.target.checked })} /> enabled
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={moveForm.message}
+                    maxLength={300}
+                    onChange={(e) => setMoveForm({ ...moveForm, message: e.target.value })}
+                    placeholder="Message shown when a screen moves"
+                    className="flex-1 min-w-[220px] bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-1.5 text-sm text-cream outline-none"
+                  />
+                  <input
+                    type="number"
+                    min={2}
+                    max={145}
+                    value={moveForm.seconds}
+                    onChange={(e) => setMoveForm({ ...moveForm, seconds: Number(e.target.value) })}
+                    className="w-20 bg-[#0b0d12] border border-[#1e232d] rounded-lg px-2 py-1.5 text-sm text-cream outline-none"
+                  />
+                  <span className="text-xs text-[#9aa3b2]">sec</span>
+                  <Button size="sm" disabled={savingMove} onClick={() => void saveMove()}>
+                    {savingMove && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {admins.map((a) => {
+                    const on = moveForm.admins.includes(a.id);
+                    return (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => setMoveForm({ ...moveForm, admins: on ? moveForm.admins.filter((id) => id !== a.id) : [...moveForm.admins, a.id] })}
+                        className={cn('rounded-full border px-2.5 py-1 text-[11px] transition', on ? 'border-amber-400/70 bg-amber-400/15 text-amber-200 font-medium' : 'border-[#2a3040] text-[#9aa3b2] hover:border-amber-400/50')}
+                      >
+                        {a.name}
+                      </button>
+                    );
+                  })}
+                  {admins.length === 0 && <span className="text-[11px] text-[#525b6c]">No admins found.</span>}
+                </div>
+              </div>
             )}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">

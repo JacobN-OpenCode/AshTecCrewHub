@@ -12,6 +12,12 @@ export default createEndpoint({
     action: z.string(),
     status: z.string().optional(),
     sceneIndex: z.number().optional(),
+    // Movement-alert config, editable from the in-dashboard quick controls
+    // (ticket f75f7b40) as well as the setup page.
+    movementAlert: z.boolean().optional(),
+    movementMessage: z.string().max(300).optional(),
+    movementSeconds: z.number().optional(),
+    movementAdmins: z.array(z.string()).max(50).optional(),
     // Quick controls on a stage screen (ticket f75f7b40) unlock with the show
     // code, so a signed-out machine behind the code can still drive the clock.
     // A signed-in caller is held to the admin rule instead.
@@ -54,6 +60,12 @@ export default createEndpoint({
       }
       case 'status':
         record.status = isLiveShowStatus(input.status) ? input.status : 'standby';
+        break;
+      case 'movement':
+        if (typeof input.movementAlert === 'boolean') record.movementAlert = input.movementAlert;
+        if (typeof input.movementMessage === 'string') record.movementMessage = input.movementMessage.slice(0, 300);
+        if (typeof input.movementSeconds === 'number') record.movementSeconds = Math.min(145, Math.max(2, Math.floor(input.movementSeconds)));
+        if (Array.isArray(input.movementAdmins)) record.movementAdmins = input.movementAdmins;
         break;
       default:
         throw new Error(`Unknown live show action: ${input.action}`);

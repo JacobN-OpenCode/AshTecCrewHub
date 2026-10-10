@@ -19,7 +19,7 @@ export default createEndpoint({
   inputSchema: z.object({
     liveShowId: z.string().optional(),
     body: z.string().max(BODY_MAX).optional(),
-    seconds: z.number().min(0).max(86_400).optional(),
+    seconds: z.number().min(0).max(145).optional(),
     clear: z.boolean().optional(),
     email: z.string().email().optional(),
     secret: z.string().max(200).optional(),
@@ -58,7 +58,8 @@ export default createEndpoint({
 
     const body = (input.body ?? '').trim().slice(0, BODY_MAX);
     if (!body) throw new Error('Write the announcement first.');
-    const seconds = Math.max(0, Math.floor(input.seconds ?? 0));
+    // 0 = until cleared; otherwise 2 to 145 seconds.
+    const seconds = input.seconds ? Math.min(145, Math.max(2, Math.floor(input.seconds))) : 0;
     const expiresAt = seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null;
     await zite.liveShowAnnouncements.create({
       record: { liveShowId: liveShow.id, body, author: adminId, authorName, seconds, expiresAt },
