@@ -16,7 +16,7 @@ export default createEndpoint({
   inputSchema: z.object({
     // New rule: only a first initial (max 2 characters) is stored, never a full
     // first name.
-    firstName: z.string().max(2).optional(),
+    firstName: z.string().max(80).optional(),
     lastName: z.string().max(80).optional(),
     year: z.string().optional(),
     schoolEmail: z.string().max(200).optional(),

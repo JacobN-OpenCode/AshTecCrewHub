@@ -17,6 +17,10 @@ export default createEndpoint({
     intermissionMinutes: z.number().optional(),
     currentSceneIndex: z.number().optional(),
     crewCanEdit: z.boolean().optional(),
+    movementAlert: z.boolean().optional(),
+    movementMessage: z.string().max(400).optional(),
+    movementSeconds: z.number().min(10).max(600).optional(),
+    movementAdmins: z.array(z.string()).max(50).optional(),
   }),
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
@@ -30,6 +34,10 @@ export default createEndpoint({
     if (input.intermissionMinutes !== undefined) record.intermissionMinutes = Math.max(0, Math.floor(input.intermissionMinutes));
     if (input.currentSceneIndex !== undefined) record.currentSceneIndex = Math.max(0, Math.floor(input.currentSceneIndex));
     if (input.crewCanEdit !== undefined) record.crewCanEdit = !!input.crewCanEdit;
+    if (input.movementAlert !== undefined) record.movementAlert = !!input.movementAlert;
+    if (input.movementMessage !== undefined) record.movementMessage = input.movementMessage.slice(0, 400);
+    if (input.movementSeconds !== undefined) record.movementSeconds = Math.max(10, Math.min(600, Math.floor(input.movementSeconds)));
+    if (input.movementAdmins !== undefined) record.movementAdmins = [...new Set(input.movementAdmins)];
     if (input.open !== undefined) record.open = !!input.open;
     record.updatedBy = admin.id;
 

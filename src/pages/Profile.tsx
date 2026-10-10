@@ -672,8 +672,12 @@ function YourTickets() {
   const [saving, setSaving] = useState(false);
   const [sort, setSort] = useState<'recency' | 'category'>('recency');
   // Ticket bb37a31b: vast ticket histories flattened the card, so the list is
-  // truncated to the most recent five with a reveal button for the rest.
+  // truncated with a reveal button for the rest.
+  // Ticket 06a23d57: the reader picks how many to see first (3/5/10 or a
+  // custom count) before the "Show more" button reveals the remainder.
   const [expanded, setExpanded] = useState(false);
+  const [sizeMode, setSizeMode] = useState<'3' | '5' | '10' | 'custom'>('5');
+  const [customCount, setCustomCount] = useState('8');
   const { me } = useMe();
   const [sameTab] = useSupportSameTab();
   const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
@@ -699,7 +703,12 @@ function YourTickets() {
   if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
   // The hook-discipline version of the trim: slice below the early return.
-  const visible = expanded ? shown : shown.slice(0, 5);
+  const pageSize = (() => {
+    if (sizeMode !== 'custom') return Number(sizeMode);
+    const n = Math.floor(Number(customCount));
+    return Number.isFinite(n) && n > 0 ? n : 5;
+  })();
+  const visible = expanded ? shown : shown.slice(0, pageSize);
 
   const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
   const save = async (t: typeof tickets[number]) => {
@@ -726,15 +735,39 @@ function YourTickets() {
             crew is told automatically.
           </p>
         </div>
-        <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'category')}>
-          <SelectTrigger className="w-[150px]" aria-label="Sort tickets">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="recency">Newest first</SelectItem>
-            <SelectItem value="category">By category</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v as '3' | '5' | '10' | 'custom'); setExpanded(false); }}>
+            <SelectTrigger className="w-[130px]" aria-label="How many tickets to show">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">Show 3</SelectItem>
+              <SelectItem value="5">Show 5</SelectItem>
+              <SelectItem value="10">Show 10</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+          {sizeMode === 'custom' && (
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              value={customCount}
+              onChange={(e) => { setCustomCount(e.target.value); setExpanded(false); }}
+              className="w-[90px]"
+              aria-label="Custom number of tickets"
+            />
+          )}
+          <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'category')}>
+            <SelectTrigger className="w-[150px]" aria-label="Sort tickets">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recency">Newest first</SelectItem>
+              <SelectItem value="category">By category</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {shown.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
@@ -799,7 +832,7 @@ function YourTickets() {
         ))}
       </ul>
 
-      {shown.length > 5 && (
+      {shown.length > pageSize && (
         <Button variant="outline" size="sm" className="w-full" onClick={() => setExpanded((e) => !e)}>
           {expanded ? 'Show fewer' : `Show all ${shown.length} tickets`}
         </Button>

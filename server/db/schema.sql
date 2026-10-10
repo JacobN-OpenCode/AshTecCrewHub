@@ -414,4 +414,73 @@ ALTER TABLE "LiveShowScenes"  ADD COLUMN IF NOT EXISTS "props"        text[] NOT
 ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "sharedLink"  text NOT NULL DEFAULT '';
 ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "privateLink" text NOT NULL DEFAULT '';
 
+-- ---------------------------------------------------------------------------
+-- Live Show, part two (ticket f75f7b40). The stage manager's one-page board is
+-- the centre of the show, so it also carries: announcements that stay up for a
+-- chosen time, a live chat the public can read but only admins can write, a
+-- device list so an admin can see every screen watching the show, and a
+-- movement alert that warns (and pings special admins) when someone bumps a
+-- locked-off display.
+-- ---------------------------------------------------------------------------
+
+-- Movement-alert config lives on the live show itself; movementAdmins are the
+-- "special admins" who receive a PWA push when a screen is moved.
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementAlert"   boolean NOT NULL DEFAULT false;
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementMessage" text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementSeconds" int NOT NULL DEFAULT 30;
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementAdmins"  uuid[] NOT NULL DEFAULT '{}';
+
+-- One row per browser watching the board. deviceKey is minted by the browser
+-- and kept in localStorage, so re-connecting updates the same row rather than
+-- growing the list; member is null for a signed-out guest behind the code.
+CREATE TABLE IF NOT EXISTS "LiveShowDevices" (
+  "id"              uuid PRIMARY KEY,
+  "liveShowId"      uuid NOT NULL,
+  "deviceKey"       text NOT NULL,
+  "name"            text NOT NULL DEFAULT '',
+  "platform"        text NOT NULL DEFAULT '',
+  "userAgent"       text NOT NULL DEFAULT '',
+  "member"          uuid,
+  "online"          boolean NOT NULL DEFAULT true,
+  "adminView"       boolean NOT NULL DEFAULT false,
+  "lastSeenAt"      timestamptz NOT NULL DEFAULT now(),
+  "lastMovementAt"  timestamptz,
+  "movementAckAt"   timestamptz,
+  "createdAt"       timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"       timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowDevices_key" ON "LiveShowDevices" ("liveShowId", "deviceKey");
+CREATE INDEX IF NOT EXISTS "LiveShowDevices_show_idx" ON "LiveShowDevices" ("liveShowId");
+
+-- The public live chat. Anyone can read it; only admins write. kind is 'chat'
+-- for ordinary posts, 'announcement' when an admin broadcast it (so a timed-out
+-- announcement still survives in the chat log) and 'system' for joins/controls.
+CREATE TABLE IF NOT EXISTS "LiveShowMessages" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "author"      uuid,
+  "authorName"  text NOT NULL DEFAULT '',
+  "body"        text NOT NULL DEFAULT '',
+  "kind"        text NOT NULL DEFAULT 'chat',
+  "createdAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowMessages_show_idx" ON "LiveShowMessages" ("liveShowId");
+
+-- Announcements: a banner on the board. seconds is how long it stays up (0 =
+-- until an admin clears it); expiresAt is computed on create so a poll only has
+-- to compare timestamps. clearedAt is set when an admin takes it down early.
+CREATE TABLE IF NOT EXISTS "LiveShowAnnouncements" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "body"        text NOT NULL DEFAULT '',
+  "author"      uuid,
+  "authorName"  text NOT NULL DEFAULT '',
+  "seconds"     int NOT NULL DEFAULT 0,
+  "expiresAt"   timestamptz,
+  "clearedAt"   timestamptz,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowAnnouncements_show_idx" ON "LiveShowAnnouncements" ("liveShowId");
+
 COMMIT;

@@ -10,7 +10,7 @@ import { Checkbox } from '@project/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@project/components/ui/select';
-import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Tv, DoorOpen, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Save, ScrollText } from 'lucide-react';
+import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Tv, DoorOpen, Play, Pause, RotateCcw, ChevronLeft, ChevronRight, Save, ScrollText, BellRing } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
@@ -80,6 +80,10 @@ type FormState = {
   code: string;
   intermissionMinutes: number;
   crewCanEdit: boolean;
+  movementAlert: boolean;
+  movementMessage: string;
+  movementSeconds: number;
+  movementAdmins: string[];
 };
 
 const defaultForm = (name = ''): FormState => ({
@@ -90,20 +94,23 @@ const defaultForm = (name = ''): FormState => ({
   code: '',
   intermissionMinutes: 15,
   crewCanEdit: false,
+  movementAlert: false,
+  movementMessage: '',
+  movementSeconds: 30,
+  movementAdmins: [],
 });
 
 export default function LiveShowAdmin() {
   const { data, reload: reloadShows } = useAdminData();
   const { refreshMe } = useMe();
   const shows = data?.shows ?? [];
+  const admins = (data?.members ?? []).filter((m) => m.isAdmin);
 
   const [showId, setShowId] = useState<string | null>(null);
   const [ls, setLs] = useState<LS | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm());
   const [rows, setRows] = useState<SceneRow[]>([]);
-  const [shared, setShared] = useState('');
   const [sharedLink, setSharedLink] = useState('');
-  const [privateLink, setPrivateLink] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingScenes, setSavingScenes] = useState(false);
@@ -128,12 +135,14 @@ export default function LiveShowAdmin() {
             code: r.liveShow.code ?? '',
             intermissionMinutes: Number(r.liveShow.intermissionMinutes ?? 15),
             crewCanEdit: !!r.liveShow.crewCanEdit,
+            movementAlert: !!r.liveShow.movementAlert,
+            movementMessage: r.liveShow.movementMessage ?? '',
+            movementSeconds: Number(r.liveShow.movementSeconds ?? 30),
+            movementAdmins: (r.liveShow.movementAdmins ?? []) as string[],
           }
         : defaultForm(seedName));
       setRows(rowsFrom((r.scenes as CanScene[]) ?? []));
-      setShared(r.scripts?.shared ?? '');
       setSharedLink(r.scripts?.sharedLink ?? '');
-      setPrivateLink(r.scripts?.privateLink ?? '');
     } finally {
       setLoading(false);
     }
@@ -163,6 +172,10 @@ export default function LiveShowAdmin() {
         code: form.code,
         intermissionMinutes: form.intermissionMinutes,
         crewCanEdit: form.crewCanEdit,
+        movementAlert: form.movementAlert,
+        movementMessage: form.movementMessage,
+        movementSeconds: form.movementSeconds,
+        movementAdmins: form.movementAdmins,
       });
       setLs(r.liveShow as LS);
       setForm({
@@ -173,6 +186,10 @@ export default function LiveShowAdmin() {
         code: r.liveShow.code ?? '',
         intermissionMinutes: Number(r.liveShow.intermissionMinutes ?? 15),
         crewCanEdit: !!r.liveShow.crewCanEdit,
+        movementAlert: !!r.liveShow.movementAlert,
+        movementMessage: r.liveShow.movementMessage ?? '',
+        movementSeconds: Number(r.liveShow.movementSeconds ?? 30),
+        movementAdmins: (r.liveShow.movementAdmins ?? []) as string[],
       });
       toast.success(form.open ? 'Live show is open, dashboard is live' : 'Live show settings saved');
       await refreshMe();
@@ -212,8 +229,8 @@ export default function LiveShowAdmin() {
     if (!ls) return;
     setSavingScript(true);
     try {
-      await saveLiveShowScript({ liveShowId: ls.id, scope: 'shared', content: shared, sharedLink, privateLink });
-      toast.success('Shared script saved');
+      await saveLiveShowScript({ liveShowId: ls.id, sharedLink });
+      toast.success('Script link saved');
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -294,13 +311,6 @@ export default function LiveShowAdmin() {
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
-                  checked={form.crewCanEdit}
-                  onCheckedChange={(c) => setField('crewCanEdit', !!c)}
-                />
-                Let signed-in crew edit the shared script on their dashboard
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
                   checked={form.open}
                   onCheckedChange={(c) => {
                     if (c && !window.confirm('Opening this live show closes any other open live show and makes the Live Show page public. Continue?')) return;
@@ -309,6 +319,49 @@ export default function LiveShowAdmin() {
                 />
                 <span className={cn(form.open && 'text-primary font-medium')}>{form.open ? 'This show is OPEN, the dashboard is live now' : 'Open this show (turns the dashboard on)'}</span>
               </label>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-4 space-y-3">
+              <h3 className="text-sm font-semibold flex items-center gap-2"><BellRing className="h-4 w-4" />Movement alerts</h3>
+              <p className="text-xs text-muted-foreground">If someone picks up or moves a screen showing the live board, that device shows a full-screen warning, and the special admins below get a push notification. Space bar does not count as movement.</p>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={form.movementAlert} onCheckedChange={(c) => setField('movementAlert', !!c)} />
+                <span className={cn(form.movementAlert && 'font-medium')}>Turn movement alerts on for this show</span>
+              </label>
+              <div className="grid sm:grid-cols-[1fr_140px] gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Warning message shown on the moved screen</label>
+                  <Input value={form.movementMessage} placeholder="Please do not move this screen" onChange={(e) => setField('movementMessage', e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Re-warn after (seconds)</label>
+                  <Input type="number" min={10} max={600} value={form.movementSeconds} onChange={(e) => setField('movementSeconds', Math.max(10, Math.min(600, Number(e.target.value) || 30)))} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium">Special admins who get the alert</label>
+                {admins.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No admins found.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {admins.map((m) => {
+                      const on = form.movementAdmins.includes(m.id);
+                      return (
+                        <button
+                          type="button"
+                          key={m.id}
+                          onClick={() => setField('movementAdmins', on ? form.movementAdmins.filter((id) => id !== m.id) : [...form.movementAdmins, m.id])}
+                          className={cn(
+                            'rounded-full border px-3 py-1 text-xs transition',
+                            on ? 'border-primary bg-primary/15 text-primary font-medium' : 'border-border text-muted-foreground hover:border-primary/50',
+                          )}
+                        >
+                          {m.firstName} {m.lastName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button onClick={saveConfig} disabled={savingConfig}>
@@ -339,7 +392,8 @@ export default function LiveShowAdmin() {
                       {statusLabel(s)}
                     </Button>
                   ))}
-                  <span className="mx-1 h-6 w-px bg-border" />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => void run('scene', { sceneIndex: Math.max(0, ls.currentSceneIndex - 1) })} disabled={!!busyAction || ls.currentSceneIndex <= 0}><ChevronLeft className="h-4 w-4" />Prev</Button>
                   {ls.timerMode === 'running'
                     ? <Button size="sm" variant="outline" onClick={() => void run('pause')} disabled={!!busyAction}><Pause className="h-4 w-4 mr-1" />Pause</Button>
@@ -399,29 +453,21 @@ export default function LiveShowAdmin() {
           </div>
 
           <div className="rounded-lg border bg-card p-5 space-y-3">
-            <h2 className="font-semibold flex items-center gap-2"><ScrollText className="h-4 w-4" />Shared script</h2>
+            <h2 className="font-semibold flex items-center gap-2"><ScrollText className="h-4 w-4" />Script</h2>
             {!ls ? (
-              <p className="text-sm text-muted-foreground">Save the settings above once to unlock the shared script editor.</p>
+              <p className="text-sm text-muted-foreground">Save the settings above once to unlock the script link.</p>
             ) : (
               <>
-                <p className="text-xs text-muted-foreground">The script the whole cast reads from. Signed-in crew can also see and edit it from their dashboard when crew editing is on.</p>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Shared script link (editable doc)</label>
-                    <Input value={sharedLink} placeholder="https://docs.google.com/..." onChange={(e) => setSharedLink(e.target.value)} />
-                    <p className="text-[11px] text-muted-foreground">Everyone sees this link on the dashboard as an embedded doc.</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Private script link (view only)</label>
-                    <Input value={privateLink} placeholder="https://.../script.pdf" onChange={(e) => setPrivateLink(e.target.value)} />
-                    <p className="text-[11px] text-muted-foreground">Kept for maintainers only. Never shown to crew.</p>
-                  </div>
+                <p className="text-xs text-muted-foreground">The script lives in OneDrive. Paste the OneDrive embed link here and the board shows it inline, with an "Open in OneDrive" fallback. There is only ever one script link.</p>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">OneDrive script link</label>
+                  <Input value={sharedLink} placeholder="https://onedrive.live.com/embed?resid=..." onChange={(e) => setSharedLink(e.target.value)} />
+                  <p className="text-[11px] text-muted-foreground">Use the embed link (onedrive.live.com/embed...). A plain share link is shown as an "Open in OneDrive" button instead. Short 1drv.ms links cannot be embedded.</p>
                 </div>
-                <Textarea value={shared} onChange={(e) => setShared(e.target.value)} rows={12} placeholder="Or paste the shared script here..." className="font-mono" />
                 <div className="flex justify-end">
                   <Button onClick={saveScript} disabled={savingScript}>
                     {savingScript ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Save shared script
+                    Save script link
                   </Button>
                 </div>
               </>

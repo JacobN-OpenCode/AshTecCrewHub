@@ -82,6 +82,23 @@ export async function hasSecret(email: string): Promise<boolean> {
   return !!(await secrets())[key];
 }
 
+/**
+ * Check an admin's cat-login secret WITHOUT creating a session, so a feature
+ * that only needs to confirm "this is really an admin" (posting to the live
+ * show chat from the stage board) does not have to hand out a cookie.
+ * Returns true only when the secret matches AND the member is an admin.
+ */
+export async function verifyAdminSecret(email: string, password: string): Promise<boolean> {
+  const key = email.trim().toLowerCase();
+  const expected = (await secrets())[key];
+  if (!expected || !sameSecret(password, expected)) return false;
+  const { rows } = await db().query<{ isAdmin: boolean }>(
+    `SELECT "isAdmin" FROM "CrewMembers" WHERE lower("schoolEmail") = $1`,
+    [key],
+  );
+  return !!rows[0]?.isAdmin;
+}
+
 /** Returns a fresh session id on success, or null with nothing distinguishing why. */
 export async function catLogin(email: string, password: string): Promise<string | null> {
   const key = email.trim().toLowerCase();

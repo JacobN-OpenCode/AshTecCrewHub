@@ -5,19 +5,28 @@ import { requireAdmin } from '../lib/server';
 import { mapLiveShow, liveShowElapsedMs, isLiveShowStatus } from '../lib/liveShow';
 
 export default createEndpoint({
-  description: 'Controls the live show clock, current scene and status (admins)',
-  authenticated: true,
+  description: 'Controls the live show clock, current scene and status (admins, or the show code)',
+  authenticated: false,
   inputSchema: z.object({
     liveShowId: z.string(),
     action: z.string(),
     status: z.string().optional(),
     sceneIndex: z.number().optional(),
+    // Quick controls on a stage screen (ticket f75f7b40) unlock with the show
+    // code, so a signed-out machine behind the code can still drive the clock.
+    // A signed-in caller is held to the admin rule instead.
+    code: z.string().optional(),
   }),
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
-    await requireAdmin(context.user.email);
     const ls = await zite.liveShows.findOne({ id: input.liveShowId });
     if (!ls) throw new Error('Live show not found.');
+    if (context.user) {
+      await requireAdmin(context.user.email);
+    } else {
+      const expected = (ls.code ?? '').trim();
+      if (!expected || (input.code ?? '').trim() !== expected) throw new Error('Admins only.');
+    }
     const record: Record<string, unknown> = {};
     switch (input.action) {
       case 'start':

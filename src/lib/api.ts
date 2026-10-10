@@ -304,6 +304,27 @@ export type GetStageLayoutInputType = NonNullable<_GetStageLayoutCfg['inputSchem
 export type GetStageLayoutOutputType = Awaited<ReturnType<_GetStageLayoutCfg['execute']>>;
 export const getStageLayout = createCaller<GetStageLayoutInputType, GetStageLayoutOutputType>('getStageLayout');
 
+import type { default as _LiveShowAnnouncementEp } from '../api/liveShowAnnouncement';
+
+type _LiveShowAnnouncementCfg = typeof _LiveShowAnnouncementEp;
+export type LiveShowAnnouncementInputType = NonNullable<_LiveShowAnnouncementCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_LiveShowAnnouncementCfg['execute']>[0]['input'];
+export type LiveShowAnnouncementOutputType = Awaited<ReturnType<_LiveShowAnnouncementCfg['execute']>>;
+export const liveShowAnnouncement = createCaller<LiveShowAnnouncementInputType, LiveShowAnnouncementOutputType>('liveShowAnnouncement');
+
+import type { default as _LiveShowChatEp } from '../api/liveShowChat';
+
+type _LiveShowChatCfg = typeof _LiveShowChatEp;
+export type LiveShowChatInputType = NonNullable<_LiveShowChatCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_LiveShowChatCfg['execute']>[0]['input'];
+export type LiveShowChatOutputType = Awaited<ReturnType<_LiveShowChatCfg['execute']>>;
+export const liveShowChat = createCaller<LiveShowChatInputType, LiveShowChatOutputType>('liveShowChat');
+
+import type { default as _LiveShowMovementEp } from '../api/liveShowMovement';
+
+type _LiveShowMovementCfg = typeof _LiveShowMovementEp;
+export type LiveShowMovementInputType = NonNullable<_LiveShowMovementCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_LiveShowMovementCfg['execute']>[0]['input'];
+export type LiveShowMovementOutputType = Awaited<ReturnType<_LiveShowMovementCfg['execute']>>;
+export const liveShowMovement = createCaller<LiveShowMovementInputType, LiveShowMovementOutputType>('liveShowMovement');
+
 import type { default as _MemberEditTicketEp } from '../api/memberEditTicket';
 
 type _MemberEditTicketCfg = typeof _MemberEditTicketEp;
@@ -485,6 +506,9 @@ export const api = {
   getPushConfig,
   getStaffHome,
   getStageLayout,
+  liveShowAnnouncement,
+  liveShowChat,
+  liveShowMovement,
   memberEditTicket,
   memberGetMyTickets,
   notificationPass,
