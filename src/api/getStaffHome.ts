@@ -21,6 +21,9 @@ export default createEndpoint({
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
     const me = await requireMember(context.user.email);
+    // Contractors never see the roster, even if their record also carries a
+    // staff year (ticket b89e3fd2).
+    if (me.memberType === 'Contractor') throw new Error('Contractors cannot view the roster.');
     if (!isStaff(me) && !me.isAdmin) throw new Error('Staff only.');
     const today = todayIso();
 

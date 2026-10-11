@@ -24,6 +24,8 @@ export default createEndpoint({
   execute: async ({ context }) => {
     const me = await requireMember(context.user.email);
     const canManage = !!me.isAdmin;
+    // Contractors are external and never get the roster (ticket b89e3fd2).
+    if (me.memberType === 'Contractor') throw new Error('This roster is available to admins and staff only.');
     if (!canManage && !isStaff(me)) throw new Error('This roster is available to admins and staff only.');
 
     // The picker for opening a session. Filtered here rather than in the UI so

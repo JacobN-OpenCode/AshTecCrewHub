@@ -69,7 +69,13 @@ export async function actingMember(email: string, previewAs?: string) {
 
 /** Real people who can receive email (no preview accounts). */
 export const isEmailable = (m: CrewMembersRecordType) => !!m.schoolEmail && !m.isPreviewAccount;
-export const isStaff = (m: CrewMembersRecordType) => m.memberType === 'Teacher' || m.year === 'Staff';
+// Contractors are external (ticket 00c0715c): they get the platform and their
+// own attendance, nothing else. A contractor must never be treated as staff even
+// if the record still carries year "Staff" (e.g. an existing staff member
+// converted, or a saved default), otherwise they inherit the roster and every
+// other staff-only view. This is the reported hole in ticket b89e3fd2.
+export const isStaff = (m: CrewMembersRecordType) =>
+  m.memberType !== 'Contractor' && (m.memberType === 'Teacher' || m.year === 'Staff');
 
 export const mapShow = (s: ShowsRecordType) => ({
   id: s.id,
