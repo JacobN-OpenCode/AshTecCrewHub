@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '#auth';
 import {
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight,
   ScrollText, Tv, Settings2, Users, Clapperboard, Lock, MessageSquare, Megaphone, ShieldAlert,
-  Send, Monitor, Smartphone, Tablet, X, UserPlus, Pencil,
+  Send, Monitor, Smartphone, Tablet, X, UserPlus, Pencil, Package,
 } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 
@@ -120,10 +120,12 @@ function AnnouncementOverlay({ items, onDismiss }: { items: Announcement[]; onDi
   if (!ann) return null;
   const left = ann.expiresAt ? Math.max(0, Math.ceil((new Date(ann.expiresAt).getTime() - Date.now()) / 1000)) : null;
   return (
-    <div className="fixed inset-0 z-[60] bg-[#05070a]/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => onDismiss(ann.id)}>
-      <div className="w-full max-w-[62vw] rounded-3xl border border-red-400/60 bg-red-600 px-8 py-10 text-center shadow-[0_60px_160px_-40px_rgba(0,0,0,0.95)]">
+    <div className="fixed inset-0 z-[60] bg-[#05070a]/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200" onClick={() => onDismiss(ann.id)}>
+      <div className="w-full max-w-[62vw] min-w-0 rounded-3xl border border-red-400/60 bg-red-600 px-8 py-10 text-center shadow-[0_60px_160px_-40px_rgba(0,0,0,0.95)] animate-in zoom-in-95 duration-300">
         <Megaphone className="mx-auto h-8 w-8 text-white/90" />
-        <div className="mt-5 text-4xl md:text-6xl font-bold leading-tight tracking-tight whitespace-pre-wrap text-white">{ann.body}</div>
+        {/* Ticket 97098a54: a single long word with no spaces must still wrap
+            onto new lines, so allow breaking inside words. */}
+        <div className="mt-5 text-4xl md:text-6xl font-bold leading-tight tracking-tight whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-white">{ann.body}</div>
         <div className="mt-5 text-base md:text-lg text-white/85">{left === null ? 'until cleared' : `${left}s`}</div>
         <p className="mt-4 text-xs text-white/60">Tap anywhere to hide on this screen</p>
       </div>
@@ -133,8 +135,8 @@ function AnnouncementOverlay({ items, onDismiss }: { items: Announcement[]; onDi
 
 function MovementOverlay({ message, onAccept }: { message: string; onAccept: () => void }) {
   return (
-    <div className="fixed inset-0 z-[60] bg-[#07080a]/90 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="max-w-lg w-full rounded-2xl border-2 border-amber-400/70 bg-[#12141c] p-7 text-center space-y-5 shadow-[0_0_60px_rgba(245,158,11,0.35)]">
+    <div className="fixed inset-0 z-[60] bg-[#07080a]/90 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
+      <div className="max-w-lg w-full rounded-2xl border-2 border-amber-400/70 bg-[#12141c] p-7 text-center space-y-5 shadow-[0_0_60px_rgba(245,158,11,0.35)] animate-in zoom-in-95 duration-300">
         <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-400/15 flex items-center justify-center">
           <ShieldAlert className="h-8 w-8 text-amber-300" />
         </div>
@@ -262,10 +264,20 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
   const meta = statusOf(board.status);
-  const current = scenes[board.currentSceneIndex];
+  const current: Scene | undefined = scenes[board.currentSceneIndex];
   const upNext = scenes[board.currentSceneIndex + 1];
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [messages.length]);
+
+  // Ticket f873ba01: the on-screen chat is newest-first, so a new message lands
+  // at the top instead of pushing everything down. When one arrives, ease back
+  // to the top; older messages stay reachable by scrolling down.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const newestId = messages.length ? messages[messages.length - 1].id : null;
+  const seenFirst = useRef(false);
+  useEffect(() => {
+    if (!seenFirst.current) { seenFirst.current = true; return; }
+    listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [newestId]);
+  const ordered = useMemo(() => [...messages].reverse(), [messages]);
 
   return (
     <main className="flex-1 min-h-0 w-full max-w-[1800px] mx-auto px-3 md:px-4 py-3 md:py-4 grid gap-3 md:gap-4 grid-cols-1 lg:grid-cols-3">
@@ -282,7 +294,8 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
             </div>
             <div className="ml-auto text-right">
               <p className="text-[11px] uppercase tracking-[0.2em] text-[#9aa3b2]">Show clock</p>
-              <p className="font-mono text-4xl md:text-6xl tabular-nums text-cream leading-none">{fmt(elapsedOf(board, now))}</p>
+              {/* Keyed on the timer state so starting/pausing the clock pops in. */}
+              <p key={board.timerMode} className={cn('font-mono text-4xl md:text-6xl tabular-nums leading-none animate-in fade-in zoom-in-95 duration-500', board.timerMode === 'running' ? 'text-[#9dffc9]' : 'text-cream')}>{fmt(elapsedOf(board, now))}</p>
             </div>
           </div>
           <div className="mt-5 border-t border-[#1e232d] pt-4">
@@ -293,7 +306,8 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
             {current ? (
               <div className="mt-3">
                 <p className="font-mono text-sm text-[#9aa3b2]">{current.label || `Scene ${current.sortIndex + 1}`} · {current.minutes} min</p>
-                <p className="mt-1 text-3xl md:text-5xl font-bold text-cream leading-tight">{current.title || 'Untitled scene'}</p>
+                {/* Keyed on the scene so switching scenes animates the title in. */}
+                <p key={current.id} className="mt-1 text-3xl md:text-5xl font-bold text-cream leading-tight animate-in fade-in slide-in-from-top-2 duration-500">{current.title || 'Untitled scene'}</p>
                 {current.cast.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {current.cast.map((c) => <span key={c} className="rounded-full border border-[#00ff88]/40 bg-[#00ff88]/10 px-3 py-1 text-sm text-[#9dffc9]">{c}</span>)}
@@ -313,7 +327,7 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
             {upNext ? (
               <div className="mt-3">
                 <p className="font-mono text-xs text-[#9aa3b2]">{upNext.label || `Scene ${upNext.sortIndex + 1}`} · {upNext.minutes} min</p>
-                <p className="mt-1 text-xl font-bold text-cream leading-tight">{upNext.title || 'Untitled scene'}</p>
+                <p key={upNext.id} className="mt-1 text-xl font-bold text-cream leading-tight animate-in fade-in slide-in-from-top-2 duration-300">{upNext.title || 'Untitled scene'}</p>
                 {upNext.cast.length > 0 && <p className="mt-2 text-xs text-[#9aa3b2]">{upNext.cast.join(' · ')}</p>}
               </div>
             ) : <p className="mt-3 text-sm text-[#9aa3b2]">Last scene.</p>}
@@ -329,22 +343,39 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
                 {current.notes.map((n, i) => <li key={i} className="rounded-xl border border-[#1e232d] bg-[#0b0d12] px-3 py-2 text-sm text-cream/80">{n}</li>)}
               </ul>
             ) : <p className="mt-3 text-sm text-[#9aa3b2]">No notes for this scene.</p>}
-            {current && current.props.length > 0 && (
-              <p className="mt-3 text-xs text-[#9aa3b2]">Props: {current.props.join(' · ')}</p>
-            )}
           </Panel>
         </div>
+
+        {/* Ticket 9f7403f9: props get their own prominent box rather than a
+            small line tucked under the scene notes. */}
+        <Panel className="p-5 border-amber-400/40 bg-amber-400/[0.04]">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-amber-300" />
+            <h2 className="text-sm font-bold tracking-[0.2em] text-amber-300">PROPS</h2>
+          </div>
+          {current && current.props.length > 0 ? (
+            <div key={current.id} className="mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              {current.props.map((p) => (
+                <span key={p} className="rounded-full border border-amber-400/50 bg-amber-400/15 px-3.5 py-1.5 text-base font-semibold text-amber-100">{p}</span>
+              ))}
+            </div>
+          ) : <p className="mt-3 text-sm text-[#9aa3b2]">No props for this scene.</p>}
+        </Panel>
       </div>
 
-      <Panel className="p-4 flex flex-col min-h-0">
+      {/* Ticket f873ba01: the chat fills its box height and scrolls for older
+          messages; newest sits at the top and slides in on arrival. */}
+      <Panel className="p-4 flex flex-col min-h-0 max-h-[calc(100vh-7rem)] lg:max-h-none">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-cream/60" />
           <h2 className="font-bold text-cream">Live chat</h2>
+          {board.status === 'live' && <span className="inline-flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+          <span className="ml-auto text-[10px] uppercase tracking-widest text-[#525b6c]">Newest first</span>
         </div>
-        <div className="mt-3 flex-1 min-h-[160px] space-y-2 overflow-y-auto pr-1">
-          {messages.length === 0 && <p className="text-sm text-[#9aa3b2]">No messages yet.</p>}
-          {messages.map((m) => (
-            <div key={m.id} className={cn('rounded-xl border px-3 py-2', m.kind === 'announcement' ? 'border-amber-400/40 bg-amber-400/5' : 'border-[#1e232d] bg-[#0b0d12]')}>
+        <div ref={listRef} className="mt-3 flex-1 min-h-[160px] space-y-2 overflow-y-auto overscroll-contain pr-1">
+          {ordered.length === 0 && <p className="text-sm text-[#9aa3b2]">No messages yet.</p>}
+          {ordered.map((m) => (
+            <div key={m.id} className={cn('rounded-xl border px-3 py-2 animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-300', m.kind === 'announcement' ? 'border-amber-400/40 bg-amber-400/5' : 'border-[#1e232d] bg-[#0b0d12]')}>
               <div className="flex items-center gap-2">
                 {m.kind === 'announcement' && <Megaphone className="h-3.5 w-3.5 text-amber-300" />}
                 <span className="text-xs font-semibold text-cream/80">{m.authorName || 'Admin'}</span>
@@ -353,7 +384,6 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
               <p className="mt-0.5 text-sm text-cream/90 whitespace-pre-wrap break-words">{m.body}</p>
             </div>
           ))}
-          <div ref={endRef} />
         </div>
       </Panel>
     </main>
