@@ -112,6 +112,28 @@
   animation: glow-pulse 2.2s ease-in-out infinite;
 }
 
+/* A clearly visible horizontal scrollbar (ticket f24a1408). macOS overlay
+   scrollbars stay hidden until you already scroll, which is why the top bar's
+   bar was "almost invisible"; drawing the track and thumb keeps it on screen
+   so it can be seen and grabbed. Dragging the bar itself is handled in JS by
+   useDragScroll. */
+.hc-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--border) / 0.6);
+}
+.hc-scroll-x::-webkit-scrollbar { height: 10px; }
+.hc-scroll-x::-webkit-scrollbar-track {
+  background: hsl(var(--border) / 0.6);
+  border-radius: 999px;
+}
+.hc-scroll-x::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.5);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.hc-scroll-x::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.8); background-clip: padding-box; }
+
 /* Installed-PWA safe areas (notch, home indicator). viewport-fit=cover in
    index.html lets the app draw edge to edge; these keep the header, content and
    the floating help button clear of the hardware. No-ops on a normal browser. */

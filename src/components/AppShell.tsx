@@ -17,6 +17,7 @@ import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview } from '../lib/preview';
 import { useCollapseTopTabs } from '../lib/uiPrefs';
+import { useDragScroll } from '../lib/useDragScroll';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { PLATFORM } from '../lib/constants';
@@ -87,6 +88,8 @@ function Shell() {
   usePageView(loc.pathname);
   const { session } = useLivePresence();
   const [collapseTabs] = useCollapseTopTabs();
+  // Ticket f24a1408: let the top bar be dragged with a mouse, not only scrolled.
+  const topNav = useDragScroll<HTMLElement>();
   // Staff get the roster read-only; only admins get the controls.
   const canRunCheckIn = me.isAdmin || me.isStaff;
 
@@ -137,7 +140,12 @@ function Shell() {
             <Lightbulb className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">{PLATFORM}</span>
           </div>
-          <nav data-tour="nav" className="flex gap-1 overflow-x-auto flex-1 min-w-0">
+          <nav
+            ref={topNav.ref}
+            data-tour="nav"
+            className="hc-scroll-x flex gap-1 overflow-x-auto flex-1 min-w-0 cursor-grab active:cursor-grabbing"
+            {...topNav.handlers}
+          >
             {links.map((l) => (
               <NavLink
                 key={l.to}
