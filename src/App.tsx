@@ -77,7 +77,8 @@ function SignedIn() {
           {me.isAdmin && <Route path="/roster" element={<StaffHub />} />}
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/stage" element={<StageLayout />} />
+          {/* Ticket 00c0715c: contractors never get the stage layout. */}
+          <Route path="/stage" element={me.isContractor ? <Navigate to="/" replace /> : <StageLayout />} />
           <Route path="/calendar" element={<Calendar />} />
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />

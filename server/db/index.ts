@@ -44,7 +44,7 @@ interface TableDef {
 const TABLES = {
   crewMembers: { table: 'CrewMembers', arr: ['roles', 'headOf'] },
   shows: { table: 'Shows', arr: [] },
-  subEvents: { table: 'SubEvents', arr: ['shows'] },
+  subEvents: { table: 'SubEvents', arr: ['shows', 'contractors'] },
   showResponses: { table: 'ShowResponses', arr: [] },
   attendance: { table: 'Attendance', arr: [] },
   presenceSessions: { table: 'PresenceSessions', arr: [] },

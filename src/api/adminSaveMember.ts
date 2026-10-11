@@ -41,7 +41,10 @@ export default createEndpoint({
     const record = {
       firstName: input.firstName,
       lastName: input.lastName ?? '',
-      year: input.year || null,
+      // year is NOT NULL DEFAULT '' in the schema, so an unset year must be ''
+      // rather than null: writing null here made "add member" 500 whenever no
+      // year was chosen.
+      year: input.year || '',
       schoolEmail: email,
       isAdmin: input.isPreview ? false : !!input.isAdmin,
       isMaintainer: input.isPreview ? false : !!input.isMaintainer,
@@ -49,8 +52,10 @@ export default createEndpoint({
       memberType: input.memberType || 'Normal Member',
       roles: input.roles ?? [],
       headOf: input.headOf ?? [],
-      preferredRole1: input.preferredRole1 || null,
-      preferredRole2: input.preferredRole2 || null,
+      // Same NOT NULL DEFAULT '' rule as `year`: writing null here made saving
+      // a member with no preferred roles fail.
+      preferredRole1: input.preferredRole1 || '',
+      preferredRole2: input.preferredRole2 || '',
       adminNotes: input.adminNotes ?? '',
     };
     if (input.id) {

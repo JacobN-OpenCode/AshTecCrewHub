@@ -9,7 +9,10 @@ export default createEndpoint({
   inputSchema: z.object({}),
   outputSchema: z.any(),
   execute: async ({ context }) => {
-    await requireMember(context.user.email);
+    const me = await requireMember(context.user.email);
+    // Ticket 00c0715c: contractors are external and must not see the stage
+    // layout (it lists crew names, years and roles).
+    if (me.memberType === 'Contractor') throw new Error('Contractors do not have access to the stage layout.');
     const [shows, members, resps] = await Promise.all([
       zite.shows.findAll({ limit: 200 }),
       zite.crewMembers.findAll({ limit: 2000 }),

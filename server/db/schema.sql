@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS "SubEvents" (
   "responseDueDate"   date,
   "dueDateUnknown"    boolean NOT NULL DEFAULT false,
   "hidden"            boolean NOT NULL DEFAULT false,
+  -- Contractors (ticket 00c0715c): whether this event needs contractors, which
+  -- ones are invited, and the message they see in the app.
+  "needsContractors"  boolean NOT NULL DEFAULT false,
+  "contractors"       uuid[]  NOT NULL DEFAULT '{}',
+  "contractorMessage" text    NOT NULL DEFAULT '',
   "createdAt"         timestamptz NOT NULL DEFAULT now(),
   "updatedAt"         timestamptz NOT NULL DEFAULT now()
 );
@@ -97,6 +102,11 @@ CREATE INDEX IF NOT EXISTS "SubEvents_date_idx" ON "SubEvents" ("date");
 -- imported database that never had "timings".
 ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "startTime" text;
 ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "endTime" text;
+-- Support ticket 00c0715c: an event can ask for contractors and name which
+-- ones are invited (plus a message shown to them in the app).
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "needsContractors"  boolean NOT NULL DEFAULT false;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractors"       uuid[]  NOT NULL DEFAULT '{}';
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractorMessage" text    NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS "ShowResponses" (
   "id"               uuid PRIMARY KEY,

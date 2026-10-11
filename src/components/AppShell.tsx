@@ -102,9 +102,11 @@ function Shell() {
     ...(me.isAdmin || isStaffUser ? [{ to: '/parents', label: 'For parents', icon: HeartHandshake }] : []),
     { to: '/tools', label: 'Tools', icon: Wrench },
     { to: '/profile', label: 'Settings', icon: User },
-    { to: '/stage', label: 'Stage Layout', icon: LayoutGrid },
+    // Ticket 00c0715c: contractors get the platform and their own attendance
+    // only, so no Stage Layout (crew names/roles) and no Live Show board.
+    ...(me.isContractor ? [] : [{ to: '/stage', label: 'Stage Layout', icon: LayoutGrid }]),
     // The live show dashboard appears for admins at all times and for everyone while a show is on.
-    ...(me.isAdmin || liveShowActive ? [{ to: '/show-dash', label: 'Live Show', icon: Tv }] : []),
+    ...(!me.isContractor && (me.isAdmin || liveShowActive) ? [{ to: '/show-dash', label: 'Live Show', icon: Tv }] : []),
   ];
 
   // Every admin page lives behind one dropdown so the top bar stays short.

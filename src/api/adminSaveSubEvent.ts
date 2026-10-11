@@ -37,6 +37,13 @@ export default createEndpoint({
     dueDate: z.string().nullable(),
     dueUnknown: z.boolean(),
     hidden: z.boolean().optional(),
+    // Contractors (ticket 00c0715c): whether the event needs contractors, which
+    // ones are invited, and the message they see. When needsContractors is
+    // off, both the list and the message are cleared so a stale invite can
+    // never linger after an admin unticks the box.
+    needsContractors: z.boolean().optional(),
+    contractorIds: z.array(z.string()).optional(),
+    contractorMessage: z.string().optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
   execute: async ({ input, context }) => {
@@ -68,6 +75,9 @@ export default createEndpoint({
       responseDueDate: input.dueUnknown ? null : input.dueDate,
       dueDateUnknown: input.dueUnknown,
       hidden: !!input.hidden,
+      needsContractors: !!input.needsContractors,
+      contractors: input.needsContractors ? (input.contractorIds ?? []) : [],
+      contractorMessage: input.needsContractors ? (input.contractorMessage ?? '') : '',
     };
     let id = input.id;
     if (id) await zite.subEvents.update({ id, record });

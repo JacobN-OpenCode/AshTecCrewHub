@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getCalendar, setShowResponse, setAttendance } from '#api';
+import { getCalendar, setShowResponse, setAttendance, adminGetData } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -15,7 +15,7 @@ import { useMe } from '../lib/me';
 import MultiFilter from '../components/admin/MultiFilter';
 import SubEventDialog from '../components/admin/SubEventDialog';
 import ReasonDialog from '../components/ReasonDialog';
-import { type AdminShow, type AdminSubEvent } from '../lib/useAdminData';
+import { type AdminShow, type AdminSubEvent, type AdminMember } from '../lib/useAdminData';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { formatEventTimeRange } from '../lib/icsBuild';
 import { isClubSession } from '../lib/constants';
@@ -77,6 +77,15 @@ export default function Calendar() {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Admins can edit an event straight from the calendar, and that dialog now
+  // offers the contractor picker (ticket 00c0715c), which needs the crew list.
+  // Only admins fetch it; everyone else keeps the plain calendar.
+  const [members, setMembers] = useState<AdminMember[]>([]);
+  useEffect(() => {
+    if (!me.isAdmin) return;
+    adminGetData({}).then((d) => setMembers(d.members as AdminMember[])).catch(() => {});
+  }, [me.isAdmin]);
 
   // Allow /calendar?date=YYYY-MM-DD&event=<id> to focus the requested day
   // (admin events row links to this). The event id, if provided, opens
@@ -502,6 +511,7 @@ export default function Calendar() {
           open={!!editEvent}
           ev={editEvent}
           shows={shows}
+          members={members}
           defaultShowId={editEvent?.showIds[0]}
           onClose={() => setEditEvent(null)}
           onSaved={async () => { setEditEvent(null); await load(); }}

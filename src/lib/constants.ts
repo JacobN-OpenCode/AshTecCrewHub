@@ -9,7 +9,11 @@ export const YEARS = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 
 
 /** Years a member may set for themselves. Staff is admin-managed so nobody self-promotes. */
 export const SELF_YEARS = YEARS.filter((y) => y !== 'Staff');
-export const MEMBER_TYPES = ['Normal Member', 'Expert', 'Teacher', 'Actor'];
+// "Contractor" (support ticket 00c0715c "External Member / Contractor") is a
+// platform-only account: no stage layout, no student information, just their
+// own attendance and the events they have been invited to.
+export const MEMBER_TYPES = ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'];
+export const isContractor = (type?: string) => type === 'Contractor';
 export const SUBTYPES: Record<string, string[]> = {
   Rehearsal: ['Weekend Rehearsal', 'All Day Rehearsal', 'Part Day Rehearsal'],
   Performance: ['Normal Performance', 'Matinee Performance'],

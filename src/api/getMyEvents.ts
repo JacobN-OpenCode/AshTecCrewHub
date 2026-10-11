@@ -10,6 +10,10 @@ export default createEndpoint({
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
     const me = await actingMember(context.user.email, input.previewAs);
+    // Ticket 00c0715c: contractors are not in any show, so they see no shows
+    // and only the individual events they have been invited to (with their own
+    // attendance). Everyone else keeps the normal line-up.
+    const contractor = me.memberType === 'Contractor';
     const [shows, subs, resps, att] = await Promise.all([
       zite.shows.findAll({ limit: 200 }),
       zite.subEvents.findAll({ limit: 2000 }),
@@ -23,7 +27,7 @@ export default createEndpoint({
     const hiddenShowIds = new Set(shows.records.filter((s) => s.hidden).map((s) => s.id));
     return {
       shows: shows.records
-        .filter((s) => !s.hidden)
+        .filter((s) => !s.hidden && !contractor)
         .map((s) => ({ ...mapShow(s), response: (respMap.get(s.id) ?? null) as string | null })),
       subEvents: subs.records
         .map((e) => ({
@@ -31,6 +35,7 @@ export default createEndpoint({
           status: (attMap.get(e.id)?.status ?? null) as string | null,
           reason: attMap.get(e.id)?.reason ?? '',
         }))
+        .filter((e) => !contractor || e.contractorIds.includes(me.id))
         .filter((e) => !e.hidden && !(e.showIds.length && e.showIds.every((id) => hiddenShowIds.has(id))))
         .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999')),
     };

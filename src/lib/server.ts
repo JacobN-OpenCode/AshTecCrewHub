@@ -101,6 +101,12 @@ export const mapSubEvent = (e: SubEventsRecordType) => ({
   dueDate: e.responseDueDate ?? null,
   dueUnknown: !!e.dueDateUnknown,
   hidden: !!e.hidden,
+  // Ticket 00c0715c: admins can flag an event as needing contractors, pick
+  // which contractors to invite, and attach a note. Invited contractors see
+  // the event (and their own attendance only) on their home page.
+  needsContractors: !!e.needsContractors,
+  contractorIds: ids(e.contractors),
+  contractorMessage: e.contractorMessage ?? '',
 });
 
 export const mapMember = (m: CrewMembersRecordType) => ({
@@ -123,6 +129,9 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   adminNotes: m.adminNotes ?? '',
   isMaintainer: !!m.isMaintainer,
   isPreview: !!m.isPreviewAccount,
+  // Contractors (ticket 00c0715c) are external: they get the platform and
+  // their own attendance, but no stage layout or student information.
+  isContractor: m.memberType === 'Contractor',
   // Unset means "follow the default": on for admins, off for everyone else.
   adminNotifications: m.adminNotifications === null || m.adminNotifications === undefined ? !!m.isAdmin : !!m.adminNotifications,
 });

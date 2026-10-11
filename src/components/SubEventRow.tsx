@@ -14,7 +14,7 @@ const OPTIONS: { v: Status; label: string; on: string }[] = [
   { v: 'Not Attending', label: 'Can’t go', on: 'bg-red-500 text-white border-red-500' },
 ];
 
-export default function SubEventRow({ ev, onPick, disabled }: { ev: MySubEvent; onPick: (s: Status) => void; disabled?: boolean }) {
+export default function SubEventRow({ ev, onPick, disabled, showInvite }: { ev: MySubEvent; onPick: (s: Status) => void; disabled?: boolean; showInvite?: boolean }) {
   const locked = disabled || isPastDue(ev.dueDate, ev.dueUnknown);
   return (
     <div className={cn('rounded-xl border p-4 bg-background/40', !ev.status && !locked && 'border-primary/40')}>
@@ -35,6 +35,11 @@ export default function SubEventRow({ ev, onPick, disabled }: { ev: MySubEvent; 
               </span>
             )}
           </div>
+          {showInvite && ev.contractorMessage && (
+            <p className="text-sm rounded-lg border border-sky-500/30 bg-sky-500/10 p-2 text-sky-100">
+              <span className="font-medium">Invitation: </span>{ev.contractorMessage}
+            </p>
+          )}
           {ev.description && <p className="text-sm">{ev.description}</p>}
           {ev.thingsToBring && (
             <p className="text-sm flex gap-1"><Backpack className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />Bring: {ev.thingsToBring}</p>

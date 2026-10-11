@@ -32,6 +32,10 @@ export default function MyEvents() {
   // when no surname is set yet.
   const who = `${me.firstName}${me.lastName ? ' ' + me.lastName : ''}`;
 
+  // Ticket 00c0715c: contractors are external, so their home is just the events
+  // they have been invited to and their own attendance - no show line-up.
+  if (me.memberType === 'Contractor') return <ContractorInvites events={data.subEvents} who={who} />;
+
   return (
     <div className="space-y-6">
       <div>
@@ -86,5 +90,67 @@ function ClubSessions({ events, reload }: { events: MySubEvent[]; reload: () => 
         onSubmit={(reason) => void commit(reasonFor!.id, 'Not Attending', reason)}
       />
     </section>
+  );
+}
+
+/**
+ * Contractor home (ticket 00c0715c). Shows only the events they have been
+ * invited to, each with the admin's invitation message and their own
+ * attendance choice. They never see the stage layout or anyone else's data.
+ */
+function ContractorInvites({ events, who }: { events: MySubEvent[]; who: string }) {
+  const [statuses, setStatuses] = useState<Record<string, string | null>>(
+    () => Object.fromEntries(events.map((e) => [e.id, e.status ?? null])),
+  );
+  const [busy, setBusy] = useState(false);
+  const [reasonFor, setReasonFor] = useState<MySubEvent | null>(null);
+  const pending = events.filter((e) => !statuses[e.id] && !isPastDue(e.dueDate, e.dueUnknown)).length;
+
+  const setStatus = async (id: string, status: 'Expected Arrival' | 'Maybe' | 'Not Attending', reason?: string) => {
+    setBusy(true);
+    try {
+      await setAttendance({ items: [{ subEventId: id, status, reason }], memberId: previewId() ?? undefined });
+      setStatuses((s) => ({ ...s, [id]: status }));
+      toast.success('Attendance saved');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
+        <p className="text-muted-foreground mt-1">
+          {events.length === 0
+            ? 'You have no event invitations right now.'
+            : pending
+              ? <>You have <span className="text-primary font-semibold">{pending}</span> invitation{pending > 1 ? 's' : ''} to respond to.</>
+              : 'You’re all caught up.'}
+        </p>
+      </div>
+      {events.length === 0 ? (
+        <p className="text-muted-foreground">When an admin invites you to an event it will appear here, with the details, a message for you, and your own attendance.</p>
+      ) : (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Your invitations</h2>
+          {events.map((e) => (
+            <SubEventRow
+              key={e.id}
+              ev={{ ...e, status: statuses[e.id] }}
+              showInvite
+              disabled={busy}
+              onPick={(s) => (s === 'Not Attending' ? setReasonFor(e) : void setStatus(e.id, s))}
+            />
+          ))}
+        </section>
+      )}
+      <ReasonDialog
+        open={!!reasonFor}
+        busy={busy}
+        title={reasonFor ? `Can’t attend ${reasonFor.title}` : 'Can’t attend'}
+        onCancel={() => setReasonFor(null)}
+        onSubmit={(reason) => void setStatus(reasonFor!.id, 'Not Attending', reason)}
+      />
+    </div>
   );
 }

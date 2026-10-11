@@ -63,8 +63,13 @@ export default function AdminEvents() {
           <Badge variant="outline" className={e.type === 'Performance' ? 'border-pink-500/40 text-pink-400' : e.type === 'Club Session' ? 'border-emerald-500/40 text-emerald-400' : 'border-sky-500/40 text-sky-400'}>{e.subtype || e.type}</Badge>
           <Badge variant="outline" className={IMPORTANCE_STYLE[e.importance]}>{e.importance}</Badge>
           {e.hidden && (
-            <Badge variant="outline" className="border-amber-500/40 text-amber-400" title="Hidden from members">
+            <Badge variant="outline" className="border-amber-500/40 text-amber-400">
               <EyeOff className="h-3 w-3 mr-1" />Hidden
+            </Badge>
+          )}
+          {e.needsContractors && (
+            <Badge variant="outline" className="border-sky-500/40 text-sky-400">
+              <Users className="h-3 w-3 mr-1" />{e.contractorIds.length ? `${e.contractorIds.length} contractor${e.contractorIds.length === 1 ? '' : 's'}` : 'Contractors needed'}
             </Badge>
           )}
         </div>
@@ -185,7 +190,7 @@ export default function AdminEvents() {
       )}
       <ShowDialog open={!!showDlg} show={showDlg === 'edit' ? show ?? null : null} onClose={() => setShowDlg(null)}
         onSaved={async (id) => { setShowDlg(null); await reload(); setShowId(id); }} />
-      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows}
+      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows} members={data.members}
         defaultShowId={evDlg?.club ? undefined : showId}
         defaultType={evDlg?.club ? 'Club Session' : undefined}
         onClose={() => setEvDlg(null)} onSaved={async () => { setEvDlg(null); await reload(); }} />

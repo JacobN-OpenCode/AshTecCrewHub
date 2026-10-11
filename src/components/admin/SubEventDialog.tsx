@@ -8,17 +8,19 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { DatePicker } from '@project/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { type AdminShow, type AdminSubEvent, toIso, fromIso } from '../../lib/useAdminData';
-import { SUBTYPES, EVENT_TYPES, isClubSession } from '../../lib/constants';
+import { type AdminShow, type AdminSubEvent, type AdminMember, toIso, fromIso } from '../../lib/useAdminData';
+import { SUBTYPES, EVENT_TYPES, isClubSession, isContractor } from '../../lib/constants';
 
 type Form = {
   title: string; type: 'Rehearsal' | 'Performance' | 'Club Session'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
   description: string; meetTime: string; startTime: string; endTime: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
   dueDate: string | null; dueUnknown: boolean; hidden: boolean;
+  needsContractors: boolean; contractorIds: string[]; contractorMessage: string;
 };
 const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
   title: '', type, subtype: SUBTYPES[type][0], showIds: showId ? [showId] : [], date: null, dateTbc: false,
   description: '', meetTime: '', startTime: '', endTime: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
+  needsContractors: false, contractorIds: [], contractorMessage: '',
 });
 
 /**
@@ -33,9 +35,12 @@ const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
 const HHMM_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
 const hhmmHint = 'HH:MM (24-hour)';
 
-export default function SubEventDialog({ open, ev, shows, defaultShowId, defaultType, onClose, onSaved }: {
-  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; defaultShowId?: string; defaultType?: Form['type']; onClose: () => void; onSaved: () => void;
+export default function SubEventDialog({ open, ev, shows, members, defaultShowId, defaultType, onClose, onSaved }: {
+  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; members: AdminMember[];
+  defaultShowId?: string; defaultType?: Form['type']; onClose: () => void; onSaved: () => void;
 }) {
+  // Only real contractor accounts can be invited (preview accounts cannot sign in).
+  const contractors = members.filter((m) => isContractor(m.memberType) && !m.isPreview);
   const [f, setF] = useState<Form>(blank());
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -128,7 +133,37 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, default
           <div className="space-y-1 sm:col-span-2">
             <L>Meet time</L>
             <Input value={f.meetTime} onChange={(e) => set({ meetTime: e.target.value })} placeholder="08:45, Main Hall stage door" />
-            <p className="text-xs text-muted-foreground">Where the crew should be, and at what time. Free text - "8:45 - Brake Hall" works.</p>
+            <p className="text-xs text-muted-foreground">Where the crew should be, and at what time. Free text - "8:45, Main Hall stage door".</p>
+          </div>
+          {/* Support ticket 00c0715c: external members can be invited per event. */}
+          <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={f.needsContractors} onCheckedChange={(c) => set({ needsContractors: !!c })} />
+              Contractors needed
+            </label>
+            {f.needsContractors && <>
+              <p className="text-xs text-muted-foreground">
+                Invited contractors see this event and their own attendance in the app. They never see the stage layout or student information.
+              </p>
+              {contractors.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No contractor accounts yet. Add someone with member type “Contractor” in Crew, then invite them here.</p>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {contractors.map((m) => (
+                    <label key={m.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={f.contractorIds.includes(m.id)}
+                        onCheckedChange={(c) => set({ contractorIds: c ? [...f.contractorIds, m.id] : f.contractorIds.filter((x) => x !== m.id) })} />
+                      {m.firstName} {m.lastName}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-1">
+                <L>Message for the invited contractor</L>
+                <Textarea value={f.contractorMessage} onChange={(e) => set({ contractorMessage: e.target.value })}
+                  placeholder="What we need you for, where to go and when, who to ask for…" />
+              </div>
+            </>}
           </div>
           <div className="space-y-1">
             <L>Start time</L>
