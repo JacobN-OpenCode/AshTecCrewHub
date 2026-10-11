@@ -598,6 +598,12 @@ export default function LiveShowDash() {
   const controlRef = useRef(control);
   useEffect(() => { controlRef.current = control; }, [control]);
 
+  // Movement alert bookkeeping, kept in refs so they survive effect re-runs.
+  const moveRef = useRef<{ message: string } | null>(null);
+  const armedRef = useRef(true);
+  const idleRef = useRef<number | null>(null);
+  useEffect(() => { moveRef.current = move; }, [move]);
+
   useEffect(() => {
     if (authLoading) return;
     (async () => {
@@ -636,14 +642,17 @@ export default function LiveShowDash() {
   }, [phase, panel, cred]);
 
   // Movement / key alerts for THIS screen (suppressed while the panel is open).
+  // Cursor movement, a physical bump and any key press all count. Once the
+  // warning is accepted the screen stays quiet while it keeps being used, and
+  // only re-arms after `movement.seconds` of no activity.
   useEffect(() => {
-    if (phase !== 'board' || panel || !device?.movement.alert || move) return;
-    const cooldown = Math.max(2, device.movement.seconds) * 1000;
-    let last = 0;
-    const fire = (kind: 'movement' | 'key') => {
-      const now = Date.now();
-      if (now - last < cooldown) return;
-      last = now;
+    if (phase !== 'board' || panel || !device?.movement.alert) return;
+    const idleMs = Math.max(2, device.movement.seconds) * 1000;
+    const noteActivity = (kind: 'movement' | 'key') => {
+      if (idleRef.current) window.clearTimeout(idleRef.current);
+      idleRef.current = window.setTimeout(() => { armedRef.current = true; }, idleMs);
+      if (!armedRef.current || moveRef.current) return;
+      armedRef.current = false;
       void liveShowMovement({ deviceKey: deviceKey(), action: 'moved', kind })
         .then((r) => { const rr = r as { ok?: boolean; alert?: boolean; message?: string }; if (rr.ok && rr.alert !== false) setMove({ message: rr.message || 'Please do not touch this screen.' }); })
         .catch(() => {});
@@ -652,20 +661,29 @@ export default function LiveShowDash() {
       const a = e.accelerationIncludingGravity;
       if (!a) return;
       const mag = Math.abs(a.x ?? 0) + Math.abs(a.y ?? 0) + Math.abs(a.z ?? 0);
-      if (mag > 32) fire('movement');
+      if (mag > 32) noteActivity('movement');
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space') return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.tagName === 'SELECT')) return;
-      fire('key');
+      noteActivity('key');
     };
+    const onPointer = () => noteActivity('movement');
     const DM = window.DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> } | undefined;
     if (DM?.requestPermission) void DM.requestPermission().catch(() => 'denied');
     window.addEventListener('devicemotion', onMotion);
     window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('devicemotion', onMotion); window.removeEventListener('keydown', onKey); };
-  }, [phase, panel, device?.movement.alert, device?.movement.seconds, move]);
+    window.addEventListener('mousemove', onPointer);
+    window.addEventListener('pointerdown', onPointer);
+    return () => {
+      window.removeEventListener('devicemotion', onMotion);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousemove', onPointer);
+      window.removeEventListener('pointerdown', onPointer);
+      if (idleRef.current) window.clearTimeout(idleRef.current);
+    };
+  }, [phase, panel, device?.movement.alert, device?.movement.seconds]);
 
   // Esc closes the panel and also is the panel idle-timeout (20s).
   useEffect(() => {
