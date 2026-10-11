@@ -651,7 +651,13 @@ export default function LiveShowDash() {
     }
   }, [phase, refresh]);
 
-  // 3x spacebar opens the controls (or the unlock prompt).
+  // Closing the panel always discards the admin credentials, so the next
+  // unlock (or a "close" that just tidies up) can never reuse a stale login.
+  const closePanel = useCallback(() => { setPanel(false); setCreds([]); }, []);
+
+  // 3x spacebar opens the controls. Every unlock requires a fresh admin login:
+  // any credentials from a previous unlock are dropped and the PIN prompt is
+  // always shown, so a device left unattended cannot be driven without a PIN.
   useEffect(() => {
     if (phase !== 'board' || panel) return;
     const times: number[] = [];
@@ -664,12 +670,13 @@ export default function LiveShowDash() {
       times.push(now);
       if (times.length >= 3) {
         times.length = 0; e.preventDefault();
-        if (cred) setPanel(true); else setUnlock(true);
+        setCreds([]);
+        setUnlock(true);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, panel, cred]);
+  }, [phase, panel]);
 
   // Movement / key alerts for THIS screen (suppressed while the panel is open).
   // Cursor movement, a physical bump and any key press all count. Once the
@@ -718,13 +725,13 @@ export default function LiveShowDash() {
   // Esc closes the panel and also is the panel idle-timeout (20s).
   useEffect(() => {
     if (!panel) return;
-    let idle = window.setTimeout(() => setPanel(false), 20_000);
-    const bump = () => { window.clearTimeout(idle); idle = window.setTimeout(() => setPanel(false), 20_000); };
+    let idle = window.setTimeout(() => closePanel(), 20_000);
+    const bump = () => { window.clearTimeout(idle); idle = window.setTimeout(() => closePanel(), 20_000); };
     const onKey = (e: KeyboardEvent) => {
       bump();
       const t = e.target as HTMLElement | null;
       const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable || t.tagName === 'SELECT');
-      if (e.code === 'Escape') { setPanel(false); return; }
+      if (e.code === 'Escape') { closePanel(); return; }
       if (typing) return;
       if (e.code === 'Space') { e.preventDefault(); void controlRef.current?.('start'); }
       else if (e.code === 'ArrowLeft') { e.preventDefault(); void controlRef.current?.('scene', { sceneIndex: Math.max(0, (board?.currentSceneIndex ?? 0) - 1) }); }
@@ -739,7 +746,7 @@ export default function LiveShowDash() {
       window.removeEventListener('mousemove', bump);
       window.removeEventListener('touchstart', bump);
     };
-  }, [panel, board?.currentSceneIndex]);
+  }, [panel, board?.currentSceneIndex, closePanel]);
 
   const acceptMove = useCallback(async () => {
     setMove(null);
@@ -808,7 +815,7 @@ export default function LiveShowDash() {
         <ControlPanel
           board={board} scenes={scenes} messages={messages} device={device} cred={cred}
           onAddAdmin={() => { setPanel(false); setUnlock(true); }}
-          onClose={() => setPanel(false)}
+          onClose={closePanel}
           onRefresh={() => { void refresh(); }}
         />
       )}
