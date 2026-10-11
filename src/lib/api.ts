@@ -136,6 +136,13 @@ export type AdminReplyTicketInputType = NonNullable<_AdminReplyTicketCfg['inputS
 export type AdminReplyTicketOutputType = Awaited<ReturnType<_AdminReplyTicketCfg['execute']>>;
 export const adminReplyTicket = createCaller<AdminReplyTicketInputType, AdminReplyTicketOutputType>('adminReplyTicket');
 
+import type { default as _AdminSaveContractorInvitesEp } from '../api/adminSaveContractorInvites';
+
+type _AdminSaveContractorInvitesCfg = typeof _AdminSaveContractorInvitesEp;
+export type AdminSaveContractorInvitesInputType = NonNullable<_AdminSaveContractorInvitesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSaveContractorInvitesCfg['execute']>[0]['input'];
+export type AdminSaveContractorInvitesOutputType = Awaited<ReturnType<_AdminSaveContractorInvitesCfg['execute']>>;
+export const adminSaveContractorInvites = createCaller<AdminSaveContractorInvitesInputType, AdminSaveContractorInvitesOutputType>('adminSaveContractorInvites');
+
 import type { default as _AdminSaveLiveShowEp } from '../api/adminSaveLiveShow';
 
 type _AdminSaveLiveShowCfg = typeof _AdminSaveLiveShowEp;
@@ -503,6 +510,7 @@ export const api = {
   adminRecomputeAttendance,
   adminRemindMaintainers,
   adminReplyTicket,
+  adminSaveContractorInvites,
   adminSaveLiveShow,
   adminSaveLiveShowScenes,
   adminSaveMember,

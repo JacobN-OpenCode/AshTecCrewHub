@@ -16,6 +16,7 @@ import { dueLabel, fmtDate, IMPORTANCE_STYLE } from '../../lib/constants';
 import ShowDialog from '../../components/admin/ShowDialog';
 import SubEventDialog from '../../components/admin/SubEventDialog';
 import AttendanceSheet from '../../components/admin/AttendanceSheet';
+import ContractorInviteDialog from '../../components/admin/ContractorInviteDialog';
 
 /** Synthetic tab id for the club-session category, which has no show row. */
 const CLUB = '__club__';
@@ -25,6 +26,7 @@ export default function AdminEvents() {
   const [showId, setShowId] = useState<string>('');
   const [showDlg, setShowDlg] = useState<'new' | 'edit' | null>(null);
   const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null; club?: boolean } | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'show' | 'ev'; id: string; name: string } | null>(null);
 
@@ -79,8 +81,8 @@ export default function AdminEvents() {
         <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
         <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
         <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
-      </div>
-      <div className="flex flex-wrap gap-1">
+            </div>
+            <div className="flex flex-wrap gap-1">
         {e.date && (
           <Button size="sm" variant="outline" asChild>
             <Link to={`/calendar?date=${e.date}&event=${e.id}`} title="Open in calendar">
@@ -177,6 +179,7 @@ export default function AdminEvents() {
                 pushed the page's scrollWidth to 466px and made mobile scale the
                 whole layout down ("the site thinks it's zoomed in"). */}
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" onClick={() => setInviteOpen(true)}><Users className="h-4 w-4 mr-1" />Contractor invites</Button>
               <Button variant="outline" onClick={() => setShowDlg('edit')}><Pencil className="h-4 w-4 mr-1" />Edit show</Button>
               <Button variant="outline" onClick={() => setConfirm({ kind: 'show', id: show.id, name: show.name })}><Trash2 className="h-4 w-4" /></Button>
               <Button onClick={() => setEvDlg({ ev: null })}><Plus className="h-4 w-4 mr-1" />Add rehearsal / performance</Button>
@@ -194,6 +197,8 @@ export default function AdminEvents() {
         defaultShowId={evDlg?.club ? undefined : showId}
         defaultType={evDlg?.club ? 'Club Session' : undefined}
         onClose={() => setEvDlg(null)} onSaved={async () => { setEvDlg(null); await reload(); }} />
+      <ContractorInviteDialog open={inviteOpen} show={show ?? null} events={events} members={data.members}
+        onClose={() => setInviteOpen(false)} onSaved={async () => { setInviteOpen(false); await reload(); }} />
       <AttendanceSheet ev={data.subEvents.find((e) => e.id === viewing) ?? null} data={data} onClose={() => setViewing(null)} reload={reload} />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>

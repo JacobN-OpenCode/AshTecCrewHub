@@ -25,7 +25,7 @@ function Card({ p, area, canDrag, overlay }: { p: Person; area: string; canDrag:
       <div className="flex items-center gap-1.5 font-medium">
         {p.headOf.includes(area) && <Crown className="h-3.5 w-3.5 text-primary" />}{p.name}
       </div>
-      <div className="text-[11px] text-muted-foreground">{p.year}{p.maybe && ' · Maybe'}</div>
+      <div className="text-[11px] text-muted-foreground">{p.memberType === 'Contractor' ? 'Contractor' : p.year}{p.maybe && ' · Maybe'}</div>
     </div>
   );
 }
@@ -57,7 +57,12 @@ export default function StageLayout() {
   if (!data) return <Skeleton className="h-96 rounded-2xl" />;
 
   const resp = new Map(data.responses.filter((r) => r.showId === showId).map((r) => [r.memberId, r.response]));
-  const people: Person[] = data.members.filter((m) => resp.has(m.id) && m.memberType !== 'Actor').map((m) => ({ ...m, maybe: resp.get(m.id) === 'Maybe' }));
+  // Ticket 9f966aab: contractors invited to this production appear to the crew
+  // too, even though they never respond to show forms.
+  const invited = new Set(data.invites.filter((i) => i.showId === showId).map((i) => i.memberId));
+  const people: Person[] = data.members
+    .filter((m) => (resp.has(m.id) || invited.has(m.id)) && m.memberType !== 'Actor')
+    .map((m) => ({ ...m, maybe: resp.get(m.id) === 'Maybe' }));
   const inArea = (a: string) => people.filter((p) => (a === 'Unassigned' ? p.roles.length === 0 : p.roles.includes(a)));
 
   const onEnd = async (e: DragEndEvent) => {
