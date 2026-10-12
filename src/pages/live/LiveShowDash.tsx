@@ -426,7 +426,7 @@ function ControlPanel({
     const body = text.trim();
     if (!body) return;
     setBusy(true);
-    try { await liveShowChat({ body, email: cred.email, secret: cred.secret }); setText(''); onRefresh(); }
+    try { await liveShowChat({ liveShowId: board.id, body, email: cred.email, secret: cred.secret }); setText(''); onRefresh(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -437,7 +437,7 @@ function ControlPanel({
     setBusy(true);
     try {
       const seconds = annUntilCleared ? 0 : Math.min(145, Math.max(2, Math.floor(annSeconds) || 30));
-      await liveShowAnnouncement({ body, seconds, email: cred.email, secret: cred.secret });
+      await liveShowAnnouncement({ liveShowId: board.id, body, seconds, email: cred.email, secret: cred.secret });
       setAnnText(''); toast.success('Announcement is on every screen'); onRefresh();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }

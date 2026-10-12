@@ -57,10 +57,11 @@ export async function notifyNewTicket(ticket: {
   submittedBy?: string | string[] | null;
 }): Promise<void> {
   const isCoding = ticket.type === 'Bug Report' || ticket.type === 'Feature Request';
-  const recipients = isCoding ? await maintainerRecipients() : await adminRecipients();
+  const submitterId = ids(ticket.submittedBy)[0];
+  // Ticket 42ca4f1f: don't push a maintainer their own ticket back.
+  const recipients = (isCoding ? await maintainerRecipients() : await adminRecipients()).filter((id) => id !== submitterId);
   if (!recipients.length) return;
 
-  const submitterId = ids(ticket.submittedBy)[0];
   const from = submitterId ? (await crew()).find((m) => m.id === submitterId) : undefined;
   const who = from ? `${from.firstName ?? ''}`.trim() || 'Someone' : 'Someone';
 

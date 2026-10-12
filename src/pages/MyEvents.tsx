@@ -23,8 +23,9 @@ export default function MyEvents() {
     const inShow = data.shows.some((s) => e.showIds.includes(s.id) && (s.response === 'Yes' || s.response === 'Maybe'));
     return inShow && !e.status && !isPastDue(e.dueDate, e.dueUnknown);
   }).length;
-  const pendingClubs = clubSessions.filter((e) => !e.status && !isPastDue(e.dueDate, e.dueUnknown)).length;
-  const todo = pendingShows + pendingEvents + pendingClubs;
+  // Ticket 57ce12eb: club sessions no longer count as "to respond to" - members
+  // just see them and attendance is taken at the venue.
+  const todo = pendingShows + pendingEvents;
 
   // firstName is just an initial after the rename (max 2 chars) so we have to
   // join it back with the last name for the greeting; otherwise every member
@@ -48,47 +49,29 @@ export default function MyEvents() {
       {data.shows.map((s) => (
         <ShowCard key={s.id} show={s} events={data.subEvents.filter((e) => e.showIds.includes(s.id))} reload={reload} />
       ))}
-      <ClubSessions events={clubSessions} reload={reload} />
+      <ClubSessions events={clubSessions} />
     </div>
   );
 }
 
 /**
- * Ticket 43e07671. Club sessions belong to no show, so they get their own block
- * instead of a ShowCard. The RSVP is per session, using the same attendance the
- * rest of the app records, including the written reason for a "can't go".
+ * Ticket 57ce12eb. Club sessions belong to no show, so they get their own block
+ * instead of a ShowCard. Members no longer respond yes/no: they just see the
+ * session. Attendance is taken at the venue by taking a register, so the row is
+ * read-only here.
  */
-function ClubSessions({ events, reload }: { events: MySubEvent[]; reload: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false);
-  const [reasonFor, setReasonFor] = useState<MySubEvent | null>(null);
+function ClubSessions({ events }: { events: MySubEvent[] }) {
   if (!events.length) return null;
-
-  const commit = async (subEventId: string, status: 'Expected Arrival' | 'Maybe' | 'Not Attending', reason?: string) => {
-    setBusy(true);
-    try {
-      await setAttendance({ items: [{ subEventId, status, reason }], memberId: previewId() });
-      toast.success('Saved');
-      await reload();
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); setReasonFor(null); }
-  };
-  const pick = (ev: MySubEvent, status: 'Expected Arrival' | 'Maybe' | 'Not Attending') =>
-    status === 'Not Attending' ? setReasonFor(ev) : void commit(ev.id, status);
 
   return (
     <section className="space-y-4">
       <div>
         <h2 className="text-xl font-bold">Club sessions</h2>
-        <p className="text-sm text-muted-foreground mt-1">Regular club meetings, scheduled separately from shows.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Regular club meetings. There is nothing to sign up for; attendance is taken at the door.
+        </p>
       </div>
-      {events.map((e) => <SubEventRow key={e.id} ev={e} disabled={busy} onPick={(s) => pick(e, s)} />)}
-      <ReasonDialog
-        open={!!reasonFor}
-        busy={busy}
-        title={reasonFor ? `Can’t attend ${reasonFor.title}` : 'Can’t attend'}
-        onCancel={() => setReasonFor(null)}
-        onSubmit={(reason) => void commit(reasonFor!.id, 'Not Attending', reason)}
-      />
+      {events.map((e) => <SubEventRow key={e.id} ev={e} readOnly />)}
     </section>
   );
 }

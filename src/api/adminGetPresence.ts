@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember, isStaff } from '../lib/server';
+import { requireMember, isStaff, ids } from '../lib/server';
 import { activeSession, memberIdsOf, one } from '../lib/presence';
 
 /**
@@ -37,18 +37,38 @@ export default createEndpoint({
       .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
 
     const session = await activeSession();
-    if (!session) return { session: null, roster: [], canManage, subEvents };
+    if (!session) return { session: null, roster: [], canManage, subEvents, members: [], register: null };
 
     const subId = one(session.subEvent);
     const sub = subId ? await zite.subEvents.findOne({ id: subId }) : undefined;
     const rows = (await zite.venuePresence.findAll({ filters: { session: session.id }, limit: 2000 }))
       .records;
 
+    // Ticket 57ce12eb: the "take register" tab. Members are the tickable list
+    // (no contractors: they are not club members), and present is the register
+    // already recorded for this session's event, so the tab can render ticks.
+    const [memberRecords, attRecords] = await Promise.all([
+      canManage ? zite.crewMembers.findAll({ limit: 2000 }) : Promise.resolve({ records: [] }),
+      subId ? zite.attendance.findAll({ filters: { subEvent: subId }, limit: 2000 }) : Promise.resolve({ records: [] }),
+    ]);
+    const members = memberRecords.records
+      .filter((m) => m.memberType !== 'Contractor' && !m.isPreview)
+      .map((m) => ({
+        id: m.id,
+        name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || m.schoolEmail || 'Unknown',
+        year: m.year ?? '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const present = attRecords.records
+      .filter((a) => a.status === 'Expected Arrival')
+      .map((a) => ids(a.member)[0] ?? '')
+      .filter(Boolean);
+
     const memberIds = memberIdsOf(rows);
-    const members = memberIds.length
+    const rosterMembers = memberIds.length
       ? (await zite.crewMembers.findAll({ filters: { id: { in: memberIds } }, limit: 2000 })).records
       : [];
-    const byId = new Map(members.map((m) => [m.id, m]));
+    const byId = new Map(rosterMembers.map((m) => [m.id, m]));
 
     const roster = rows.map((r) => {
       const memberId = one(r.member) ?? '';
@@ -81,6 +101,8 @@ export default createEndpoint({
       roster,
       canManage,
       subEvents,
+      members,
+      register: subId ? { subEventId: subId, present } : null,
     };
   },
 });

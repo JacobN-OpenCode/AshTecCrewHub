@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getCalendar, setShowResponse, setAttendance, adminGetData } from '#api';
+import { getCalendar, setShowResponse, adminGetData } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -14,7 +14,6 @@ import { pv, previewId } from '../lib/preview';
 import { useMe } from '../lib/me';
 import MultiFilter from '../components/admin/MultiFilter';
 import SubEventDialog from '../components/admin/SubEventDialog';
-import ReasonDialog from '../components/ReasonDialog';
 import { type AdminShow, type AdminSubEvent, type AdminMember } from '../lib/useAdminData';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { formatEventTimeRange } from '../lib/icsBuild';
@@ -107,9 +106,6 @@ export default function Calendar() {
   const [editEvent, setEditEvent] = useState<AdminSubEvent | null>(null);
   const [calBusy, setCalBusy] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
-  // Club sessions RSVP per event, so "can't go" needs the same written reason
-  // the rest of the app asks for.
-  const [reasonForEvent, setReasonForEvent] = useState<CalEvent | null>(null);
   // Hidden events are only ever returned to admins, so only they can use this.
   const canSeeHidden = me.isAdmin;
   const [includeHidden, setIncludeHidden] = useState(true);
@@ -226,20 +222,6 @@ export default function Calendar() {
     }
   };
 
-  /** Ticket 43e07671: club sessions have no show, so members answer per event. */
-  const respondToEvent = async (subEventId: string, status: 'Expected Arrival' | 'Maybe' | 'Not Attending', reason?: string) => {
-    setRespondingTo(subEventId);
-    try {
-      await setAttendance({ items: [{ subEventId, status, reason }], memberId: previewId() });
-      toast.success('Response saved');
-      await load();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setRespondingTo(null);
-    }
-  };
-
   /** One event in the day sheet, with everything the admin wrote on it. */
   const DayRow = ({ e }: { e: CalEvent }) => (
     <div
@@ -330,37 +312,12 @@ export default function Calendar() {
           })}
         </div>
       )}
-      {/* Club sessions have no show, so members answer the session itself. */}
-      {!me.isAdmin && e.showIds.length === 0 && (
-        <div className="flex items-center justify-between gap-2 border-t pt-2 mt-1">
-          <span className="text-xs text-muted-foreground">Are you coming?</span>
-          <div className="flex gap-1 shrink-0">
-            {([
-              { v: 'Expected Arrival', label: 'In' },
-              { v: 'Maybe', label: 'Maybe' },
-              { v: 'Not Attending', label: 'No' },
-            ] as const).map((o) => (
-              <button
-                key={o.v}
-                type="button"
-                disabled={respondingTo === e.id}
-                onClick={() => (o.v === 'Not Attending' ? setReasonForEvent(e) : respondToEvent(e.id, o.v))}
-                className={cn(
-                  'px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-50',
-                  e.status === o.v
-                    ? o.v === 'Expected Arrival'
-                      ? 'bg-emerald-500 text-white border-emerald-500'
-                      : o.v === 'Not Attending'
-                        ? 'bg-red-500 text-white border-red-500'
-                        : 'bg-yellow-500 text-black border-yellow-500'
-                    : 'hover:bg-muted',
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Ticket 57ce12eb: club sessions are register-only, so members do not
+          answer them here (or anywhere). The session is shown for information. */}
+      {!me.isAdmin && isClubSession(e.type) && (
+        <p className="border-t pt-2 mt-1 text-xs text-muted-foreground">
+          Club session - no response needed. A register is taken at the venue.
+        </p>
       )}
     </div>
   );
@@ -517,18 +474,6 @@ export default function Calendar() {
           onSaved={async () => { setEditEvent(null); await load(); }}
         />
       )}
-
-      <ReasonDialog
-        open={!!reasonForEvent}
-        title={reasonForEvent ? `Can’t attend ${reasonForEvent.title}` : 'Can’t attend'}
-        busy={respondingTo === reasonForEvent?.id}
-        onCancel={() => setReasonForEvent(null)}
-        onSubmit={(reason) => {
-          const ev = reasonForEvent!;
-          setReasonForEvent(null);
-          void respondToEvent(ev.id, 'Not Attending', reason);
-        }}
-      />
 
       {undated.length > 0 && (
         <div className="rounded-2xl border bg-card p-5 space-y-3">

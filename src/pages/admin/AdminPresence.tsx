@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminGetPresence, adminGetPresenceHistory, presenceEnd, presenceStart } from '#api';
+import { adminGetPresence, adminGetPresenceHistory, adminRegisterAttendance, presenceEnd, presenceStart } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
+import { Checkbox } from '@project/components/ui/checkbox';
+import { Input } from '@project/components/ui/input';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { ChevronRight, DoorOpen, History, Loader2, LogOut, MapPin, QrCode, TriangleAlert, UserCheck } from 'lucide-react';
+import { ChevronRight, ClipboardList, DoorOpen, History, Loader2, LogOut, MapPin, QrCode, Search, TriangleAlert, UserCheck } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { fmtDate } from '../../lib/constants';
 import PresenceHistoryDialog from '../../components/admin/PresenceHistoryDialog';
@@ -43,6 +45,8 @@ type Payload = {
   roster: Row[]
   canManage: boolean
   subEvents: { id: string; title: string; date: string | null }[]
+  members: { id: string; name: string; year: string }[]
+  register: { subEventId: string; present: string[] } | null
 };
 
 const STATE_STYLE: Record<string, string> = {
@@ -134,6 +138,11 @@ export default function AdminPresence() {
   const [history, setHistory] = useState<SessionSummary[]>([]);
   const [detail, setDetail] = useState<{ sessionId: string; memberId?: string } | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  // Ticket 57ce12eb: venue check-in has two jobs - scanning QR codes, and
+  // ticking a register off by hand for sessions where nobody scans.
+  const [tab, setTab] = useState<'qr' | 'register'>('qr');
+  const [registerQ, setRegisterQ] = useState('');
+  const [ticking, setTicking] = useState<string | null>(null);
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
 
@@ -214,12 +223,29 @@ export default function AdminPresence() {
     }
   };
 
+  // Ticket 57ce12eb: tick or untick one member on the register for the open
+  // session, then refresh so the count and the QR roster can never drift apart.
+  const toggleRegister = async (memberId: string, present: boolean) => {
+    if (!live?.register) return;
+    setTicking(memberId);
+    try {
+      await adminRegisterAttendance({ subEventId: live.register.subEventId, memberId, present });
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTicking(null);
+    }
+  };
+
   if (loading || !live) return <Skeleton className="h-96 rounded-2xl" />;
 
   const roster = live?.roster ?? [];
   const waiting = roster.filter((r) => r.pendingAction);
   const onSite = roster.filter((r) => !r.pendingAction && r.state === 'On Site');
   const away = roster.filter((r) => !r.pendingAction && r.state !== 'On Site');
+  const presentSet = new Set(live.register?.present ?? []);
+  const registerRows = live.members.filter((m) => m.name.toLowerCase().includes(registerQ.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -244,7 +270,87 @@ export default function AdminPresence() {
         </div>
       </div>
 
-      {!live.session ? (
+      {/* Ticket 57ce12eb: two tabs - scan crew codes, or tick a register by hand. */}
+      <div className="flex w-fit gap-1 rounded-xl border p-1">
+        {([
+          { v: 'qr' as const, label: 'QR check-in', Icon: QrCode },
+          { v: 'register' as const, label: 'Take register', Icon: ClipboardList },
+        ]).map(({ v, label, Icon }) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setTab(v)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              tab === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <Icon className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'register' ? (
+        <div className="space-y-4">
+          {!live.session ? (
+            <div className="rounded-2xl border p-6">
+              <h2 className="text-lg font-semibold">No session open</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Open check-in for a session on the QR tab first, then take its register here.
+              </p>
+            </div>
+          ) : !canManage ? (
+            <p className="rounded-xl border border-dashed px-3.5 py-3 text-sm text-muted-foreground">
+              Only admins can take the register.
+            </p>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Register open
+                  </span>
+                  <p className="font-semibold">{live.session.title}</p>
+                  <span className="text-sm text-muted-foreground">{fmtDate(live.session.date)}</span>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  <span className="font-mono text-foreground">{presentSet.size}</span> ticked of{' '}
+                  <span className="font-mono text-foreground">{live.members.length}</span> members
+                </p>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={registerQ} onChange={(e) => setRegisterQ(e.target.value)} placeholder="Search members…" className="pl-9" />
+              </div>
+              {registerRows.length === 0 ? (
+                <p className="rounded-xl border border-dashed px-3.5 py-3 text-sm text-muted-foreground">No members match that search.</p>
+              ) : (
+                <ul className="divide-y rounded-2xl border">
+                  {registerRows.map((m) => {
+                    const here = presentSet.has(m.id);
+                    return (
+                      <li key={m.id}>
+                        <label className={cn('flex cursor-pointer items-center gap-3 px-3.5 py-3 transition-colors hover:bg-muted/40', ticking === m.id && 'opacity-60')}>
+                          <Checkbox checked={here} disabled={ticking === m.id} onCheckedChange={(c) => toggleRegister(m.id, !!c)} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{m.name}</p>
+                            {m.year && <p className="truncate text-xs text-muted-foreground">{m.year}</p>}
+                          </div>
+                          {here && <Badge variant="outline" className="border-emerald-500/40 text-emerald-400">Present</Badge>}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                <ClipboardList className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Tick members as they arrive. This is separate from the QR roster, so it works even when nobody scans in.
+              </p>
+            </>
+          )}
+        </div>
+      ) : !live.session ? (
         <div className="rounded-2xl border p-6">
           <h2 className="text-lg font-semibold">No check-in is open</h2>
           <p className="mt-1 text-sm text-muted-foreground">

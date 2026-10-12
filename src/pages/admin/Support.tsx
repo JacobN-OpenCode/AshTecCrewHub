@@ -195,7 +195,7 @@ export default function Support() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 min-w-0">
-          <div className="relative min-w-0"><AlertCircle className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" /><Input data-tour="support-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          <div className="relative min-w-0"><AlertCircle className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input data-tour="support-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <Select value={type} onValueChange={setType}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">All types</SelectItem>{Object.keys(TYPE_STYLE).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
           <Select value={severity} onValueChange={setSeverity}><SelectTrigger><SelectValue /></SelectTrigger>

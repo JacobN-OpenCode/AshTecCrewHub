@@ -11,6 +11,28 @@ const hhmm = z
   .regex(/^([01]?\d|2[0-3]):[0-5]\d$/, 'Use HH:MM in 24-hour time (e.g. 09:00 or 19:30)')
   .transform((s) => (s.length === 4 ? `0${s}` : s));
 
+/**
+ * Ticket 57ce12eb: the dates a repeating event lands on after the first one.
+ * Steps forward in whole weeks (7 or 14 days) or calendar months, inclusive of
+ * the end date, and stops at 60 instances so a mistyped year cannot create
+ * hundreds of rows in one save.
+ */
+const recurrenceDates = (first: string, rule: string, until: string): string[] => {
+  const out: string[] = [];
+  const end = new Date(`${until}T00:00:00Z`);
+  const cursor = new Date(`${first}T00:00:00Z`);
+  if (Number.isNaN(end.getTime()) || Number.isNaN(cursor.getTime())) return out;
+  for (let i = 0; i < 60; i += 1) {
+    if (rule === 'weekly') cursor.setUTCDate(cursor.getUTCDate() + 7);
+    else if (rule === 'fortnightly') cursor.setUTCDate(cursor.getUTCDate() + 14);
+    else if (rule === 'monthly') cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    else break;
+    if (cursor > end) break;
+    out.push(cursor.toISOString().slice(0, 10));
+  }
+  return out;
+};
+
 export default createEndpoint({
   description: 'Creates or updates a rehearsal/performance/club session (admins)',
   authenticated: true,
@@ -44,6 +66,11 @@ export default createEndpoint({
     needsContractors: z.boolean().optional(),
     contractorIds: z.array(z.string()).optional(),
     contractorMessage: z.string().optional(),
+    // Ticket 57ce12eb: repeat a club session (or any event) on a schedule. Only
+    // applied when creating a new event, since editing one instance of an
+    // existing series should not silently multiply it.
+    recurrence: z.enum(['none', 'weekly', 'fortnightly', 'monthly']).optional(),
+    recurrenceUntil: z.string().nullable().optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
   execute: async ({ input, context }) => {
@@ -80,8 +107,21 @@ export default createEndpoint({
       contractorMessage: input.needsContractors ? (input.contractorMessage ?? '') : '',
     };
     let id = input.id;
-    if (id) await zite.subEvents.update({ id, record });
-    else id = (await zite.subEvents.create({ record: record as never })).id;
+    // Ticket 57ce12eb. A repeating series is only expanded on create: editing a
+    // single instance must not quietly rewrite every date in the series.
+    const rule = input.recurrence && input.recurrence !== 'none' ? input.recurrence : '';
+    if (id) {
+      await zite.subEvents.update({ id, record });
+    } else {
+      const group = rule && record.date && input.recurrenceUntil ? crypto.randomUUID() : '';
+      const base = { ...record, recurrenceGroup: group || null, recurrenceRule: rule };
+      id = (await zite.subEvents.create({ record: base as never })).id;
+      if (group) {
+        for (const date of recurrenceDates(record.date as string, rule, input.recurrenceUntil as string)) {
+          await zite.subEvents.create({ record: { ...base, date } as never });
+        }
+      }
+    }
     await syncAutoAttendance({ subEventId: id });
     return { id };
   },

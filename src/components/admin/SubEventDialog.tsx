@@ -11,16 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type AdminShow, type AdminSubEvent, type AdminMember, toIso, fromIso } from '../../lib/useAdminData';
 import { SUBTYPES, EVENT_TYPES, isClubSession, isContractor } from '../../lib/constants';
 
+type Recurrence = 'none' | 'weekly' | 'fortnightly' | 'monthly';
 type Form = {
   title: string; type: 'Rehearsal' | 'Performance' | 'Club Session'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
   description: string; meetTime: string; startTime: string; endTime: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
   dueDate: string | null; dueUnknown: boolean; hidden: boolean;
   needsContractors: boolean; contractorIds: string[]; contractorMessage: string;
+  recurrence: Recurrence; recurrenceUntil: string | null;
 };
 const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
   title: '', type, subtype: SUBTYPES[type][0], showIds: showId ? [showId] : [], date: null, dateTbc: false,
   description: '', meetTime: '', startTime: '', endTime: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
-  needsContractors: false, contractorIds: [], contractorMessage: '',
+  needsContractors: false, contractorIds: [], contractorMessage: '', recurrence: 'none', recurrenceUntil: null,
 });
 
 /**
@@ -52,6 +54,8 @@ export default function SubEventDialog({ open, ev, shows, members, defaultShowId
           importance: ev.importance as Form['importance'],
           startTime: ev.startTime ?? '',
           endTime: ev.endTime ?? '',
+          recurrence: 'none',
+          recurrenceUntil: null,
         }
       : blank(defaultShowId, defaultType));
   }, [open, ev, defaultShowId, defaultType]);
@@ -62,10 +66,15 @@ export default function SubEventDialog({ open, ev, shows, members, defaultShowId
   // A half-filled time range is useless on the calendar.
   const halfFilled = (!!f.startTime) !== (!!f.endTime);
   const bothBlank = !f.startTime && !f.endTime;
+  // Ticket 57ce12eb: a repeating series needs a real first date and an end date
+  // so the instances can be generated; TBC dates have nothing to step from.
+  const repeats = !ev && f.recurrence !== 'none';
+  const recurrenceOk = !repeats || (!!f.date && !f.dateTbc && !!f.recurrenceUntil && f.recurrenceUntil >= (f.date ?? ''));
   const valid =
     f.title.trim() &&
     (club || f.showIds.length) &&
     (f.dateTbc || f.date) &&
+    recurrenceOk &&
     ((f.startTime === '' && f.endTime === '') || (!halfFilled && HHMM_RE.test(f.startTime) && HHMM_RE.test(f.endTime)));
   const timeHelp = f.startTime && !HHMM_RE.test(f.startTime)
     ? `Use ${hhmmHint}, e.g. 09:00 or 19:30.`
@@ -124,6 +133,38 @@ export default function SubEventDialog({ open, ev, shows, members, defaultShowId
             <label className="flex items-center gap-2 text-sm mb-1"><Checkbox checked={f.dateTbc} onCheckedChange={(c) => set({ dateTbc: !!c })} />TBC</label>
             {!f.dateTbc && <DatePicker value={fromIso(f.date)} onChange={(d) => set({ date: toIso(d) })} />}
           </div>
+          {/* Ticket 57ce12eb: repeat a club session (or any event) on a weekly,
+              fortnightly or monthly cadence. Only offered when creating, so
+              editing one instance of a series cannot silently rewrite the rest. */}
+          {!ev && (
+            <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+              <L>Repeats</L>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select value={f.recurrence} onValueChange={(v) => set({ recurrence: v as Recurrence })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Does not repeat</SelectItem>
+                    <SelectItem value="weekly">Every week</SelectItem>
+                    <SelectItem value="fortnightly">Every two weeks</SelectItem>
+                    <SelectItem value="monthly">Every month</SelectItem>
+                  </SelectContent>
+                </Select>
+                {f.recurrence !== 'none' && (
+                  <div className="space-y-1">
+                    <L>Repeat until *</L>
+                    <DatePicker value={fromIso(f.recurrenceUntil)} onChange={(d) => set({ recurrenceUntil: toIso(d) })} />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {f.recurrence === 'none'
+                  ? 'One session only.'
+                  : f.dateTbc
+                    ? 'Give the first session a real date so the repeats can be worked out.'
+                    : 'Each repeat is created as its own session, so a register can be taken at each one.'}
+              </p>
+            </div>
+          )}
           <div className="space-y-1"><L>Importance</L>
             <Select value={f.importance} onValueChange={(v) => set({ importance: v as Form['importance'] })}>
               <SelectTrigger><SelectValue /></SelectTrigger>

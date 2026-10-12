@@ -122,6 +122,13 @@ export type AdminRecomputeAttendanceInputType = NonNullable<_AdminRecomputeAtten
 export type AdminRecomputeAttendanceOutputType = Awaited<ReturnType<_AdminRecomputeAttendanceCfg['execute']>>;
 export const adminRecomputeAttendance = createCaller<AdminRecomputeAttendanceInputType, AdminRecomputeAttendanceOutputType>('adminRecomputeAttendance');
 
+import type { default as _AdminRegisterAttendanceEp } from '../api/adminRegisterAttendance';
+
+type _AdminRegisterAttendanceCfg = typeof _AdminRegisterAttendanceEp;
+export type AdminRegisterAttendanceInputType = NonNullable<_AdminRegisterAttendanceCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminRegisterAttendanceCfg['execute']>[0]['input'];
+export type AdminRegisterAttendanceOutputType = Awaited<ReturnType<_AdminRegisterAttendanceCfg['execute']>>;
+export const adminRegisterAttendance = createCaller<AdminRegisterAttendanceInputType, AdminRegisterAttendanceOutputType>('adminRegisterAttendance');
+
 import type { default as _AdminRemindMaintainersEp } from '../api/adminRemindMaintainers';
 
 type _AdminRemindMaintainersCfg = typeof _AdminRemindMaintainersEp;
@@ -508,6 +515,7 @@ export const api = {
   adminMoveRole,
   adminNoteTicket,
   adminRecomputeAttendance,
+  adminRegisterAttendance,
   adminRemindMaintainers,
   adminReplyTicket,
   adminSaveContractorInvites,

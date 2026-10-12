@@ -107,6 +107,12 @@ ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "endTime" text;
 ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "needsContractors"  boolean NOT NULL DEFAULT false;
 ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractors"       uuid[]  NOT NULL DEFAULT '{}';
 ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractorMessage" text    NOT NULL DEFAULT '';
+-- Support ticket 57ce12eb: recurring club sessions. Every instance of a
+-- repeating event shares a recurrenceGroup so the set can be edited or removed
+-- together, and recurrenceRule records how it repeats ('weekly', 'fortnightly'
+-- or 'monthly') so the UI can describe the series without recomputing it.
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "recurrenceGroup" uuid;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "recurrenceRule"  text NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS "ShowResponses" (
   "id"               uuid PRIMARY KEY,

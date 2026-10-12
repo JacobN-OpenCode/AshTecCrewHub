@@ -27,8 +27,13 @@ export default createEndpoint({
     });
     const { records } = await zite.crewMembers.findAll({ limit: 2000 });
     const adminsNoStaff = records.filter((m) => m.isAdmin && !isStaff(m) && isEmailable(m));
-    let recipients = input.type === 'General Support' ? adminsNoStaff : records.filter((m) => m.isMaintainer && isEmailable(m));
-    if (!recipients.length) recipients = adminsNoStaff;
+    const candidates = input.type === 'General Support' ? adminsNoStaff : records.filter((m) => m.isMaintainer && isEmailable(m));
+    // Ticket 42ca4f1f: never email a maintainer about a ticket they raised
+    // themselves. If excluding the sender would notify nobody, fall back to the
+    // admins (still without the sender) so a lone maintainer's own ticket is
+    // simply not broadcast back to them.
+    let recipients = candidates.filter((m) => m.id !== me.id);
+    if (!recipients.length) recipients = adminsNoStaff.filter((m) => m.id !== me.id);
 
     // The save must not wait on outbound mail: a bug report can take several
     // seconds to email every maintainer sequentially, which made the dialog

@@ -113,6 +113,11 @@ export const mapSubEvent = (e: SubEventsRecordType) => ({
   needsContractors: !!e.needsContractors,
   contractorIds: ids(e.contractors),
   contractorMessage: e.contractorMessage ?? '',
+  // Ticket 57ce12eb: instances of a repeating event share recurrenceGroup, and
+  // recurrenceRule ('weekly' | 'fortnightly' | 'monthly') describes the series.
+  // Both live outside the generated record type until the schema is regenerated.
+  recurrenceGroup: (e as unknown as { recurrenceGroup?: string | null }).recurrenceGroup ?? null,
+  recurrenceRule: (e as unknown as { recurrenceRule?: string }).recurrenceRule ?? '',
 });
 
 export const mapMember = (m: CrewMembersRecordType) => ({
