@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useCollapseTopTabs, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, ACCENTS } from '../lib/uiPrefs';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
@@ -497,7 +497,7 @@ function Preferences() {
   const [collapsed, setCollapsed] = useSupportCollapsed();
   const [accent, setAccent] = useAccent();
   const [sameTab, setSameTab] = useSupportSameTab();
-  const [collapseTabs, setCollapseTabs] = useCollapseTopTabs();
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
@@ -549,12 +549,12 @@ function Preferences() {
 
       <label className="flex items-start justify-between gap-4 cursor-pointer">
         <span>
-          <span className="block font-medium text-sm">Collapse the top tabs into icons</span>
+          <span className="block font-medium text-sm">Collapse the sidebar into icons</span>
           <span className="block text-xs text-muted-foreground mt-0.5">
-            Hides the labels on the top navigation so the bar is just icons, giving you more room. Hover a tab to see its name.
+            Shrinks the navigation sidebar to a narrow icon rail so the page gets the width back. Hover an icon to see its name. Desktop only.
           </span>
         </span>
-        <Switch checked={collapseTabs} onCheckedChange={setCollapseTabs} aria-label="Collapse the top tabs into icons" />
+        <Switch checked={sidebarCollapsed} onCheckedChange={setSidebarCollapsed} aria-label="Collapse the sidebar into icons" />
       </label>
     </div>
   );

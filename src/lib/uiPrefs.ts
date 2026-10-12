@@ -43,8 +43,12 @@ export const useSupportCollapsed = () => useBoolPref(SUPPORT_COLLAPSED);
 /** Ticket e9993904: whether the ticket list opens a ticket in this tab instead of a new one. */
 export const useSupportSameTab = () => useBoolPref(SUPPORT_SAME_TAB);
 
-/** Ticket e9889d62: collapse the top navigation tabs down to just their icons. */
-export const useCollapseTopTabs = () => useBoolPref(COLLAPSE_TOP_TABS);
+/**
+ * Ticket e9889d62, redesign: shrink the desktop sidebar down to a narrow icon
+ * rail so the content gets the width back. The storage key is kept from when
+ * this controlled the old top tabs, so an existing choice still applies.
+ */
+export const useSidebarCollapsed = () => useBoolPref(COLLAPSE_TOP_TABS);
 
 /**
  * Ticket ad8dee46: the accent colour. The whole theme is driven by --primary, so

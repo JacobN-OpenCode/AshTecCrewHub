@@ -9,6 +9,20 @@ import { pwaWelcomeOpen } from './PwaWelcome';
 
 type Rect = { top: number; left: number; width: number; height: number };
 
+/**
+ * The first matching target that is actually on screen. Some targets now exist
+ * twice (the desktop sidebar and the mobile tab bar both carry `data-tour="nav"`),
+ * and a plain querySelector would return whichever came first in the DOM even
+ * when it is hidden by a breakpoint.
+ */
+function visibleTarget(sel: string): HTMLElement | null {
+  const all = document.querySelectorAll<HTMLElement>(`[data-tour="${sel}"]`);
+  for (const el of all) {
+    if (el.offsetParent !== null || getComputedStyle(el).position === 'fixed') return el;
+  }
+  return all[0] ?? null;
+}
+
 export default function Tutorial() {
   const { me } = useMe();
   const loc = useLocation();
@@ -101,7 +115,7 @@ export default function Tutorial() {
       return;
     }
 
-    const find = () => document.querySelector<HTMLElement>(`[data-tour="${sel}"]`);
+    const find = () => visibleTarget(sel);
 
     const measure = () => {
       const el = find();
@@ -188,8 +202,9 @@ export default function Tutorial() {
   // re-rendering the node out from under us.
   useEffect(() => {
     if (!open || !waiting || !step?.target) return;
+    const target = step.target;
     const onClick = (e: MouseEvent) => {
-      const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
+      const el = visibleTarget(target);
       if (!el || !el.contains(e.target as Node)) return;
       if (last) close();
       else go(i + 1);

@@ -15,6 +15,7 @@ import StaffHub from './pages/StaffHub';
 import Attendance from './pages/Attendance';
 import Profile from './pages/Profile';
 import StageLayout from './pages/StageLayout';
+import AdminOverview from './pages/admin/AdminOverview';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminMembers from './pages/admin/AdminMembers';
 import EmailLog from './pages/admin/EmailLog';
@@ -83,6 +84,7 @@ function SignedIn() {
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/tools" element={<Tools />} />
+          {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
           {me.isAdmin && <Route path="/admin/members" element={<AdminMembers />} />}
           {me.isAdmin && <Route path="/admin/emails" element={<EmailLog />} />}

@@ -139,8 +139,17 @@
    the floating help button clear of the hardware. No-ops on a normal browser. */
 @supports (padding: env(safe-area-inset-top)) {
   .app-header { padding-top: env(safe-area-inset-top); }
-  .app-main { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
-  .app-fab { bottom: calc(1rem + env(safe-area-inset-bottom)) !important; }
+  .app-main { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  /* Redesign: the sidebar and the mobile bottom tabs both run to the hardware
+     edges, so the notch / home indicator must be padded clear of content. */
+  .app-sidebar { padding-top: env(safe-area-inset-top); }
+  .app-tabbar { padding-bottom: env(safe-area-inset-bottom); }
+  /* The floating help button clears the bottom tab bar on phones (its usual
+     1rem offset would sit under the tabs); back to 1rem from the lg breakpoint. */
+  .app-fab { bottom: calc(4.75rem + env(safe-area-inset-bottom)) !important; }
+  @media (min-width: 1024px) {
+    .app-fab { bottom: calc(1rem + env(safe-area-inset-bottom)) !important; }
+  }
   /* The live-show dashboard renders outside the shell and keeps its own top
      bar; without this the notch covers the back button on iOS (ticket 899c34a6). */
   .dash-topbar { padding-top: env(safe-area-inset-top); }

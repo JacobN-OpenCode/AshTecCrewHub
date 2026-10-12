@@ -36,7 +36,7 @@ export const TOUR: Step[] = [
     path: '/',
     target: 'nav',
     title: 'Move around',
-    body: 'Every page you can reach sits here. Click around while the tour is open and it will follow you.',
+    body: 'Every page you can reach is in this menu: Main for the everyday pages, then Production, Club and Admin. On a phone the same menu opens from the More tab. Click around and the tour will follow you.',
     advance: 'target',
   },
   {
@@ -79,7 +79,7 @@ export const TOUR: Step[] = [
     path: '/',
     target: 'admin-menu',
     title: 'Everything admin',
-    body: 'All the management pages live behind this one dropdown, which keeps the top bar short. The number on it is how many support tickets are waiting on you.',
+    body: 'All the management pages live together in this Admin group, so nothing is hidden behind a menu you have to find. The number beside Support is how many tickets are waiting on you.',
     advance: 'target',
     adminOnly: true,
   },
