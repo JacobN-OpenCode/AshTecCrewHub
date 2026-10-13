@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireMember, isStaff, ids, mapMember, todayIso } from '../lib/server';
+import { CLUB_SESSION } from '../lib/constants';
 
 /**
  * The staff homepage: a countdown to the next event, the upcoming events, and
@@ -74,6 +75,30 @@ export default createEndpoint({
       })
       .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'));
 
+    // Ticket 38991edd: the register history. Club sessions are not part of a
+    // show, so they never appear in the RSVP matrix above; their register is the
+    // Attendance rows adminRegisterAttendance writes when a member is ticked in.
+    // A ticked member is "Expected Arrival"; absence is simply no row.
+    const clubSessions = subs.records
+      .filter((e) => e.type === CLUB_SESSION && e.date && !e.hidden)
+      .map((e) => {
+        const present = [
+          ...new Set(
+            att.records
+              .filter((a) => ids(a.subEvent)[0] === e.id && studentIds.has(ids(a.member)[0]) && a.status === 'Expected Arrival')
+              .map((a) => ids(a.member)[0] ?? ''),
+          ),
+        ].filter(Boolean);
+        return {
+          id: e.id,
+          title: e.title ?? 'Club session',
+          subtype: e.subtype ?? '',
+          date: e.date ?? null,
+          present,
+        };
+      })
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+
     const nextDated = upcoming.find((e) => e.date && e.date >= today);
     const nextEvent = nextDated
       ? {
@@ -93,6 +118,7 @@ export default createEndpoint({
       me: mapMember(me),
       nextEvent,
       upcoming: upcoming.slice(0, 30),
+      clubSessions: clubSessions.slice(0, 60),
       students,
     };
   },

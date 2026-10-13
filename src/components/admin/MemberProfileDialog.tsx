@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { adminGetMemberDetail, type AdminGetMemberDetailOutputType } from '#api';
+import { toast } from 'sonner';
+import { adminGetMemberDetail, setAttendance, type AdminGetMemberDetailOutputType } from '#api';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Pencil, Shield, Wrench } from 'lucide-react';
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { fmtDate } from '../../lib/constants';
@@ -59,6 +61,12 @@ export default function MemberProfileDialog({
   onEdit: (m: AdminMember, preview?: boolean) => void;
 }) {
   const [body, setBody] = useState<AdminGetMemberDetailOutputType | null>(null);
+  const [busyEv, setBusyEv] = useState('');
+
+  const reloadDetail = () => {
+    if (!member) return;
+    adminGetMemberDetail({ memberId: member.id }).then(setBody).catch(() => {});
+  };
 
   useEffect(() => {
     if (!member) return;
@@ -69,6 +77,28 @@ export default function MemberProfileDialog({
       .catch(() => {});
     return () => { live = false; };
   }, [member]);
+
+  // Ticket 94f1438b: an admin can set a member's attendance for any event, even
+  // after the response deadline has passed (setAttendance lets admins override).
+  // Previously the only way to do this was the per-event Attendance sheet on
+  // Manage Events; this puts it on the member's own profile, where an admin
+  // looking at one person naturally is.
+  const changeAtt = async (subEventId: string, status: 'Expected Arrival' | 'Maybe' | 'Not Attending') => {
+    if (!member) return;
+    setBusyEv(subEventId);
+    try {
+      await setAttendance({
+        memberId: member.id,
+        items: [{ subEventId, status, reason: status === 'Not Attending' ? 'Recorded by admin' : undefined }],
+      });
+      reloadDetail();
+      toast.success('Attendance updated');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyEv('');
+    }
+  };
 
   const m = body?.member ?? member;
   const detail = body;
@@ -163,6 +193,35 @@ export default function MemberProfileDialog({
                         </li>
                       ))}
                     </ul>
+                  </Section>
+
+                  <Section title="Change attendance">
+                    {(() => {
+                      const evs = [...detail.upcoming, ...detail.pastEvents];
+                      if (!evs.length) return <Empty text="No events yet." />;
+                      return (
+                        <ul className="space-y-2">
+                          {evs.map((e) => (
+                            <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
+                              <span className="font-medium text-sm">{e.title}</span>
+                              <span className="text-xs text-muted-foreground">{fmtDate(e.date)}</span>
+                              <Select
+                                value={e.status ?? ''}
+                                onValueChange={(v) => changeAtt(e.id, v as 'Expected Arrival' | 'Maybe' | 'Not Attending')}
+                                disabled={busyEv === e.id}
+                              >
+                                <SelectTrigger className="ml-auto h-8 w-[170px]"><SelectValue placeholder="No reply" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Expected Arrival">Expected Arrival</SelectItem>
+                                  <SelectItem value="Maybe">Maybe</SelectItem>
+                                  <SelectItem value="Not Attending">Not Attending</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
                   </Section>
                 </>
               )}

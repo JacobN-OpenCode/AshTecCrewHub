@@ -111,3 +111,52 @@ export function useAccent() {
   };
   return [id, set] as const;
 }
+
+/**
+ * Ticket 8051f385: a per-device density choice. Roomy is the existing layout;
+ * compact tightens padding/gaps via `[data-density='compact']` rules in
+ * index.css and turns the sidebar account block into a single row. Kept here
+ * with the other per-browser preferences rather than on the member record.
+ */
+export type Density = 'roomy' | 'compact';
+const DENSITY_KEY = 'ashtec-density';
+const isDensity = (v: unknown): v is Density => v === 'roomy' || v === 'compact';
+
+export function getDensity(): Density {
+  try {
+    const v = localStorage.getItem(DENSITY_KEY);
+    return isDensity(v) ? v : 'roomy';
+  } catch {
+    return 'roomy';
+  }
+}
+
+/** `data-density` on <html>; the stylesheet keys off the attribute. */
+export function applyDensity(d: Density): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.density = d;
+}
+
+export function useDensity() {
+  const [value, setValue] = useState<Density>(() => getDensity());
+  useEffect(() => {
+    const sync = () => {
+      const next = getDensity();
+      setValue(next);
+      applyDensity(next);
+    };
+    applyDensity(getDensity());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: Density) => {
+    try { localStorage.setItem(DENSITY_KEY, next); } catch {}
+    applyDensity(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}

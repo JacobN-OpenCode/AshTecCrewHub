@@ -52,7 +52,11 @@ export default createEndpoint({
     }
     const p1 = (input.preferredRole1 ?? me.preferredRole1 ?? '') as string;
     const p2 = (input.preferredRole2 ?? me.preferredRole2 ?? '') as string;
-    if (p1 && p1 === p2) throw new Error('Pick two different roles.');
+    // Ticket 2070a91c: admins are not required to set stage roles (the form
+    // hides the pickers for them), so an admin whose stored roles happen to be
+    // equal was blocked from saving anything. The two-distinct-roles rule only
+    // applies to people who actually choose roles.
+    if (!me.isAdmin && p1 && p1 === p2) throw new Error('Pick two different roles.');
 
     if (input.avatarUrl !== undefined) {
       const url = input.avatarUrl.trim();

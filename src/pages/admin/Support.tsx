@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, type AdminGetSupportOutputType } from '#api';
+import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
+import { Switch } from '@project/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
@@ -34,6 +35,23 @@ export default function Support() {
   const [reminding, setReminding] = useState(false);
   const [remindingId, setRemindingId] = useState('');
   const [sameTab] = useSupportSameTab();
+  // Ticket f505c30e: per-ticket vs one daily summary email for new tickets.
+  const [summaryMode, setSummaryMode] = useState<'per-ticket' | 'daily'>('per-ticket');
+  useEffect(() => {
+    adminGetSupportSettings({}).then((r) => setSummaryMode(r.mode as 'per-ticket' | 'daily')).catch(() => {});
+  }, []);
+  const setDaily = async (daily: boolean) => {
+    const prev = summaryMode;
+    const mode = daily ? 'daily' : 'per-ticket';
+    setSummaryMode(mode);
+    try {
+      await adminSetSupportSettings({ mode });
+      toast.success(daily ? 'New tickets will arrive as one daily summary' : 'Each new ticket will be emailed straight away');
+    } catch (e) {
+      setSummaryMode(prev);
+      toast.error((e as Error).message);
+    }
+  };
   const load = useCallback(() => adminGetSupport({}).then((r) => setTickets(r.tickets)), []);
   useEffect(() => { load(); }, [load]);
   // Ticket 92805b9d: keep the list current without the Refresh button. A quiet
@@ -238,6 +256,17 @@ export default function Support() {
       </div>
 
       <aside className="rounded-2xl border bg-card p-4 h-fit space-y-3 min-w-0">
+        <div className="border-b pb-3">
+          <label className="flex items-start justify-between gap-3 cursor-pointer">
+            <span>
+              <span className="block text-sm font-medium">Daily summary instead of per-ticket email</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                Off: every new ticket emails each maintainer. On: one email a day listing the last day&apos;s tickets.
+              </span>
+            </span>
+            <Switch checked={summaryMode === 'daily'} onCheckedChange={setDaily} aria-label="Send one daily support summary" />
+          </label>
+        </div>
         <div className="flex items-center gap-2 font-semibold"><Wrench className="h-4 w-4 text-primary" />Maintainers</div>
         <p className="text-xs text-muted-foreground">Admins only. Emailed about bug reports and feature requests. General support goes to all admins who aren’t staff.</p>
         <div className="space-y-2 max-h-96 overflow-y-auto">

@@ -16,7 +16,7 @@ import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, ACCENTS } from '../lib/uiPrefs';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
@@ -520,6 +520,7 @@ function Preferences() {
   const [accent, setAccent] = useAccent();
   const [sameTab, setSameTab] = useSupportSameTab();
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const [density, setDensity] = useDensity();
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
@@ -577,6 +578,16 @@ function Preferences() {
           </span>
         </span>
         <Switch checked={sidebarCollapsed} onCheckedChange={setSidebarCollapsed} aria-label="Collapse the sidebar into icons" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Compact density</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Tightens spacing across the app and puts the account, help and sign-out on a single row in the sidebar.
+          </span>
+        </span>
+        <Switch checked={density === 'compact'} onCheckedChange={(v) => setDensity(v ? 'compact' : 'roomy')} aria-label="Use compact spacing" />
       </label>
     </div>
   );

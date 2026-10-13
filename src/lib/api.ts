@@ -3,6 +3,13 @@
 
 import { createCaller } from './caller';
 
+import type { default as _AdminClearSessionHistoryEp } from '../api/adminClearSessionHistory';
+
+type _AdminClearSessionHistoryCfg = typeof _AdminClearSessionHistoryEp;
+export type AdminClearSessionHistoryInputType = NonNullable<_AdminClearSessionHistoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminClearSessionHistoryCfg['execute']>[0]['input'];
+export type AdminClearSessionHistoryOutputType = Awaited<ReturnType<_AdminClearSessionHistoryCfg['execute']>>;
+export const adminClearSessionHistory = createCaller<AdminClearSessionHistoryInputType, AdminClearSessionHistoryOutputType>('adminClearSessionHistory');
+
 import type { default as _AdminDeleteSubEventEp } from '../api/adminDeleteSubEvent';
 
 type _AdminDeleteSubEventCfg = typeof _AdminDeleteSubEventEp;
@@ -79,6 +86,13 @@ type _AdminGetSupportCfg = typeof _AdminGetSupportEp;
 export type AdminGetSupportInputType = NonNullable<_AdminGetSupportCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetSupportCfg['execute']>[0]['input'];
 export type AdminGetSupportOutputType = Awaited<ReturnType<_AdminGetSupportCfg['execute']>>;
 export const adminGetSupport = createCaller<AdminGetSupportInputType, AdminGetSupportOutputType>('adminGetSupport');
+
+import type { default as _AdminGetSupportSettingsEp } from '../api/adminGetSupportSettings';
+
+type _AdminGetSupportSettingsCfg = typeof _AdminGetSupportSettingsEp;
+export type AdminGetSupportSettingsInputType = NonNullable<_AdminGetSupportSettingsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetSupportSettingsCfg['execute']>[0]['input'];
+export type AdminGetSupportSettingsOutputType = Awaited<ReturnType<_AdminGetSupportSettingsCfg['execute']>>;
+export const adminGetSupportSettings = createCaller<AdminGetSupportSettingsInputType, AdminGetSupportSettingsOutputType>('adminGetSupportSettings');
 
 import type { default as _AdminGetTicketEp } from '../api/adminGetTicket';
 
@@ -205,6 +219,13 @@ type _AdminSetMaintainerCfg = typeof _AdminSetMaintainerEp;
 export type AdminSetMaintainerInputType = NonNullable<_AdminSetMaintainerCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSetMaintainerCfg['execute']>[0]['input'];
 export type AdminSetMaintainerOutputType = Awaited<ReturnType<_AdminSetMaintainerCfg['execute']>>;
 export const adminSetMaintainer = createCaller<AdminSetMaintainerInputType, AdminSetMaintainerOutputType>('adminSetMaintainer');
+
+import type { default as _AdminSetSupportSettingsEp } from '../api/adminSetSupportSettings';
+
+type _AdminSetSupportSettingsCfg = typeof _AdminSetSupportSettingsEp;
+export type AdminSetSupportSettingsInputType = NonNullable<_AdminSetSupportSettingsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSetSupportSettingsCfg['execute']>[0]['input'];
+export type AdminSetSupportSettingsOutputType = Awaited<ReturnType<_AdminSetSupportSettingsCfg['execute']>>;
+export const adminSetSupportSettings = createCaller<AdminSetSupportSettingsInputType, AdminSetSupportSettingsOutputType>('adminSetSupportSettings');
 
 import type { default as _AdminUpdateTicketEp } from '../api/adminUpdateTicket';
 
@@ -479,6 +500,13 @@ export type SubmitSupportInputType = NonNullable<_SubmitSupportCfg['inputSchema'
 export type SubmitSupportOutputType = Awaited<ReturnType<_SubmitSupportCfg['execute']>>;
 export const submitSupport = createCaller<SubmitSupportInputType, SubmitSupportOutputType>('submitSupport');
 
+import type { default as _SupportDigestEp } from '../api/supportDigest';
+
+type _SupportDigestCfg = typeof _SupportDigestEp;
+export type SupportDigestInputType = NonNullable<_SupportDigestCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SupportDigestCfg['execute']>[0]['input'];
+export type SupportDigestOutputType = Awaited<ReturnType<_SupportDigestCfg['execute']>>;
+export const supportDigest = createCaller<SupportDigestInputType, SupportDigestOutputType>('supportDigest');
+
 import type { default as _SupportEscalateEp } from '../api/supportEscalate';
 
 type _SupportEscalateCfg = typeof _SupportEscalateEp;
@@ -505,6 +533,7 @@ export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLea
 
 /** Namespace object, kept for parity with the original generated client. */
 export const api = {
+  adminClearSessionHistory,
   adminDeleteSubEvent,
   adminGetData,
   adminGetDiagnostics,
@@ -516,6 +545,7 @@ export const api = {
   adminGetPresenceHistory,
   adminGetSessionDetail,
   adminGetSupport,
+  adminGetSupportSettings,
   adminGetTicket,
   adminLiveShowControl,
   adminLiveShowDevice,
@@ -534,6 +564,7 @@ export const api = {
   adminSendMessage,
   adminSendReminder,
   adminSetMaintainer,
+  adminSetSupportSettings,
   adminUpdateTicket,
   checkEmail,
   deletePushSubscription,
@@ -573,6 +604,7 @@ export const api = {
   setMyAdminSecret,
   setShowResponse,
   submitSupport,
+  supportDigest,
   supportEscalate,
   updateMyProfile,
   analyticsLeave,

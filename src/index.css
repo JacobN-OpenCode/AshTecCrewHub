@@ -205,6 +205,22 @@
   .dash-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
 
+/* Ticket 8051f385: optional compact density, toggled from Profile → Preferences
+   (`data-density` on <html>). Rather than thread a variant through every page we
+   key off the Tailwind class tokens already on the markup: `[class~='p-6']`
+   matches only an exact `p-6` class token, so responsive/other utilities are
+   left alone. Kept small and mechanical - spacing only. */
+[data-density='compact'] [class~='space-y-6'] > * + * { margin-top: 1rem; }
+[data-density='compact'] [class~='space-y-5'] > * + * { margin-top: 0.8rem; }
+[data-density='compact'] [class~='space-y-4'] > * + * { margin-top: 0.65rem; }
+[data-density='compact'] [class~='gap-6'] { gap: 1rem; }
+[data-density='compact'] [class~='gap-5'] { gap: 0.8rem; }
+[data-density='compact'] [class~='p-6'] { padding: 1rem; }
+[data-density='compact'] [class~='p-5'] { padding: 0.9rem; }
+[data-density='compact'] [class~='p-4'] { padding: 0.75rem; }
+[data-density='compact'] [class~='py-6'] { padding-top: 1rem; padding-bottom: 1rem; }
+[data-density='compact'] [class~='py-5'] { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+
 /* Honour the OS "reduce motion" setting everywhere: page/card/button motion is
    decoration, so it collapses to effectively instant. */
 @media (prefers-reduced-motion: reduce) {

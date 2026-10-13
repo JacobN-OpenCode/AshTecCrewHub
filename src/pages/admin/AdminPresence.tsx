@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminGetPresence, adminGetPresenceHistory, adminRegisterAttendance, presenceEnd, presenceStart } from '#api';
+import { adminClearSessionHistory, adminGetPresence, adminGetPresenceHistory, adminRegisterAttendance, presenceEnd, presenceStart } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Checkbox } from '@project/components/ui/checkbox';
@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { ChevronRight, ClipboardList, DoorOpen, History, Loader2, LogOut, MapPin, QrCode, Search, TriangleAlert, UserCheck } from 'lucide-react';
+import { ChevronRight, ClipboardList, DoorOpen, History, Loader2, LogOut, MapPin, QrCode, Search, Trash2, TriangleAlert, UserCheck } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { fmtDate } from '../../lib/constants';
 import PresenceHistoryDialog from '../../components/admin/PresenceHistoryDialog';
@@ -137,6 +137,8 @@ export default function AdminPresence() {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [history, setHistory] = useState<SessionSummary[]>([]);
   const [detail, setDetail] = useState<{ sessionId: string; memberId?: string } | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   // Ticket 57ce12eb: venue check-in has two jobs - scanning QR codes, and
   // ticking a register off by hand for sessions where nobody scans.
@@ -220,6 +222,22 @@ export default function AdminPresence() {
     } finally {
       setBusy(false);
       setConfirmEnd(false);
+    }
+  };
+
+  // Ticket 36b8cfd8: empty the Session backlog. Keeps the live session, so an
+  // admin can tidy the list without touching anyone currently checked in.
+  const clearHistory = async () => {
+    setClearing(true);
+    try {
+      const r = await adminClearSessionHistory({});
+      toast.success(`Cleared ${r.sessions} past session${r.sessions === 1 ? '' : 's'}`);
+      await loadHistory();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setClearing(false);
+      setConfirmClear(false);
     }
   };
 
@@ -440,10 +458,18 @@ export default function AdminPresence() {
 
       {history.length > 0 && (
         <section className="space-y-2">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-            <History className="h-4 w-4" />Session backlog
-            <span className="font-mono text-xs text-muted-foreground">{history.length}</span>
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <History className="h-4 w-4" />Session backlog
+              <span className="font-mono text-xs text-muted-foreground">{history.length}</span>
+            </h2>
+            {canManage && (
+              <Button variant="outline" size="sm" onClick={() => setConfirmClear(true)} disabled={clearing}>
+                {clearing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}
+                Clear
+              </Button>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">Open any session to see who signed in and out, when, and which admin approved it.</p>
           <ul className="divide-y rounded-2xl border">
             {history.map((s) => (
@@ -507,6 +533,24 @@ export default function AdminPresence() {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it open</AlertDialogCancel>
             <AlertDialogAction onClick={end} disabled={busy}>End check-in</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear the session backlog?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes every past check-in session and its sign-in/out history. The
+              currently open session (and anyone checked in to it) is kept. This can’t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearHistory} disabled={clearing}>
+              {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear backlog'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

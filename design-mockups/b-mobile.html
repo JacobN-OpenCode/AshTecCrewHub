@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Direction B - Command Bar (Mobile)</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 4h9v16H5z"/><path d="M8 12h9"/><path d="m14 9 3 3-3 3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v3M16 3v3"/></symbol>
+  <symbol id="i-stage" viewBox="0 0 24 24"><path d="M3 4h18v16H3z"/><path d="M3 15h18"/><path d="M9 15v5"/><path d="M15 15v5"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 6"/><path d="M18.5 20a5 5 0 0 0-3.2-4.7"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-life" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="m6.2 6.2 3.6 3.6M14.2 14.2l3.6 3.6M17.8 6.2l-3.6 3.6M9.8 14.2l-3.6 3.6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 20v-6M12 20v-9M16 20v-4"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4 14L16 12h5"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<div class="sheet">
+  <div class="sheet-head">
+    <div>
+      <h1>Direction B &middot; Command Bar (Mobile)</h1>
+      <div class="sub">Segmented tabs under the app bar; Admin &amp; the rest open as a bottom sheet. One consistent bar instead of a drawer.</div>
+    </div>
+    <span class="pill pl">Alternative</span>
+  </div>
+
+  <div class="row">
+    <!-- phone 1 -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="p-status"><span>11:24</span><span>AshTec</span></div>
+      <div class="p-appbar" style="height:54px">
+        <div class="logo" style="width:30px;height:30px;font-size:13px">A</div>
+        <h2 style="font-size:16px">AshTec Crew Hub</h2>
+        <div class="avat" style="width:30px;height:30px;font-size:11px">JN</div>
+      </div>
+      <div class="msegrow">
+        <span class="mseg active"><svg class="ic sm"><use href="#i-home"/></svg>Home</span>
+        <span class="mseg"><svg class="ic sm"><use href="#i-check"/></svg>Check-in</span>
+        <span class="mseg"><svg class="ic sm"><use href="#i-cal"/></svg>Calendar</span>
+        <span class="mseg"><svg class="ic sm"><use href="#i-live"/></svg>Live</span>
+        <span class="mseg"><svg class="ic sm"><use href="#i-menu"/></svg>More</span>
+      </div>
+      <div class="p-scroll">
+        <div class="p-h1">Hi Jacob</div>
+        <div class="p-sub">Tuesday 11 November &middot; 4 events this week</div>
+        <div class="statrow">
+          <div class="pstat"><div class="l">Next</div><div class="v">Tech Run</div></div>
+          <div class="pstat"><div class="l">Responses</div><div class="v">2 due</div></div>
+          <div class="pstat"><div class="l">Support</div><div class="v" style="color:var(--amber)">3</div></div>
+        </div>
+        <div class="sechead">Coming up <span class="tag blue" style="margin-left:auto">4</span></div>
+        <div class="pev">
+          <div class="r1"><span class="tag pri">Tech</span><div class="ttl">Christmas Show &middot; Tech Run</div></div>
+          <div class="meta"><svg class="ic sm" style="color:var(--faint)"><use href="#i-cal"/></svg>Thu 14 Nov &middot; 18:00 &middot; Main Hall</div>
+          <div class="presp"><span class="yes">Yes</span><span>Maybe</span><span>No</span></div>
+        </div>
+        <div class="pev">
+          <div class="r1"><span class="tag blue">Sound</span><div class="ttl">Winter Concert</div></div>
+          <div class="meta"><svg class="ic sm" style="color:var(--faint)"><use href="#i-cal"/></svg>Sat 16 Nov &middot; 19:00 &middot; Main Hall</div>
+          <div class="presp"><span>Yes</span><span>Maybe</span><span>No</span></div>
+        </div>
+      </div>
+      <div class="fab"><svg class="ic"><use href="#i-plus"/></svg></div>
+    </div>
+
+    <!-- phone 2: admin bottom sheet -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="p-status" style="position:relative;z-index:9"><span>11:24</span><span>AshTec</span></div>
+      <div class="scrim"></div>
+      <div class="bottomsheet">
+        <div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div class="avat" style="width:30px;height:30px;font-size:11px">JN</div>
+          <div style="flex:1"><div style="font-size:14px;font-weight:750">Admin</div><div style="font-size:11px;color:var(--faint)">Tech Crew &middot; Admin</div></div>
+          <svg class="ic" style="color:var(--faint)"><use href="#i-x"/></svg>
+        </div>
+        <div class="gridnav">
+          <div class="gn"><svg class="ic sm"><use href="#i-chart"/></svg>Overview</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-cal"/></svg>Events</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-users"/></svg>Crew</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-check"/></svg>Check-in</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-mail"/></svg>Emails</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-life"/></svg>Support<span class="badge" style="margin-left:auto">3</span></div>
+          <div class="gn"><svg class="ic sm"><use href="#i-live"/></svg>Live Setup</div>
+          <div class="gn"><svg class="ic sm"><use href="#i-activity"/></svg>Diagnostics</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <span class="mseg"><svg class="ic sm"><use href="#i-stage"/></svg>Stage</span>
+          <span class="mseg"><svg class="ic sm"><use href="#i-dots"/></svg>Parents</span>
+          <span class="mseg"><svg class="ic sm"><use href="#i-dots"/></svg>Tools</span>
+          <span class="mseg"><svg class="ic sm"><use href="#i-menu"/></svg>Settings</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" style="width:392px">
+      <h3>Mobile &middot; what moves</h3>
+      <p class="muted">Everything hangs off one bar; nothing scrolls horizontally off-screen.</p>
+      <div class="note"><span class="k">1</span><div class="t"><b>Segmented tabs</b> hold the top four; "More" opens the sheet.</div></div>
+      <div class="note"><span class="k">2</span><div class="t"><b>Admin uses a labelled bottom sheet grid</b> &ndash; bigger tap targets than a dropdown.</div></div>
+      <div class="note"><span class="k">3</span><div class="t"><b>Search is a top-bar icon.</b></div></div>
+      <div class="note"><span class="k">4</span><div class="t">Fewer moving parts than A, but the segmented row can get tight if we add more top-level tabs.</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

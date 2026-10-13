@@ -3,6 +3,7 @@ import { getStaffHome, type GetStaffHomeOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Input } from '@project/components/ui/input';
 import { Search } from 'lucide-react';
+import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import { pv } from '../lib/preview';
@@ -32,6 +33,8 @@ export default function StaffHub() {
   const { me } = useMe();
   const [data, setData] = useState<GetStaffHomeOutputType | null>(null);
   const [q, setQ] = useState('');
+  // Ticket 38991edd: roster (RSVP matrix) vs the club-session register history.
+  const [tab, setTab] = useState<'roster' | 'register'>('roster');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -67,6 +70,12 @@ export default function StaffHub() {
 
   const events = data?.upcoming ?? [];
 
+  // Ticket 38991edd: student id -> name for the register history chips.
+  const nameOf = useMemo(
+    () => new Map((data?.students ?? []).map((s) => [s.id, `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim() || 'Student'])),
+    [data],
+  );
+
   if (error) return <p className="text-destructive">{error}</p>;
   if (!data) return <div className="space-y-4">{[0, 1].map((i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>;
 
@@ -77,6 +86,36 @@ export default function StaffHub() {
         <p className="text-muted-foreground mt-1">{busy ? 'Loading roster…' : `${data.students.length} students on the roster.`}</p>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setTab('roster')} className={cn('px-4 py-2 rounded-xl border text-sm font-medium', tab === 'roster' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>Roster</button>
+        <button onClick={() => setTab('register')} className={cn('px-4 py-2 rounded-xl border text-sm font-medium', tab === 'register' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>Register history</button>
+      </div>
+
+      {tab === 'register' ? (
+        <div className="space-y-4">
+          {(data.clubSessions ?? []).length === 0 && <p className="text-muted-foreground">No club sessions with a register yet.</p>}
+          {(data.clubSessions ?? []).map((s: { id: string; title: string; subtype: string; date: string | null; present: string[] }) => {
+            const absent = Math.max(0, data.students.length - s.present.length);
+            return (
+              <div key={s.id} className="rounded-2xl border bg-card p-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-semibold">{s.title}</h2>
+                  {s.subtype && <span className="text-xs px-2 py-0.5 rounded-full bg-muted">{s.subtype}</span>}
+                  <span className="text-xs text-muted-foreground ml-auto">{fmtDate(s.date)}</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">{s.present.length} present · {absent} absent</p>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {s.present.length === 0 && <span className="text-sm text-muted-foreground">No one ticked in.</span>}
+                  {s.present.map((id: string) => (
+                    <span key={id} className="text-xs px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{nameOf.get(id) ?? 'Member'}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+      <>
       {next && (
         <div className="rounded-2xl border bg-primary/10 border-primary/20 p-6">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">Next event · {countdownLabel(next.daysUntil)}</p>
@@ -170,6 +209,8 @@ export default function StaffHub() {
         <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-muted ring-1 ring-border" /> No answer</span>
         <span className="ml-auto">Hover or tap a dot for the reason.</span>
       </div>
+      </>
+      )}
     </div>
   );
 }

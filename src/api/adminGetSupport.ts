@@ -42,7 +42,7 @@ export default createEndpoint({
           id: t.id, subject: t.subject ?? '', type: t.type ?? 'General Support', message: t.message ?? '',
           status: t.status ?? 'Open', severity: (t as { severity?: string }).severity ?? '',
           adminNotes: t.adminNotes ?? '', page: t.page ?? '',
-          submittedById: ids(t.submittedBy)[0] ?? '', submittedAt: t.submittedAt ?? '',
+          submittedById: ids(t.submittedBy)[0] ?? '', submittedAt: t.submittedAt ?? t.createdAt ?? '',
           assignedMaintainerIds: ids(t.assignedMaintainers),
           replyCount: replies.length,
           referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,

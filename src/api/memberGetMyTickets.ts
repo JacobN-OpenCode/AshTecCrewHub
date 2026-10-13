@@ -34,7 +34,9 @@ export default createEndpoint({
           message: t.message ?? '',
           status: t.status ?? 'Open',
           page: t.page ?? '',
-          submittedAt: t.submittedAt ?? '',
+          // Ticket 93919113: fall back to createdAt for tickets raised before we
+          // started stamping submittedAt, so ordering works for old rows too.
+          submittedAt: t.submittedAt ?? t.createdAt ?? '',
           editable: EDITABLE.includes(t.status ?? 'Open'),
           replyCount: replies.length,
           lastReplyFrom: newest?.kind === 'To User' ? 'Maintainer' : '',

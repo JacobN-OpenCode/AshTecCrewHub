@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, logout } from '#auth';
 import { getMe } from '#api';
+import { getDensity, applyDensity } from './lib/uiPrefs';
 import { Toaster } from '@project/components/ui/sonner';
 import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -34,6 +35,9 @@ import { MeContext, type Me } from './lib/me';
 import { applyAccent, getAccent } from './lib/uiPrefs';
 
 document.documentElement.classList.add('dark');
+// Ticket 8051f385: apply the saved density (roomy/compact) before first paint
+// so the layout does not flash the default.
+applyDensity(getDensity());
 // Apply the saved accent before first paint so the app never flashes the default.
 applyAccent(getAccent());
 

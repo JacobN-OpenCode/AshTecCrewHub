@@ -41,7 +41,7 @@ export default createEndpoint({
         id: ticket.id, subject: ticket.subject ?? '', type: ticket.type ?? 'General Support',
         message: ticket.message ?? '', status: ticket.status ?? 'Open', adminNotes: ticket.adminNotes ?? '',
         severity: (ticket as { severity?: string }).severity ?? '',
-        page: ticket.page ?? '', submittedAt: ticket.submittedAt ?? '',
+        page: ticket.page ?? '', submittedAt: ticket.submittedAt ?? ticket.createdAt ?? '',
         referToOpencode: !!(ticket as { referToOpencode?: boolean }).referToOpencode,
         assignedMaintainerIds: ids(ticket.assignedMaintainers),
         lastReplyAt: ticket.lastReplyAt ?? '', lastReplyFrom: ticket.lastReplyFrom ?? '', escalatedAt: ticket.escalatedAt ?? '',

@@ -22,16 +22,21 @@ export default createEndpoint({
   outputSchema: z.object({ rehearsalsCancelled: z.number() }),
   execute: async ({ input, context }) => {
     const { member, byAdmin } = await resolveTarget(context.user.email, input.memberId);
-    if (!byAdmin && member.memberType === 'Actor') throw new Error('Actors don’t sign up for crew events.');
+    // Ticket 94f1438b: an admin may change event attendance for anyone after the
+    // closing date. resolveTarget only reports byAdmin when the target differs
+    // from the caller, so an admin fixing their OWN row was blocked by the
+    // deadline they can otherwise override.
+    const override = byAdmin || !!member.isAdmin;
+    if (!override && member.memberType === 'Actor') throw new Error('Actors don’t sign up for crew events.');
     const subs = (await zite.subEvents.findAll({ limit: 2000 })).records;
     const byId = new Map(subs.map((s) => [s.id, s]));
 
     for (const it of input.items) {
       const s = byId.get(it.subEventId);
       if (!s) throw new Error('Event not found.');
-      if (!byAdmin && isPastDue(s.responseDueDate, s.dueDateUnknown))
+      if (!override && isPastDue(s.responseDueDate, s.dueDateUnknown))
         throw new Error(`The deadline for "${s.title}" has passed.`);
-      if (!byAdmin && it.status === 'Not Attending' && wordCount(it.reason) < 8)
+      if (!override && it.status === 'Not Attending' && wordCount(it.reason) < 8)
         throw new Error('Please give a reason of at least 8 words when you can’t attend.');
     }
     await upsertAttendance(
@@ -40,7 +45,7 @@ export default createEndpoint({
         subEventId: i.subEventId,
         status: i.status,
         reason: i.status === 'Not Attending' ? i.reason : '',
-        byAdmin,
+        byAdmin: override,
       })),
     );
 
@@ -59,7 +64,7 @@ export default createEndpoint({
     }
     const unique = [...new Set(cancel)];
     await upsertAttendance(
-      unique.map((id) => ({ memberId: member.id, subEventId: id, status: 'Not Attending', reason: AUTO_REASON, byAdmin })),
+      unique.map((id) => ({ memberId: member.id, subEventId: id, status: 'Not Attending', reason: AUTO_REASON, byAdmin: override })),
     );
     return { rehearsalsCancelled: unique.length };
   },

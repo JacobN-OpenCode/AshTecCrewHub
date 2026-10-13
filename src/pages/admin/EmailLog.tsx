@@ -54,9 +54,11 @@ export default function EmailLog() {
     if (g) g.push(e); else batches.set(e.batchId, [e]);
   }
   const byNewest = (a: Mail[], b: Mail[]) => (b[0]?.sentAt ?? '').localeCompare(a[0]?.sentAt ?? '');
-  for (const g of batches.values()) g.sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-  const groups = [...batches.values()].sort(byNewest);
-  groups.push(...singles.map((e) => [e]).sort(byNewest));
+  for (const g of batches.values()) g.sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));
+  // Ticket f2a36393: batches used to be listed above every single send, so a
+  // newer one-off email sank below an older batch. Merge both into one
+  // newest-first list so the whole log reads in date order.
+  const groups = [...batches.values(), ...singles.map((e) => [e])].sort(byNewest);
   const shown = groups.slice(0, page * PAGE);
   const Row = ({ e, nested }: { e: Mail; nested?: boolean }) => (
     <button onClick={() => setOpen(e)} className={`w-full text-left p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40 ${nested ? 'pl-10 bg-muted/20' : ''}`}>

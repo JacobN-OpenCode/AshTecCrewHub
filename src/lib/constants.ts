@@ -29,6 +29,16 @@ export const isClubSession = (type?: string) => type === CLUB_SESSION;
 /** The event types an admin can choose, in the order they appear in pickers. */
 export const EVENT_TYPES = ['Rehearsal', 'Performance', CLUB_SESSION] as const;
 
+/**
+ * Ticket 67b24cc3: keyboard hints used to hard-code "Cmd", which is wrong on
+ * Windows/Linux. Guarded with `typeof navigator` because this module is also
+ * imported by server code, where there is no window.
+ */
+export const IS_APPLE =
+  typeof navigator !== 'undefined' &&
+  /Mac|iPhone|iPad|iPod/.test(navigator.userAgent || navigator.platform || '');
+export const MOD_KEY_LABEL = IS_APPLE ? 'Cmd' : 'Ctrl';
+
 export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 export const todayIso = () => new Date().toISOString().slice(0, 10);
 export const isPastDue = (due: string | null, unknown: boolean) => !unknown && !!due && due < todayIso();

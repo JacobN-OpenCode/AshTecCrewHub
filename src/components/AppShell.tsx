@@ -16,10 +16,10 @@ import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
 import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview, pv } from '../lib/preview';
-import { ACCENTS, useSidebarCollapsed, useAccent } from '../lib/uiPrefs';
+import { ACCENTS, useSidebarCollapsed, useAccent, useDensity } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
-import { PLATFORM, fmtDate } from '../lib/constants';
+import { PLATFORM, MOD_KEY_LABEL, fmtDate } from '../lib/constants';
 import { globalSearch, type GlobalSearchOutputType } from '#api';
 
 /**
@@ -106,6 +106,9 @@ function Shell() {
   const { session } = useLivePresence();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [accent, setAccent] = useAccent();
+  // Ticket 8051f385: compact density drives the single-row sidebar footer and
+  // the tightened spacing (via data-density on <html>).
+  const [density] = useDensity();
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
   // Events and crew for the search are fetched the first time it opens, not on
@@ -299,14 +302,14 @@ function Shell() {
           <button
             type="button"
             onClick={() => setPalette(true)}
-            title="Search or jump to (Cmd+K)"
+            title={`Search or jump to (${MOD_KEY_LABEL}+K)`}
             className={cn(
               'mx-3 mt-3 flex items-center gap-2 rounded-xl border bg-background/50 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground',
               collapsed ? 'justify-center px-0' : 'px-3',
             )}
           >
             <Search className="h-4 w-4 shrink-0" />
-            {!collapsed && <><span className="flex-1 text-left">Search or jump to</span><kbd className="rounded border px-1.5 text-[10px] font-medium">Cmd K</kbd></>}
+            {!collapsed && <><span className="flex-1 text-left">Search or jump to</span><kbd className="rounded border px-1.5 text-[10px] font-medium">{MOD_KEY_LABEL} K</kbd></>}
           </button>
 
           <nav data-tour="nav" className="mt-3 flex-1 space-y-4 overflow-y-auto px-3 pb-4">
@@ -327,6 +330,30 @@ function Shell() {
               <div className="flex flex-col items-center gap-1">
                 <Tutorial />
                 <Button variant="ghost" size="icon" onClick={() => (previewId() ? exitPreview() : logout())} title="Sign out" aria-label="Sign out">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : density === 'compact' ? (
+              // Ticket 8051f385: compact puts the account, help and sign-out on
+              // one row instead of stacking them.
+              <div className="flex items-center gap-1">
+                {nonActor ? (
+                  <NavLink
+                    to="/profile"
+                    title="Settings"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60"
+                  >
+                    <MemberAvatar url={me.avatarUrl} firstName={me.firstName} lastName={me.lastName} />
+                    <span className="truncate text-sm font-medium">{me.firstName} {me.lastName}</span>
+                  </NavLink>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5">
+                    <MemberAvatar url={me.avatarUrl} firstName={me.firstName} lastName={me.lastName} />
+                    <span className="truncate text-sm font-medium">{me.firstName} {me.lastName}</span>
+                  </div>
+                )}
+                <Tutorial />
+                <Button variant="ghost" size="icon" data-tour="signout" onClick={() => (previewId() ? exitPreview() : logout())} title="Sign out" aria-label="Sign out">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
