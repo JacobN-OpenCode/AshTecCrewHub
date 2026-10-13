@@ -188,6 +188,34 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="px-4 pb-10">
+        <div className="mx-auto max-w-4xl">
+          <Reveal delay={0.05}>
+            <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+              See it in action
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <p className="mt-2 text-center text-muted-foreground">
+              A quick look at the crew hub.
+            </p>
+          </Reveal>
+          <Reveal delay={0.15}>
+            <div className="mt-6 overflow-hidden rounded-3xl border bg-card shadow-sm">
+              <video
+                controls
+                playsInline
+                preload="metadata"
+                poster="/cat.png"
+                className="aspect-video w-full bg-black"
+              >
+                <source src="/video/demo.mp4" type="video/mp4" />
+              </video>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       <section className="px-4 pb-24">
         <div className="mx-auto max-w-5xl">
           <Reveal>
