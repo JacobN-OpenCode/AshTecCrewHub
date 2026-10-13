@@ -1,24 +1,26 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, ChartColumn, DoorOpen, Eye, HeartHandshake,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MoreHorizontal, PanelLeftClose,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, ChartColumn, DoorOpen, Eye, HeartHandshake,
+  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
 import CommandPalette, { type PaletteItem } from './CommandPalette';
+import MemberAvatar from './MemberAvatar';
 import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
 import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
-import { previewId, exitPreview } from '../lib/preview';
-import { useSidebarCollapsed } from '../lib/uiPrefs';
+import { previewId, exitPreview, pv } from '../lib/preview';
+import { ACCENTS, useSidebarCollapsed, useAccent } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
-import { PLATFORM } from '../lib/constants';
+import { PLATFORM, fmtDate } from '../lib/constants';
+import { globalSearch, type GlobalSearchOutputType } from '#api';
 
 /**
  * A navigation destination. Everything in the sidebar, the mobile drawer, the
@@ -103,8 +105,13 @@ function Shell() {
   usePageView(loc.pathname);
   const { session } = useLivePresence();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const [accent, setAccent] = useAccent();
   const [drawer, setDrawer] = useState(false);
   const [palette, setPalette] = useState(false);
+  // Events and crew for the search are fetched the first time it opens, not on
+  // every page load, so the shell stays cheap.
+  const [search, setSearch] = useState<GlobalSearchOutputType | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
   // Staff get the roster read-only; only admins get the controls.
   const canRunCheckIn = me.isAdmin || me.isStaff;
   const isStaffUser = me.isStaff && me.memberType !== 'Actor';
@@ -126,6 +133,17 @@ function Shell() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(() => {
+    if (!palette || search) return;
+    let live = true;
+    setSearchLoading(true);
+    globalSearch(pv())
+      .then((d) => { if (live) setSearch(d); })
+      .catch(() => {})
+      .finally(() => { if (live) setSearchLoading(false); });
+    return () => { live = false; };
+  }, [palette, search]);
 
   const groups: NavGroup[] = [];
   const main: NavItem[] = nonActor
@@ -169,10 +187,60 @@ function Shell() {
   ].filter((l) => me.isAdmin || l.to === '/admin/attendance') as NavItem[];
   if (admin.length) groups.push({ label: 'Admin', items: admin });
 
-  const paletteItems: PaletteItem[] = [
-    ...groups.flatMap((g) => g.items.map((i) => ({ to: i.to, label: i.label, group: g.label, icon: i.icon }))),
-    ...(nonActor ? [{ to: '/profile', label: 'Settings', group: 'Account', icon: Settings2 as LucideIcon }] : []),
-  ];
+  const cycleAccent = () => {
+    const i = ACCENTS.findIndex((a) => a.id === accent);
+    setAccent(ACCENTS[(i + 1) % ACCENTS.length].id);
+  };
+
+  const paletteItems: PaletteItem[] = useMemo(() => {
+    const items: PaletteItem[] = [];
+    // Pages, then doing-things, then the live data (events, shows, crew).
+    for (const g of groups) {
+      for (const i of g.items) {
+        items.push({ id: `page:${i.to}`, label: i.label, group: 'Jump to', icon: i.icon, keywords: g.label, to: i.to });
+      }
+    }
+
+    const actions: PaletteItem[] = [];
+    if (canRunCheckIn) actions.push({ id: 'act:checkin', label: 'Open venue check-in', group: 'Actions', icon: DoorOpen, keywords: 'register attendance sign in', to: '/admin/attendance' });
+    actions.push({ id: 'act:support', label: 'Submit a support request', group: 'Actions', icon: LifeBuoy, keywords: 'help bug report feedback problem helpdesk', run: () => window.dispatchEvent(new Event('ashtec:open-support')) });
+    actions.push({ id: 'act:accent', label: 'Change accent colour', group: 'Actions', icon: Palette, keywords: 'theme colour color theme', run: cycleAccent });
+    actions.push({ id: 'act:sidebar', label: collapsed ? 'Expand sidebar' : 'Collapse sidebar', group: 'Actions', icon: collapsed ? PanelLeftOpen : PanelLeftClose, keywords: 'menu layout nav navigation', run: () => setCollapsed(!collapsed) });
+    if (nonActor) actions.push({ id: 'act:settings', label: 'Open settings', group: 'Actions', icon: Settings2, keywords: 'profile account details', to: '/profile' });
+    actions.push({ id: 'act:signout', label: 'Sign out', group: 'Actions', icon: LogOut, keywords: 'log out log out', run: () => (previewId() ? exitPreview() : logout()) });
+    items.push(...actions);
+
+    if (search) {
+      for (const e of search.events.slice(0, 40)) {
+        items.push({
+          id: `event:${e.id}`,
+          label: e.title,
+          group: 'Events',
+          icon: CalendarDays,
+          keywords: `${e.type} ${e.date ?? ''} ${e.dateTbc ? 'date tbc' : ''}`,
+          hint: e.date ? fmtDate(e.date ?? null, e.dateTbc) : undefined,
+          to: `/calendar?event=${encodeURIComponent(e.id)}${e.date ? `&date=${e.date}` : ''}`,
+        });
+      }
+      for (const s of search.shows) {
+        items.push({ id: `show:${s.id}`, label: s.name, group: 'Shows', icon: Tv, keywords: `${s.code ?? ''} production`, to: `/calendar?show=${encodeURIComponent(s.id)}` });
+      }
+      for (const m of search.members) {
+        items.push({
+          id: `crew:${m.id}`,
+          label: `${m.firstName} ${m.lastName}`.trim(),
+          group: 'Crew',
+          icon: Users,
+          avatarUrl: m.avatarUrl || undefined,
+          keywords: `${m.username ?? ''} ${m.year ?? ''} ${m.memberType}`,
+          hint: m.year ?? undefined,
+          to: me.isAdmin ? `/admin/members?member=${encodeURIComponent(m.id)}` : '/',
+        });
+      }
+    }
+
+    return items;
+  }, [groups, nonActor, canRunCheckIn, collapsed, accent, search, me.isAdmin, setCollapsed, setAccent]);
 
   // The title in the mobile app bar: the deepest matching destination.
   const active = groups
@@ -185,9 +253,7 @@ function Shell() {
 
   const account = (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-        {(me.firstName?.[0] ?? '') + (me.lastName?.[0] ?? '')}
-      </span>
+      <MemberAvatar url={me.avatarUrl} firstName={me.firstName} lastName={me.lastName} />
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{me.firstName} {me.lastName}</span>
         <span className="block truncate text-xs text-muted-foreground">
@@ -324,7 +390,11 @@ function Shell() {
 
           <main className="app-main mx-auto max-w-7xl px-4 pt-6 lg:px-8 lg:pt-8">
             <PresenceBanner hide={loc.pathname === '/attendance'} />
-            <Outlet />
+            {/* Keyed on the path so each page fades/slides in when you navigate.
+                Query-only changes do not remount, so in-page state is kept. */}
+            <div key={loc.pathname} className="animate-page">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>
@@ -391,7 +461,7 @@ function Shell() {
         </div>
       )}
 
-      <CommandPalette open={palette} onOpenChange={setPalette} items={paletteItems} />
+      <CommandPalette open={palette} onOpenChange={setPalette} items={paletteItems} loading={searchLoading} />
       {!previewId() && <SupportButton />}
     </div>
   );

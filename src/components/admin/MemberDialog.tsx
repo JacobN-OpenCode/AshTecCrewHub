@@ -9,9 +9,10 @@ import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
+import MemberAvatar from '../MemberAvatar';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '' };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
@@ -62,6 +63,14 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           ))}
           <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES} ph="—" /></div>
           <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES} ph="—" /></div>
+          <div className="sm:col-span-2 space-y-1">
+            <label className="text-sm">Profile picture URL</label>
+            <div className="flex items-center gap-3">
+              <MemberAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size="lg" />
+              <Input type="url" value={f.avatarUrl} onChange={(e) => set({ avatarUrl: e.target.value })} placeholder="https://…" />
+            </div>
+            <p className="text-xs text-muted-foreground">Leave blank to use their initials.</p>
+          </div>
           <div className="sm:col-span-2 space-y-1"><label className="text-sm">Admin notes (things said in person, etc.)</label><Textarea value={f.adminNotes} onChange={(e) => set({ adminNotes: e.target.value })} /></div>
           {member && !member.isStaff && (
             <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">

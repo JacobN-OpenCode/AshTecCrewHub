@@ -100,7 +100,12 @@ export default function Calendar() {
   const initialEventId = searchParams.get('event') ?? '';
 
   const [month, setMonth] = useState(() => firstOfMonth(initialDate ?? new Date()));
-  const [pickedShows, setPickedShows] = useState<string[]>([]);
+  // Allow /calendar?show=<id> to start with that show's filter applied, so a
+  // show picked in the command palette lands on its events.
+  const [pickedShows, setPickedShows] = useState<string[]>(() => {
+    const s = searchParams.get('show');
+    return s ? [s] : [];
+  });
   const [types, setTypes] = useState<string[]>([]);
   const [responses, setResponses] = useState<string[]>([]);
   const [editEvent, setEditEvent] = useState<AdminSubEvent | null>(null);

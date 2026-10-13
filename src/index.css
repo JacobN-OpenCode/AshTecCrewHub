@@ -134,6 +134,55 @@
 }
 .hc-scroll-x::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.8); background-clip: padding-box; }
 
+/* Subtle motion across the app. Kept short and small-amplitude on purpose so it
+   reads as polish rather than decoration. The prefers-reduced-motion block at
+   the end of this file switches all of it off. */
+@keyframes hc-page {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes hc-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes hc-pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Each page fades and slides in when you navigate (see AppShell <Outlet />). */
+.animate-page { animation: hc-page 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Put `hc-rise` on a card/section to have it settle in; `hc-pop` on something
+   small that should appear (a badge, a button, a panel). */
+.hc-rise { animation: hc-rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hc-pop  { animation: hc-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Add `hc-stagger` to a container to fade its direct children in one after
+   another. Capped at 12 children so a long list does not crawl. */
+.hc-stagger > * { animation: hc-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hc-stagger > *:nth-child(1)  { animation-delay: 0.02s; }
+.hc-stagger > *:nth-child(2)  { animation-delay: 0.05s; }
+.hc-stagger > *:nth-child(3)  { animation-delay: 0.08s; }
+.hc-stagger > *:nth-child(4)  { animation-delay: 0.11s; }
+.hc-stagger > *:nth-child(5)  { animation-delay: 0.14s; }
+.hc-stagger > *:nth-child(6)  { animation-delay: 0.17s; }
+.hc-stagger > *:nth-child(7)  { animation-delay: 0.20s; }
+.hc-stagger > *:nth-child(8)  { animation-delay: 0.23s; }
+.hc-stagger > *:nth-child(9)  { animation-delay: 0.26s; }
+.hc-stagger > *:nth-child(10) { animation-delay: 0.29s; }
+.hc-stagger > *:nth-child(11) { animation-delay: 0.32s; }
+.hc-stagger > *:nth-child(12) { animation-delay: 0.35s; }
+
+/* A gentle lift for interactive cards and rows. */
+.hc-lift { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.hc-lift:hover { transform: translateY(-2px); }
+
+@keyframes hc-sheen {
+  from { background-position: -160% 0; }
+  to   { background-position: 260% 0; }
+}
+
 /* Installed-PWA safe areas (notch, home indicator). viewport-fit=cover in
    index.html lets the app draw edge to edge; these keep the header, content and
    the floating help button clear of the hardware. No-ops on a normal browser. */
@@ -154,4 +203,16 @@
      bar; without this the notch covers the back button on iOS (ticket 899c34a6). */
   .dash-topbar { padding-top: env(safe-area-inset-top); }
   .dash-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Honour the OS "reduce motion" setting everywhere: page/card/button motion is
+   decoration, so it collapses to effectively instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .hc-lift:hover { transform: none; }
 }

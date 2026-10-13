@@ -4,6 +4,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Input } from '@project/components/ui/input';
 import { Search } from 'lucide-react';
 import { useMe } from '../lib/me';
+import MemberAvatar from '../components/MemberAvatar';
 import { pv } from '../lib/preview';
 import { fmtDate } from '../lib/constants';
 
@@ -70,7 +71,7 @@ export default function StaffHub() {
   if (!data) return <div className="space-y-4">{[0, 1].map((i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 hc-stagger">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
         <p className="text-muted-foreground mt-1">{busy ? 'Loading roster…' : `${data.students.length} students on the roster.`}</p>
@@ -120,8 +121,11 @@ export default function StaffHub() {
               {rows.map(({ student, byEvent }) => (
                 <tr key={student.id} className="border-b last:border-0">
                   <td className="sticky left-0 bg-background px-3 py-1.5 whitespace-nowrap z-10">
-                    <span className="font-medium">{student.firstName}{student.lastName ? ' ' + student.lastName : ''}</span>
-                    {student.year && <span className="text-xs text-muted-foreground ml-1.5">{student.year}</span>}
+                    <span className="flex items-center gap-2">
+                      <MemberAvatar url={student.avatarUrl} firstName={student.firstName} lastName={student.lastName} size="sm" />
+                      <span className="font-medium">{student.firstName}{student.lastName ? ' ' + student.lastName : ''}</span>
+                      {student.year && <span className="text-xs text-muted-foreground">{student.year}</span>}
+                    </span>
                   </td>
                   {events.slice(0, 12).map((e) => {
                     const cell = byEvent.get(e.id);

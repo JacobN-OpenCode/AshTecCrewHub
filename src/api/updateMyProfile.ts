@@ -22,6 +22,9 @@ export default createEndpoint({
     schoolEmail: z.string().max(200).optional(),
     preferredRole1: z.string().optional(),
     preferredRole2: z.string().optional(),
+    // Profile picture as a link, not an upload: we do not host images. Empty
+    // clears it back to the initial-letter fallback.
+    avatarUrl: z.string().max(500).optional(),
   }),
   outputSchema: z.object({ success: z.boolean(), emailChanged: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -50,6 +53,14 @@ export default createEndpoint({
     const p1 = (input.preferredRole1 ?? me.preferredRole1 ?? '') as string;
     const p2 = (input.preferredRole2 ?? me.preferredRole2 ?? '') as string;
     if (p1 && p1 === p2) throw new Error('Pick two different roles.');
+
+    if (input.avatarUrl !== undefined) {
+      const url = input.avatarUrl.trim();
+      if (!url) record.avatarUrl = '';
+      else if (!/^https?:\/\//i.test(url)) throw new Error('The picture must be a link starting with http:// or https://.');
+      else if (/\s/.test(url)) throw new Error('That picture link has a space in it - check it is one clean URL.');
+      else record.avatarUrl = url;
+    }
 
     let emailChanged = false;
     if (input.schoolEmail !== undefined) {

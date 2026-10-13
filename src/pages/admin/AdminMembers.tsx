@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { adminSaveMember } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -16,6 +17,7 @@ import { ROLES, YEARS, MEMBER_TYPES } from '../../lib/constants';
 import { pendingForms } from '../../lib/reminders';
 import MemberDialog from '../../components/admin/MemberDialog';
 import MemberProfileDialog from '../../components/admin/MemberProfileDialog';
+import MemberAvatar from '../../components/MemberAvatar';
 import RemindButton from '../../components/admin/RemindButton';
 import MultiFilter from '../../components/admin/MultiFilter';
 
@@ -31,6 +33,17 @@ export default function AdminMembers() {
   const [editing, setEditing] = useState<{ m: AdminMember | null; preview?: boolean } | null>(null);
   const [profile, setProfile] = useState<AdminMember | null>(null);
   const [del, setDel] = useState<AdminMember | null>(null);
+  // A crew result in the command palette links here with ?member=<id>, which
+  // opens that person's profile once the data has loaded (once only).
+  const [searchParams] = useSearchParams();
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    if (openedFromLink.current || !data) return;
+    const id = searchParams.get('member');
+    if (!id) return;
+    const m = data.members.find((x) => x.id === id);
+    if (m) { openedFromLink.current = true; setProfile(m); }
+  }, [data, searchParams]);
 
   /** How many forms each member still owes, so the list can filter on it. */
   const outstanding = useMemo(() => {
@@ -120,6 +133,7 @@ export default function AdminMembers() {
         {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No crew members match these filters.</p>}
         {list.map((m) => (
           <div key={m.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 hover:bg-muted/40 cursor-pointer" onClick={() => setProfile(m)}>
+            <MemberAvatar url={m.avatarUrl} firstName={m.firstName} lastName={m.lastName} size="md" />
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{m.firstName} {m.lastName}</span>

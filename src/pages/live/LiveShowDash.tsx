@@ -13,6 +13,7 @@ import {
   Send, Monitor, Smartphone, Tablet, X, UserPlus, Pencil, Package,
 } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
+import ShowIdle from '../../components/ShowIdle';
 
 type Cred = { email: string; secret: string; name: string };
 
@@ -584,7 +585,7 @@ function DashTopBar({ title, subtitle, right }: { title: string; subtitle: strin
 export default function LiveShowDash() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<'boot' | 'closed' | 'enable' | 'board'>('boot');
+  const [phase, setPhase] = useState<'boot' | 'idle' | 'enable' | 'board'>('boot');
   const [board, setBoard] = useState<Board | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -600,7 +601,10 @@ export default function LiveShowDash() {
   const cred = creds[0] ?? null;
 
   const apply = useCallback((r: StatePayload) => {
-    if (!r.hasShow) { setPhase('closed'); setDevice(null); setBoard(null); return; }
+    // No show running (or none set up at all): show only the cat idle screen -
+    // no board, no scenes, no enable/PIN. An open-but-unenabled show still gets
+    // the enable screen below so a screen can be brought online before it starts.
+    if (!r.open) { setPhase('idle'); setDevice(null); setBoard(null); return; }
     if (!r.enabled) { setPhase('enable'); setBoard(r.liveShow ?? null); return; }
     setBoard(r.liveShow as Board);
     setScenes((r.scenes ?? []) as Scene[]);
@@ -643,7 +647,7 @@ export default function LiveShowDash() {
   }, [authLoading, user, refresh]);
 
   useEffect(() => {
-    if (phase === 'boot' || phase === 'closed' || phase === 'enable' || phase === 'board') {
+    if (phase === 'boot' || phase === 'idle' || phase === 'enable' || phase === 'board') {
       const id = window.setInterval(() => { void refresh(); }, 5000);
       const onVis = () => { if (document.visibilityState === 'visible') void refresh(); };
       document.addEventListener('visibilitychange', onVis);
@@ -769,29 +773,18 @@ export default function LiveShowDash() {
 
   return (
     <div className="min-h-screen bg-[#07080a] text-cream flex flex-col">
-      <DashTopBar title={title} subtitle={subtitle} right={
-        isAdmin && phase === 'closed' ? (
-          <Button size="sm" variant="outline" onClick={() => navigate('/admin/live-show')}>
-            <Settings2 className="h-4 w-4 mr-1.5" />Show Setup
-          </Button>
-        ) : undefined
-      } />
+      {/* No show running: the idle screen is all there is, so it gets the whole
+          page with no top bar competing with it. */}
+      {phase === 'idle' && <ShowIdle />}
 
-      {phase === 'closed' && (
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="text-center space-y-4 max-w-sm">
-            <div className="mx-auto h-14 w-14 rounded-2xl border border-[#2a3040] bg-[#10131a] flex items-center justify-center">
-              <Tv className="h-6 w-6 text-cream/50" />
-            </div>
-            <h2 className="text-2xl font-bold">No show is running right now</h2>
-            <p className="text-sm text-[#9aa3b2]">This screen will show the board as soon as the show starts.</p>
-            {isAdmin && (
-              <Button onClick={() => navigate('/admin/live-show')} className="mx-auto">
-                <Settings2 className="h-4 w-4 mr-2" />Open Show Setup
-              </Button>
-            )}
-          </div>
-        </div>
+      {phase !== 'idle' && (
+        <DashTopBar title={title} subtitle={subtitle} right={
+          isAdmin && phase === 'enable' ? (
+            <Button size="sm" variant="outline" onClick={() => navigate('/admin/live-show')}>
+              <Settings2 className="h-4 w-4 mr-1.5" />Show Setup
+            </Button>
+          ) : undefined
+        } />
       )}
 
       {phase === 'enable' && <EnableScreen showName={board?.name ?? ''} onEnabled={onEnabled} />}

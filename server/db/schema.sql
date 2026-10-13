@@ -292,6 +292,11 @@ CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
 -- than a settings row because it is genuinely per-person.
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "adminNotifications" boolean;
 
+-- Profile picture, as a URL the member pastes in Settings. We deliberately do
+-- not host the image ourselves, so there is no upload column or blob storage:
+-- just the link, which can be cleared by setting it to an empty string.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "avatarUrl" text NOT NULL DEFAULT '';
+
 -- Small key/value store for app-wide settings the server sets for itself (the
 -- generated VAPID keypair) and that an admin can flip at runtime. Created IF NOT
 -- EXISTS so it is safe to re-run.

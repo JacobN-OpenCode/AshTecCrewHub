@@ -332,6 +332,13 @@ export type GetStageLayoutInputType = NonNullable<_GetStageLayoutCfg['inputSchem
 export type GetStageLayoutOutputType = Awaited<ReturnType<_GetStageLayoutCfg['execute']>>;
 export const getStageLayout = createCaller<GetStageLayoutInputType, GetStageLayoutOutputType>('getStageLayout');
 
+import type { default as _GlobalSearchEp } from '../api/globalSearch';
+
+type _GlobalSearchCfg = typeof _GlobalSearchEp;
+export type GlobalSearchInputType = NonNullable<_GlobalSearchCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GlobalSearchCfg['execute']>[0]['input'];
+export type GlobalSearchOutputType = Awaited<ReturnType<_GlobalSearchCfg['execute']>>;
+export const globalSearch = createCaller<GlobalSearchInputType, GlobalSearchOutputType>('globalSearch');
+
 import type { default as _LiveShowAnnouncementEp } from '../api/liveShowAnnouncement';
 
 type _LiveShowAnnouncementCfg = typeof _LiveShowAnnouncementEp;
@@ -545,6 +552,7 @@ export const api = {
   getPushConfig,
   getStaffHome,
   getStageLayout,
+  globalSearch,
   liveShowAnnouncement,
   liveShowChat,
   liveShowMovement,

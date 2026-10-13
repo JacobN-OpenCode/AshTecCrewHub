@@ -7,6 +7,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Pencil, Shield, Wrench } from 'lucide-react';
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { fmtDate } from '../../lib/constants';
+import MemberAvatar from '../MemberAvatar';
 import RemindButton from './RemindButton';
 
 /**
@@ -83,16 +84,26 @@ export default function MemberProfileDialog({
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="flex flex-wrap items-center gap-2">
-                {detail.member.firstName} {detail.member.lastName}
-                {detail.member.isAdmin && <Shield className="h-4 w-4 text-primary" />}
-                {detail.member.isMaintainer && <Wrench className="h-4 w-4 text-primary" />}
-                {detail.member.isPreview && <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">Preview</Badge>}
-                {detail.isStaff && <Badge variant="outline">Staff</Badge>}
-                <Badge variant="outline">{detail.member.memberType}</Badge>
-                {detail.member.year && <span className="text-sm font-normal text-muted-foreground">{detail.member.year}</span>}
-              </DialogTitle>
-              <p className="text-muted-foreground">@{detail.member.shortUsername} · {detail.member.email}</p>
+              <div className="flex items-start gap-3">
+                <MemberAvatar
+                  url={detail.member.avatarUrl}
+                  firstName={detail.member.firstName}
+                  lastName={detail.member.lastName}
+                  size="lg"
+                />
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="flex flex-wrap items-center gap-2">
+                    {detail.member.firstName} {detail.member.lastName}
+                    {detail.member.isAdmin && <Shield className="h-4 w-4 text-primary" />}
+                    {detail.member.isMaintainer && <Wrench className="h-4 w-4 text-primary" />}
+                    {detail.member.isPreview && <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30">Preview</Badge>}
+                    {detail.isStaff && <Badge variant="outline">Staff</Badge>}
+                    <Badge variant="outline">{detail.member.memberType}</Badge>
+                    {detail.member.year && <span className="text-sm font-normal text-muted-foreground">{detail.member.year}</span>}
+                  </DialogTitle>
+                  <p className="text-muted-foreground">@{detail.member.shortUsername} · {detail.member.email}</p>
+                </div>
+              </div>
             </DialogHeader>
 
             <div className="space-y-5">

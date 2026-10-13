@@ -47,12 +47,12 @@ export default function AdminOverview() {
         </Link>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 hc-stagger">
         {TILES.map((t) => (
           <Link
             key={t.to}
             to={t.to}
-            className="group rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
+            className="group hc-lift rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/[0.04]"
           >
             <t.icon className="h-5 w-5 text-primary" />
             <p className="mt-3 font-semibold">{t.label}</p>

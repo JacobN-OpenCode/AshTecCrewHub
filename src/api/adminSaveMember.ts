@@ -23,6 +23,7 @@ export default createEndpoint({
     adminNotes: z.string().optional(),
     isMaintainer: z.boolean().optional(),
     isPreview: z.boolean().optional(),
+    avatarUrl: z.string().max(500).optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
   execute: async ({ input, context }) => {
@@ -38,6 +39,10 @@ export default createEndpoint({
     const clash = await findMemberByEmail(email);
     if (clash && clash.id !== input.id) throw new Error('Another member already uses that email.');
     if (input.id === me.id && input.isAdmin === false) throw new Error('You can’t remove your own admin access.');
+    const avatarUrl = (input.avatarUrl ?? '').trim();
+    if (avatarUrl && (!/^https?:\/\//i.test(avatarUrl) || /\s/.test(avatarUrl))) {
+      throw new Error('Profile picture URL must start with http:// or https://.');
+    }
     const record = {
       firstName: input.firstName,
       lastName: input.lastName ?? '',
@@ -57,6 +62,7 @@ export default createEndpoint({
       preferredRole1: input.preferredRole1 || '',
       preferredRole2: input.preferredRole2 || '',
       adminNotes: input.adminNotes ?? '',
+      avatarUrl,
     };
     if (input.id) {
       await zite.crewMembers.update({ id: input.id, record });

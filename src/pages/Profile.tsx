@@ -13,6 +13,7 @@ import { cn } from '@project/components/lib/utils';
 import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
+import MemberAvatar from '../components/MemberAvatar';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, ACCENTS } from '../lib/uiPrefs';
@@ -29,6 +30,7 @@ export default function Profile() {
   const [email, setEmail] = useState(me.email);
   const [p1, setP1] = useState(me.preferredRole1);
   const [p2, setP2] = useState(me.preferredRole2);
+  const [avatarUrl, setAvatarUrl] = useState(me.avatarUrl);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
 
@@ -37,13 +39,15 @@ export default function Profile() {
 
   useEffect(() => {
     setFirstName(me.firstName); setLastName(me.lastName); setYear(me.year); setEmail(me.email);
-    setP1(me.preferredRole1); setP2(me.preferredRole2);
+    setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
   }, [me]);
 
   const save = async () => {
     setBusy(true);
     try {
-      const r = await updateMyProfile({ firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2 });
+      const r = await updateMyProfile({
+        avatarUrl, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
+      });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
     } catch (e) { toast.error((e as Error).message); }
@@ -97,6 +101,24 @@ export default function Profile() {
         <div>
           <h2 className="font-semibold text-lg">Your details</h2>
           <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
+        </div>
+
+        {/* Profile picture is a link, not an upload - the app stores the URL and
+            the browser loads the image, so nothing large lands on the server. */}
+        <div className="flex items-center gap-4">
+          <MemberAvatar url={avatarUrl} firstName={firstName} lastName={lastName} size="xl" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="avatar">Profile picture URL</Label>
+            <Input
+              id="avatar"
+              type="url"
+              inputMode="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://example.com/me.jpg"
+            />
+            <p className="text-xs text-muted-foreground">Paste a link to a picture of you. Leave it blank to use your initials.</p>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-3">

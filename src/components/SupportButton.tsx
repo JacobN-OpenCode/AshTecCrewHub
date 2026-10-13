@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { submitSupport, type SubmitSupportInputType } from '#api';
@@ -27,6 +27,14 @@ export default function SupportButton() {
   const [busy, setBusy] = useState(false);
   const [collapsed] = useSupportCollapsed();
   const valid = subject.trim().length >= 3 && message.trim().length >= 10;
+
+  // The command palette can open this dialog from anywhere, so it fires a window
+  // event rather than the two components knowing about each other.
+  useEffect(() => {
+    const openIt = () => setOpen(true);
+    window.addEventListener('ashtec:open-support', openIt);
+    return () => window.removeEventListener('ashtec:open-support', openIt);
+  }, []);
 
   const send = async () => {
     setBusy(true);
