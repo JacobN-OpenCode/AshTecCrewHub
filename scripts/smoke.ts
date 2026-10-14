@@ -402,6 +402,38 @@ if (!admin) {
       check('found a sub event and show to write against', false, 'seed data missing');
     }
 
+    // ------------------------------------------------------- feedback form
+    // The /feedback/:formId flow: a member answers once and cannot change it,
+    // an admin can then read the answers, and a non-admin cannot. Uses the
+    // throwaway crew account; the answer is deleted afterwards.
+    {
+      const { rows: fbCrew } = await db().query(
+        `SELECT "id", "schoolEmail" FROM "CrewMembers" WHERE "schoolEmail" = $1`, [CREW_EMAIL]);
+      const crew = fbCrew[0];
+      if (!crew) {
+        check('found the crew member for the feedback flow', false);
+      } else {
+        const fbJar = await signIn(String(crew.schoolEmail));
+        const before = await callAs(fbJar, 'getMyFeedback', { form: '1' });
+        check('getMyFeedback starts as not-responded', before.status === 200 && before.body?.responded === false, JSON.stringify(before.body));
+        const empty = await callAs(fbJar, 'submitFeedback', { form: '1', selected: [], other: '   ' });
+        check('an empty answer is rejected 400', empty.status === 400, `got ${empty.status}`);
+        const sent = await callAs(fbJar, 'submitFeedback', { form: '1', selected: ['checklists', 'more-cat'], other: 'Smoke test note.' });
+        check('submitFeedback stores an answer', sent.status === 200 && sent.body?.ok === true, JSON.stringify(sent.body));
+        const after = await callAs(fbJar, 'getMyFeedback', { form: '1' });
+        check('getMyFeedback now reports responded', after.status === 200 && after.body?.responded === true && after.body?.selected?.includes('more-cat'), JSON.stringify(after.body));
+        const again = await callAs(fbJar, 'submitFeedback', { form: '1', selected: ['dms'] });
+        check('a second answer is refused 409', again.status === 409, `got ${again.status}`);
+        const bad = await callAs(fbJar, 'submitFeedback', { form: 'nope', selected: ['dms'] });
+        check('an unknown form id is rejected 404', bad.status === 404, `got ${bad.status}`);
+        const forbidden = await callAs(fbJar, 'adminGetFeedback', { form: '1' });
+        check('a non-admin cannot read all feedback (403)', forbidden.status === 403, `got ${forbidden.status}`);
+        const adminView = await call('adminGetFeedback', { form: '1' });
+        check('adminGetFeedback lists the answer', adminView.status === 200 && adminView.body?.responses?.some((r: any) => r.memberId === crew.id), JSON.stringify(adminView.body?.responses?.length));
+      }
+    }
+    await db().query('DELETE FROM "FeedbackResponses" WHERE "memberEmail" = $1', [CREW_EMAIL]);
+
     // ------------------------------------------ QR: ready / not_admin / roster
     // Drives the real approval flow: an admin opens a session, an ordinary crew
     // member asks to sign in, and each side scans the resulting QR code. This

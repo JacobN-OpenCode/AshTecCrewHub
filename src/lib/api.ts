@@ -38,6 +38,13 @@ export type AdminGetEmailLogInputType = NonNullable<_AdminGetEmailLogCfg['inputS
 export type AdminGetEmailLogOutputType = Awaited<ReturnType<_AdminGetEmailLogCfg['execute']>>;
 export const adminGetEmailLog = createCaller<AdminGetEmailLogInputType, AdminGetEmailLogOutputType>('adminGetEmailLog');
 
+import type { default as _AdminGetFeedbackEp } from '../api/adminGetFeedback';
+
+type _AdminGetFeedbackCfg = typeof _AdminGetFeedbackEp;
+export type AdminGetFeedbackInputType = NonNullable<_AdminGetFeedbackCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetFeedbackCfg['execute']>[0]['input'];
+export type AdminGetFeedbackOutputType = Awaited<ReturnType<_AdminGetFeedbackCfg['execute']>>;
+export const adminGetFeedback = createCaller<AdminGetFeedbackInputType, AdminGetFeedbackOutputType>('adminGetFeedback');
+
 import type { default as _AdminGetLiveShowEp } from '../api/adminGetLiveShow';
 
 type _AdminGetLiveShowCfg = typeof _AdminGetLiveShowEp;
@@ -311,6 +318,13 @@ export type GetMyEventsInputType = NonNullable<_GetMyEventsCfg['inputSchema']> e
 export type GetMyEventsOutputType = Awaited<ReturnType<_GetMyEventsCfg['execute']>>;
 export const getMyEvents = createCaller<GetMyEventsInputType, GetMyEventsOutputType>('getMyEvents');
 
+import type { default as _GetMyFeedbackEp } from '../api/getMyFeedback';
+
+type _GetMyFeedbackCfg = typeof _GetMyFeedbackEp;
+export type GetMyFeedbackInputType = NonNullable<_GetMyFeedbackCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMyFeedbackCfg['execute']>[0]['input'];
+export type GetMyFeedbackOutputType = Awaited<ReturnType<_GetMyFeedbackCfg['execute']>>;
+export const getMyFeedback = createCaller<GetMyFeedbackInputType, GetMyFeedbackOutputType>('getMyFeedback');
+
 import type { default as _GetPresenceEp } from '../api/getPresence';
 
 type _GetPresenceCfg = typeof _GetPresenceEp;
@@ -493,6 +507,13 @@ export type SetShowResponseInputType = NonNullable<_SetShowResponseCfg['inputSch
 export type SetShowResponseOutputType = Awaited<ReturnType<_SetShowResponseCfg['execute']>>;
 export const setShowResponse = createCaller<SetShowResponseInputType, SetShowResponseOutputType>('setShowResponse');
 
+import type { default as _SubmitFeedbackEp } from '../api/submitFeedback';
+
+type _SubmitFeedbackCfg = typeof _SubmitFeedbackEp;
+export type SubmitFeedbackInputType = NonNullable<_SubmitFeedbackCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SubmitFeedbackCfg['execute']>[0]['input'];
+export type SubmitFeedbackOutputType = Awaited<ReturnType<_SubmitFeedbackCfg['execute']>>;
+export const submitFeedback = createCaller<SubmitFeedbackInputType, SubmitFeedbackOutputType>('submitFeedback');
+
 import type { default as _SubmitSupportEp } from '../api/submitSupport';
 
 type _SubmitSupportCfg = typeof _SubmitSupportEp;
@@ -538,6 +559,7 @@ export const api = {
   adminGetData,
   adminGetDiagnostics,
   adminGetEmailLog,
+  adminGetFeedback,
   adminGetLiveShow,
   adminGetLogs,
   adminGetMemberDetail,
@@ -577,6 +599,7 @@ export const api = {
   getMe,
   getMyCatLoginStatus,
   getMyEvents,
+  getMyFeedback,
   getPresence,
   getPublicCalendar,
   getPublicParents,
@@ -603,6 +626,7 @@ export const api = {
   setAttendance,
   setMyAdminSecret,
   setShowResponse,
+  submitFeedback,
   submitSupport,
   supportDigest,
   supportEscalate,

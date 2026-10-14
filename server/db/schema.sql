@@ -536,4 +536,23 @@ CREATE TABLE IF NOT EXISTS "LiveShowAnnouncements" (
 );
 CREATE INDEX IF NOT EXISTS "LiveShowAnnouncements_show_idx" ON "LiveShowAnnouncements" ("liveShowId");
 
+-- One member's answer to a feedback form (/feedback/:formId). A member answers a
+-- given form exactly once and cannot edit it afterwards, which the unique index
+-- on (form, member) enforces at the database, not just in the endpoint. `selected`
+-- holds feature ids from src/lib/feedback.ts; `other` is the free-text box.
+CREATE TABLE IF NOT EXISTS "FeedbackResponses" (
+  "id"          uuid PRIMARY KEY,
+  "form"        text NOT NULL,
+  "member"      uuid,
+  "memberEmail" text NOT NULL DEFAULT '',
+  "memberName"  text NOT NULL DEFAULT '',
+  "selected"    text[] NOT NULL DEFAULT '{}',
+  "other"       text NOT NULL DEFAULT '',
+  "submittedAt" timestamptz NOT NULL DEFAULT now(),
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "FeedbackResponses_form_member_idx" ON "FeedbackResponses" ("form", "member");
+CREATE INDEX IF NOT EXISTS "FeedbackResponses_form_idx" ON "FeedbackResponses" ("form");
+
 COMMIT;

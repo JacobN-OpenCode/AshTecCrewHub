@@ -4,7 +4,7 @@ import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, ChartColumn, DoorOpen, Eye, HeartHandshake,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MoreHorizontal, Palette, PanelLeftClose,
+  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -185,6 +185,7 @@ function Shell() {
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
+    { to: '/admin/feedback', label: 'Feedback', icon: MessageSquareHeart },
     { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
   ].filter((l) => me.isAdmin || l.to === '/admin/attendance') as NavItem[];
