@@ -37,6 +37,18 @@ export default createEndpoint({
     if (input.movementSeconds !== undefined) record.movementSeconds = Math.max(10, Math.min(600, Math.floor(input.movementSeconds)));
     if (input.movementAdmins !== undefined) record.movementAdmins = [...new Set(input.movementAdmins)];
     if (input.open !== undefined) record.open = !!input.open;
+    // dd0dd794: ending a show (or starting a fresh one) resets the show clock so
+    // the next show never inherits the previous run's elapsed time.
+    if (input.open === false) {
+      record.timerMode = 'stopped';
+      record.timerStartAt = null;
+      record.timerElapsedMs = 0;
+    }
+    if (input.open === true) {
+      record.timerMode = 'stopped';
+      record.timerStartAt = null;
+      record.timerElapsedMs = 0;
+    }
     record.updatedBy = admin.id;
 
     if (liveShow) {

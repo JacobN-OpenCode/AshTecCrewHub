@@ -117,7 +117,11 @@ export default function LiveShowAdmin() {
   const [busyAction, setBusyAction] = useState('');
 
   useEffect(() => {
-    if (!showId && shows.length > 0) setShowId(String(shows[0].id));
+    if (!showId && shows.length > 0) {
+      // 331a178a: auto-select the show if one is live/open; else first
+      const live = shows.find((s: any) => s.open || s.status === 'live' || s.status === 'rehearsal' || s.status === 'intermission');
+      setShowId(String((live ?? shows[0]).id));
+    }
   }, [shows, showId]);
 
   const loadShow = useCallback(async (id: string) => {

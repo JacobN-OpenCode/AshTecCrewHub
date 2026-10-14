@@ -13,12 +13,14 @@
  */
 
 import { zite } from './db/index.js';
-import { ids } from '../src/lib/server.js';
+import { ids, isEmailable } from '../src/lib/server.js';
 import { sendToMember, sendToMembers, claimNotification, type PushPayload } from './push.js';
+import { Email } from './email.js';
 
 interface Person {
   id: string;
   firstName?: string;
+  schoolEmail?: string;
   isAdmin?: boolean;
   isMaintainer?: boolean;
   isPreviewAccount?: boolean;
@@ -143,6 +145,52 @@ export async function notifyPresenceWaiting(memberName: string, action: string):
     url: '/admin/attendance?scan=1',
     tag: 'presence-waiting',
   });
+}
+
+/**
+ * Ticket 20c8af90: tell the maintainers when the hub throws an error, so a bug
+ * a member hits does not sit unnoticed until they file a ticket about it.
+ *
+ * This is deliberately noisy-proof: the same source+message is only reported
+ * once per window, so a hot loop cannot flood anyone. Delivery is both a push
+ * (seen immediately) and an email (kept as a record), to maintainers and admins
+ * who have admin notifications on, exactly like the other admin alerts.
+ */
+const SERVER_ALERT_WINDOW_MS = 15 * 60 * 1000;
+const recentServerAlerts = new Map<string, number>();
+
+export async function notifyServerError(info: { source: string; message: string; detail?: string }): Promise<void> {
+  const message = String(info.message ?? 'Unknown error').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const key = `${info.source}|${message}`.slice(0, 300);
+  const now = Date.now();
+  for (const [k, t] of recentServerAlerts) if (now - t > SERVER_ALERT_WINDOW_MS) recentServerAlerts.delete(k);
+  if (recentServerAlerts.has(key)) return;
+  recentServerAlerts.set(key, now);
+
+  const people = (await crew()).filter((m) => mayReceiveAdmin(m) && (m.isMaintainer || m.isAdmin));
+  if (!people.length) return;
+
+  await sendToMembers(people.map((m) => m.id), {
+    title: 'Crew hub error',
+    body: `${info.source}: ${message}`.slice(0, 180),
+    url: '/admin/support',
+    tag: `server-error-${info.source}`,
+  }).catch(() => 0);
+
+  const detail = info.detail ? `\n\n> ${String(info.detail).slice(0, 500).split('\n').join('\n> ')}` : '';
+  const body = [
+    { type: 'text' as const, content: `**An error occurred in the crew hub.**\n\nWhere: \`${info.source}\`\n\nWhat: ${message}${detail}` },
+    { type: 'button' as const, label: 'Open the support tab', href: `${process.env.APP_URL ?? ''}/admin/support` },
+  ];
+  await Promise.all(
+    people.filter((m) => isEmailable(m as never)).map(async (m) => {
+      try {
+        await Email.send({ to: m.schoolEmail!, subject: `Crew hub error: ${info.source}`, body });
+      } catch {
+        /* keep going */
+      }
+    }),
+  );
 }
 
 // ------------------------------------------------------- personal notifications

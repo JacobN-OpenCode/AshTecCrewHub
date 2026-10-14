@@ -1,5 +1,5 @@
 import { previewId, pv } from '../lib/preview';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket } from '#api';
 import { Button } from '@project/components/ui/button';
@@ -10,17 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, ACCENTS } from '../lib/uiPrefs';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
 import { setAdminNotificationsEnabled, sendTest, currentEndpoint, diagnostics } from '../lib/pushClient';
+import { uploadAvatar } from '../lib/avatarUpload';
 
 export default function Profile() {
   const { me, refreshMe } = useMe();
@@ -33,6 +34,24 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState(me.avatarUrl);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  // Ticket 171e29fa: upload our own copy instead of requiring a public URL.
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const pickPicture = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await uploadAvatar(file);
+      setAvatarUrl(url);
+      toast.success('Picture uploaded', { description: 'Save your profile to apply it.' });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   // Editing is locked during a preview so nobody edits the wrong member.
   useEffect(() => { setPreviewing(!!previewId()); }, []);
@@ -103,21 +122,40 @@ export default function Profile() {
           <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
         </div>
 
-        {/* Profile picture is a link, not an upload - the app stores the URL and
-            the browser loads the image, so nothing large lands on the server. */}
+        {/* Ticket 171e29fa: upload a picture (stored on our server) or paste a
+            link if it already lives somewhere. Either way the profile stores a
+            URL and the browser loads the image. */}
         <div className="flex items-center gap-4">
           <MemberAvatar url={avatarUrl} firstName={firstName} lastName={lastName} size="xl" />
           <div className="min-w-0 flex-1 space-y-1">
-            <Label htmlFor="avatar">Profile picture URL</Label>
+            <Label htmlFor="avatar">Profile picture</Label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => void pickPicture(e.target.files?.[0])}
+              />
+              <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 mr-1.5" />}
+                {uploading ? 'Uploading…' : 'Upload a picture'}
+              </Button>
+              {avatarUrl && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setAvatarUrl('')} disabled={uploading}>
+                  <X className="h-4 w-4 mr-1.5" />Remove
+                </Button>
+              )}
+            </div>
             <Input
               id="avatar"
               type="url"
               inputMode="url"
               value={avatarUrl}
               onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://example.com/me.jpg"
+              placeholder="…or paste https://example.com/me.jpg"
             />
-            <p className="text-xs text-muted-foreground">Paste a link to a picture of you. Leave it blank to use your initials.</p>
+            <p className="text-xs text-muted-foreground">Upload a PNG, JPG or WebP up to 2 MB, or paste a link. Leave it blank to use your initials.</p>
           </div>
         </div>
 
@@ -703,14 +741,18 @@ function YourTickets() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
-  const [sort, setSort] = useState<'recency' | 'category'>('recency');
+  // Ticket 0a5d31a8: one "view" control picks the subset (all / open / last N
+  // days) and the ordering (newest first / by category). Tickets 651e522e &
+  // 0a5d31a8 also want these to stick, so they persist per browser.
+  const [view, setView] = useTicketView();
   // Ticket bb37a31b: vast ticket histories flattened the card, so the list is
   // truncated with a reveal button for the rest.
-  // Ticket 06a23d57: the reader picks how many to see first (3/5/10 or a
-  // custom count) before the "Show more" button reveals the remainder.
+  // Ticket 06a23d57 + 651e522e: the reader picks how many to see first
+  // (3/5/10 or a custom count) and that choice now saves.
   const [expanded, setExpanded] = useState(false);
-  const [sizeMode, setSizeMode] = useState<'3' | '5' | '10' | 'custom'>('5');
-  const [customCount, setCustomCount] = useState('8');
+  const [sizeMode, setSizeMode] = useTicketPageSize();
+  const [customCount, setCustomCount] = useTicketCustomCount();
+  const [customDays, setCustomDays] = useState('3');
   const { me } = useMe();
   const [sameTab] = useSupportSameTab();
   const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
@@ -724,14 +766,24 @@ function YourTickets() {
   // skips useMemo and the next render explodes with "more hooks than before".
   const TYPE_ORDER = ['Bug Report', 'Feature Request', 'General Support'];
   const shown = useMemo(() => {
-    if (!tickets || sort === 'recency') return tickets ?? [];
-    return [...tickets].sort((a, b) => {
-      const aa = TYPE_ORDER.indexOf(a.type);
-      const bb = TYPE_ORDER.indexOf(b.type);
-      return (aa === -1 ? TYPE_ORDER.length : aa) - (bb === -1 ? TYPE_ORDER.length : bb) ||
-        b.submittedAt.localeCompare(a.submittedAt);
-    });
-  }, [tickets, sort]);
+    const all = tickets ?? [];
+    const newestFirst = (list: typeof all) => [...list].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    const since = (days: number) => Date.now() - Math.max(1, days) * 86_400_000;
+    const submittedSince = (list: typeof all, days: number) =>
+      list.filter((t) => { const ts = Date.parse(t.submittedAt); return !Number.isNaN(ts) && ts >= since(days); });
+    if (view === 'open') return newestFirst(all.filter((t) => ['Open', 'In Progress'].includes(t.status)));
+    if (view.startsWith('day')) return newestFirst(submittedSince(all, Number(view.slice(3)) || 1));
+    if (view === 'custom') return newestFirst(submittedSince(all, Math.floor(Number(customDays)) || 1));
+    if (view === 'category') {
+      return [...all].sort((a, b) => {
+        const aa = TYPE_ORDER.indexOf(a.type);
+        const bb = TYPE_ORDER.indexOf(b.type);
+        return (aa === -1 ? TYPE_ORDER.length : aa) - (bb === -1 ? TYPE_ORDER.length : bb) ||
+          b.submittedAt.localeCompare(a.submittedAt);
+      });
+    }
+    return newestFirst(all);
+  }, [tickets, view, customDays]);
 
   if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
 
@@ -769,7 +821,7 @@ function YourTickets() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v as '3' | '5' | '10' | 'custom'); setExpanded(false); }}>
+          <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v); setExpanded(false); }}>
             <SelectTrigger className="w-[130px]" aria-label="How many tickets to show">
               <SelectValue />
             </SelectTrigger>
@@ -791,19 +843,41 @@ function YourTickets() {
               aria-label="Custom number of tickets"
             />
           )}
-          <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'category')}>
-            <SelectTrigger className="w-[150px]" aria-label="Sort tickets">
+          <Select value={view} onValueChange={(v) => { setView(v); setExpanded(false); }}>
+            <SelectTrigger className="w-[180px]" aria-label="Which tickets to show">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="recency">Newest first</SelectItem>
+              <SelectItem value="open">My open tickets</SelectItem>
+              <SelectItem value="day1">Last 1 day</SelectItem>
+              <SelectItem value="day2">Last 2 days</SelectItem>
+              <SelectItem value="day3">Last 3 days</SelectItem>
+              <SelectItem value="day5">Last 5 days</SelectItem>
+              <SelectItem value="custom">Last N days…</SelectItem>
               <SelectItem value="category">By category</SelectItem>
             </SelectContent>
           </Select>
+          {view === 'custom' && (
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={customDays}
+              onChange={(e) => { setCustomDays(e.target.value); setExpanded(false); }}
+              className="w-[90px]"
+              aria-label="Number of days to look back"
+              placeholder="Days"
+            />
+          )}
         </div>
       </div>
 
-      {shown.length === 0 && <p className="text-sm text-muted-foreground">You have not raised any tickets yet.</p>}
+      {shown.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {(tickets?.length ?? 0) > 0 ? 'No tickets match this view.' : 'You have not raised any tickets yet.'}
+        </p>
+      )}
 
       <ul className="space-y-3">
         {visible.map((t) => (

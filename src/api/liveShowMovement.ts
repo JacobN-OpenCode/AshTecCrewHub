@@ -46,9 +46,13 @@ export default createEndpoint({
     const kind = input.kind === 'key' ? 'key' : 'movement';
     const prev = device.lastMovementAt ? new Date(device.lastMovementAt).getTime() : 0;
     const ack = device.movementAckAt ? new Date(device.movementAckAt).getTime() : 0;
+    const now = Date.now();
     // There is already an un-accepted warning on this screen: log the touch but
     // do not warn or push again until it is accepted.
     const alreadyAlerting = prev > 0 && ack < prev;
+    // a81ddee0: add ~30s cool-off before the don't-touch warning reappears
+    const COOLDOWN_MS = 30_000;
+    const inCooldown = prev > 0 && !alreadyAlerting && (now - prev) < COOLDOWN_MS;
 
     await zite.liveShowTouches.create({
       record: { liveShowId: liveShow.id, deviceKey: input.deviceKey, deviceName: device.name ?? '', kind },
@@ -57,7 +61,7 @@ export default createEndpoint({
 
     const message =
       cfg.message || (kind === 'key' ? 'Please do not press keys on this screen.' : 'Please do not move this screen.');
-    if (alreadyAlerting) return { ok: true, alert: false, message, seconds: cfg.seconds };
+    if (alreadyAlerting || inCooldown) return { ok: true, alert: false, message, seconds: cfg.seconds };
 
     if (cfg.admins.length) {
       await sendToMembers(cfg.admins, {

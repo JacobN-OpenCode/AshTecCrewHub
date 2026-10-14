@@ -15,6 +15,8 @@
 import './env.js';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { readdirSync } from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
+import { createHash } from 'crypto';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { ZiteError, type EndpointConfig, type ZiteSchedule, type ZiteScheduledContext } from './backend.js';
@@ -31,6 +33,7 @@ import { catLogin } from './catLogin.js';
 import { verifyCalendarToken, buildMemberFeed } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
+import { notifyServerError } from './notify.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,13 +63,13 @@ async function loadEndpoints(): Promise<AnyEndpoint[]> {
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
-app.use(express.json({ limit: '1mb' }));
 
 // ----------------------------------------------------------------- activity log
 // Records every request (method, path, status, latency, member, device,
-// referrer) for the Logs popup on Server diagnostics. Runs after body parsing
-// and before everything else; the queries happen inside the 'finish' handler
-// so they never delay the response they describe.
+// referrer) for the Logs popup on Server diagnostics. Runs before body parsing
+// (except the upload route below, which parses its own, larger body) and before
+// everything else; the queries happen inside the 'finish' handler so they never
+// delay the response they describe.
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -74,6 +77,44 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// ------------------------------------------------------ avatar upload (ticket 171e29fa)
+// A data-URL upload so profile pictures can be hosted by us instead of forcing
+// a member to park an image somewhere public. Stored on disk under uploads/avatars
+// (never in git) and served back at /uploads/... with a long cache; the file name
+// is the member id plus a content hash, so replacing a picture writes a new file
+// and browsers never show a stale one.
+const AVATAR_DIR = path.join(root, 'uploads', 'avatars');
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_MIME: Record<string, string> = { png: 'png', jpg: 'jpg', jpeg: 'jpg', webp: 'webp' };
+
+app.post('/api/uploadAvatar', express.json({ limit: '6mb' }), async (req: Request, res: Response) => {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) return res.status(401).json({ statusCode: 401, code: 'UNAUTHORIZED', message: 'Not signed in' });
+    const match = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.dataUrl ?? ''));
+    if (!match) return res.status(400).json({ message: 'Choose a PNG, JPG or WebP image.' });
+    const buf = Buffer.from(match[2], 'base64');
+    if (!buf.length) return res.status(400).json({ message: 'That file was empty.' });
+    if (buf.length > AVATAR_MAX_BYTES) return res.status(400).json({ message: 'That image is larger than 2 MB.' });
+    // Key the file by the member, so the URL is ours to hand out but never guessable
+    // from someone else's id alone (the content hash changes on every upload).
+    const { rows } = await db().query('SELECT "id" FROM "CrewMembers" WHERE lower("schoolEmail") = $1', [user.email.toLowerCase()]);
+    const owner = String(rows[0]?.id ?? user.email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40) || 'member';
+    const hash = createHash('sha1').update(buf).digest('hex').slice(0, 16);
+    const file = `${owner}-${hash}.${AVATAR_MIME[match[1]]}`;
+    await mkdir(AVATAR_DIR, { recursive: true });
+    await writeFile(path.join(AVATAR_DIR, file), buf);
+    return res.json({ url: `/uploads/avatars/${file}` });
+  } catch (e) {
+    console.error('[server] uploadAvatar failed:', e);
+    return res.status(500).json({ message: 'Could not save that image. Try again.' });
+  }
+});
+
+app.use('/uploads', express.static(path.join(root, 'uploads'), { maxAge: '365d', immutable: true, index: false }));
+
+app.use(express.json({ limit: '1mb' }));
 
 // The client reports SPA page views and how long someone stayed, because
 // clicking around the app never hits the server as a request.
@@ -126,6 +167,10 @@ for (const ep of endpoints) {
       const isZite = e instanceof ZiteError;
       const status = isZite ? statusFor(e.code) : 500;
       if (!isZite || status >= 500) console.error(`[server] ${ep.name} failed:`, e);
+      // Ticket 20c8af90: a real 5xx is a bug a member hit, so alert the maintainers.
+      if (status >= 500) {
+        void notifyServerError({ source: ep.name, message: e?.message ?? 'Unexpected error', detail: e?.stack }).catch(() => {});
+      }
       res.status(status).json({
         statusCode: status,
         code: isZite ? e.code : 'INTERNAL_ERROR',
@@ -276,6 +321,7 @@ app.post('/api/auth/cat-login', async (req, res) => {
     res.json({ ok: true });
   } catch (e: any) {
     console.error('[server] cat-login failed:', e);
+    void notifyServerError({ source: 'auth/cat-login', message: e?.message ?? 'Unexpected error' }).catch(() => {});
     res.status(500).json({ message: 'That did not work. Try again.' });
   }
 });
@@ -322,6 +368,15 @@ const dist = path.join(root, 'dist');
 app.use(express.static(dist, { index: false, maxAge: '1h' }));
 app.get(/^\/(?!api\/|healthz).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
 
+// Anything that reaches here was not handled by a route or an endpoint. Ticket
+// 20c8af90 wants maintainers told about errors, so this reports before replying.
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[server] unhandled route error:', err);
+  void notifyServerError({ source: 'route', message: err?.message ?? 'Unexpected error' }).catch(() => {});
+  if (res.headersSent) return;
+  res.status(500).json({ statusCode: 500, code: 'INTERNAL_ERROR', message: 'Something went wrong.' });
+});
+
 // ----------------------------------------------------------------- scheduler
 const matchesSchedule = (s: ZiteSchedule | undefined, now: Date): boolean => {
   if (!s || s.scheduleType !== 'recurring') return false;
@@ -362,6 +417,14 @@ setInterval(() => void schedulerTick(), 60_000).unref();
 setInterval(() => void pruneAuth().catch(() => {}), 3_600_000).unref();
 setInterval(() => void pruneActivity().catch(() => {}), 3_600_000).unref();
 setInterval(() => rateLimit.gc(), 60 * 60 * 1000).unref();
+
+// A rejected promise floating somewhere is exactly the kind of failure a member
+// would otherwise only notice by hitting a broken screen. Report it (once per
+// source+message per window; see notifyServerError) instead of swallowing it.
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[server] unhandledRejection:', reason);
+  void notifyServerError({ source: 'unhandledRejection', message: reason?.message ?? String(reason) }).catch(() => {});
+});
 
 app.listen(PORT, () => {
   console.log(`[server] AshTec Crew Hub listening on :${PORT} (app url ${process.env.APP_URL ?? 'unset'})`);

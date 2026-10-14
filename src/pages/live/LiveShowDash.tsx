@@ -695,7 +695,7 @@ export default function LiveShowDash() {
       if (!armedRef.current || moveRef.current) return;
       armedRef.current = false;
       void liveShowMovement({ deviceKey: deviceKey(), action: 'moved', kind })
-        .then((r) => { const rr = r as { ok?: boolean; alert?: boolean; message?: string }; if (rr.ok && rr.alert !== false) setMove({ message: rr.message || 'Please do not touch this screen.' }); })
+        .then((r) => { const rr = r as { ok?: boolean; alert?: boolean; message?: string }; if (rr.ok && rr.alert === true) setMove({ message: rr.message || 'Please do not touch this screen.' }); })
         .catch(() => {});
     };
     const onMotion = (e: DeviceMotionEvent) => {

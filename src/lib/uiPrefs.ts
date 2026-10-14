@@ -37,8 +37,41 @@ function useBoolPref(key: string) {
   return [value, (next: boolean) => write(key, next)] as const;
 }
 
+function useStringPref(key: string, fallback: string) {
+  const readStr = () => {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  };
+  const [value, setValue] = useState<string>(readStr);
+  useEffect(() => {
+    const sync = () => setValue(readStr());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const set = (next: string) => {
+    try { localStorage.setItem(key, next); } catch {}
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
 /** Ticket 9c895ffb: whether the floating help button is shrunk to just its icon. */
 export const useSupportCollapsed = () => useBoolPref(SUPPORT_COLLAPSED);
+
+/**
+ * Ticket 651e522e: "My support tickets" page size (3/5/10/custom) kept per
+ * browser so it does not have to be re-picked on every visit. Same storage
+ * pattern as the other per-device preferences.
+ */
+export const useTicketPageSize = () => useStringPref('ashtec-ticket-size', '5');
+export const useTicketCustomCount = () => useStringPref('ashtec-ticket-custom', '8');
+/** Ticket 0a5d31a8: the member ticket view (subset + ordering) persists too. */
+export const useTicketView = () => useStringPref('ashtec-ticket-view', 'recency');
 
 /** Ticket e9993904: whether the ticket list opens a ticket in this tab instead of a new one. */
 export const useSupportSameTab = () => useBoolPref(SUPPORT_SAME_TAB);

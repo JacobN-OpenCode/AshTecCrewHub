@@ -25,7 +25,9 @@ export default function Support() {
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('active');
   const [severity, setSeverity] = useState('all');
-  const [sort, setSort] = useState<'recency' | 'status'>('recency');
+  // Ticket 7e001fce: the list always showed the submitted date; make the date
+  // sortable in both directions.
+  const [sort, setSort] = useState<'recency' | 'oldest' | 'status'>('recency');
   // Ticket edf25b3d: this checkbox is "waiting on a maintainer", which is the
   // maintainerTurn rule (see adminGetSupport), not awaitingReply - that asks
   // whether the sender still owes us a reply.
@@ -76,7 +78,10 @@ export default function Support() {
     (!onlyMaintainerTurn || t.maintainerTurn) &&
     (!onlyReferred || t.referToOpencode) &&
     `${t.subject} ${t.message}`.toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '')), [tickets, type, severity, status, onlyMaintainerTurn, onlyReferred, q]);
+    .sort((a, b) => sort === 'oldest'
+      ? (a.submittedAt ?? '').localeCompare(b.submittedAt ?? '')
+      : (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '')),
+    [tickets, type, severity, status, onlyMaintainerTurn, onlyReferred, q, sort]);
 
   if (!tickets || !data) return <Skeleton className="h-96 rounded-2xl" />;
   // Maintainers must be admins, so that's all we offer.
@@ -220,9 +225,10 @@ export default function Support() {
             <SelectContent><SelectItem value="all">All severities</SelectItem>{SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="active">Open & in progress</SelectItem><SelectItem value="all">All statuses</SelectItem>{Object.keys(STATUS_STYLE).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-          <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'status')}><SelectTrigger><SelectValue /></SelectTrigger>
+          <Select value={sort} onValueChange={(v) => setSort(v as 'recency' | 'oldest' | 'status')}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="recency"><span className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" />Newest first</span></SelectItem>
+              <SelectItem value="oldest"><span className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" />Oldest first</span></SelectItem>
               <SelectItem value="status">By status</SelectItem>
             </SelectContent></Select>
         </div>
