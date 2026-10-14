@@ -81,10 +81,11 @@ app.use((req, res, next) => {
 // ------------------------------------------------------ avatar upload (ticket 171e29fa)
 // A data-URL upload so profile pictures can be hosted by us instead of forcing
 // a member to park an image somewhere public. Stored on disk under uploads/avatars
-// (never in git) and served back at /uploads/... with a long cache; the file name
-// is the member id plus a content hash, so replacing a picture writes a new file
-// and browsers never show a stale one.
+// (never in git) and served back under /api/uploads/... with a long cache; the file
+// name is the member id plus a content hash, so replacing a picture writes a new
+// file and browsers never show a stale one.
 const AVATAR_DIR = path.join(root, 'uploads', 'avatars');
+const AVATAR_URL_PREFIX = '/api/uploads/avatars';
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_MIME: Record<string, string> = { png: 'png', jpg: 'jpg', jpeg: 'jpg', webp: 'webp' };
 
@@ -105,14 +106,19 @@ app.post('/api/uploadAvatar', express.json({ limit: '6mb' }), async (req: Reques
     const file = `${owner}-${hash}.${AVATAR_MIME[match[1]]}`;
     await mkdir(AVATAR_DIR, { recursive: true });
     await writeFile(path.join(AVATAR_DIR, file), buf);
-    return res.json({ url: `/uploads/avatars/${file}` });
+    // Served under /api/... because that prefix is what the reverse proxy in
+    // front of us forwards to this process; a bare /uploads would hit the static
+    // site instead and miss the server.
+    return res.json({ url: `${AVATAR_URL_PREFIX}/${file}` });
   } catch (e) {
     console.error('[server] uploadAvatar failed:', e);
     return res.status(500).json({ message: 'Could not save that image. Try again.' });
   }
 });
 
-app.use('/uploads', express.static(path.join(root, 'uploads'), { maxAge: '365d', immutable: true, index: false }));
+// Same reason as above: under /api so the proxy forwards it here. Immutable +
+// one-year cache because the file name contains a content hash.
+app.use('/api/uploads', express.static(path.join(root, 'uploads'), { maxAge: '365d', immutable: true, index: false }));
 
 app.use(express.json({ limit: '1mb' }));
 
