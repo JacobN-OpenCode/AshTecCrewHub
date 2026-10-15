@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
   /** What is being touched right now. */
-  now: 'Batch 2 of the feedback roadmap: gamification (badges and an hours leaderboard built from attendance).',
+  now: 'Batch 3 of the feedback roadmap: rehearsal and show ops (checklists, pre-show sign-off, roll call, cue sheets and friends).',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -54,12 +54,12 @@ export const OPENCODE_STATUS = {
         'Custom status + emoji on the rosters, birthday (month/day only) with a birthdays strip, contact-sheet opt-in with phone, and mentor pairing shown in Settings. Live in production.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 2: gamification',
-      detail: 'Badges for crew milestones, and an hours leaderboard computed from attendance.',
+      detail: 'Badges derived from crew stats, and a members-only hours leaderboard at /leaderboard, live in production.',
     },
     {
-      state: 'queued',
+      state: 'active',
       title: 'Feedback roadmap — Batch 3: rehearsal & show ops',
       detail:
         'Checklists, pre-show sign-off, roll call, rehearsal notes, tech week, cue sheets, cue calls, sick cover, scene timings, rehearsal shuffle.',
@@ -73,6 +73,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Batch 2: badges and an hours leaderboard',
     'Batch 1: birthdays strip, mentor display, status on rosters',
     'Add /opencode status page; batch 1 member profile extras',
     'Add /github and /gh redirects and small GitHub link in landing footer',
