@@ -24,7 +24,7 @@ import { setAdminNotificationsEnabled, sendTest, currentEndpoint, diagnostics } 
 import { uploadAvatar } from '../lib/avatarUpload';
 
 export default function Profile() {
-  const { me, refreshMe } = useMe();
+  const { me, mentor, refreshMe } = useMe();
   const [firstName, setFirstName] = useState(me.firstName);
   const [lastName, setLastName] = useState(me.lastName);
   const [year, setYear] = useState(me.year);
@@ -122,6 +122,15 @@ export default function Profile() {
             <Field k="Member type" v={me.memberType} />
             <Field k="Assigned roles" v={me.roles.length ? <div className="flex flex-wrap gap-1">{me.roles.map((r) => <Badge key={r} variant="outline">{r}</Badge>)}</div> : null} />
             <Field k="Head of" v={me.headOf.length ? <div className="flex flex-wrap gap-1">{me.headOf.map((r) => <Badge key={r} className="bg-primary/20 text-primary border-primary/30" variant="outline">{r}</Badge>)}</div> : null} />
+            <Field
+              k="Your mentor"
+              v={mentor ? (
+                <span>
+                  {mentor.firstName}{mentor.lastName ? ' ' + mentor.lastName : ''}
+                  {mentor.email && <> · <a className="underline hover:text-foreground" href={`mailto:${mentor.email}`}>{mentor.email}</a></>}
+                </span>
+              ) : null}
+            />
           </div>
 
           <div className="rounded-2xl border bg-card p-6 space-y-5">

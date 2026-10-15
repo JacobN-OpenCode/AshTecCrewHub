@@ -6,6 +6,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import ShowCard from '../components/ShowCard';
 import SubEventRow, { type MySubEvent } from '../components/SubEventRow';
 import ReasonDialog from '../components/ReasonDialog';
+import UpcomingBirthdays from '../components/UpcomingBirthdays';
 import { isPastDue } from '../lib/constants';
 import { useMe } from '../lib/me';
 
@@ -46,6 +47,7 @@ export default function MyEvents() {
         </p>
       </div>
       {data.shows.length === 0 && <p className="text-muted-foreground">No shows have been set up yet.</p>}
+      <UpcomingBirthdays />
       {data.shows.map((s) => (
         <ShowCard key={s.id} show={s} events={data.subEvents.filter((e) => e.showIds.includes(s.id))} reload={reload} />
       ))}

@@ -137,6 +137,7 @@ export default function AdminMembers() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{m.firstName} {m.lastName}</span>
+                {m.statusEmoji && <span title={m.statusText || undefined}>{m.statusEmoji}</span>}
                 {m.isAdmin && <Shield className="h-3.5 w-3.5 text-primary" />}
                 {m.isMaintainer && <Wrench className="h-3.5 w-3.5 text-primary" />}
                 {m.isPreview && <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">Preview</Badge>}

@@ -262,6 +262,13 @@ export type EnableLiveShowDeviceInputType = NonNullable<_EnableLiveShowDeviceCfg
 export type EnableLiveShowDeviceOutputType = Awaited<ReturnType<_EnableLiveShowDeviceCfg['execute']>>;
 export const enableLiveShowDevice = createCaller<EnableLiveShowDeviceInputType, EnableLiveShowDeviceOutputType>('enableLiveShowDevice');
 
+import type { default as _GetBirthdaysEp } from '../api/getBirthdays';
+
+type _GetBirthdaysCfg = typeof _GetBirthdaysEp;
+export type GetBirthdaysInputType = NonNullable<_GetBirthdaysCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetBirthdaysCfg['execute']>[0]['input'];
+export type GetBirthdaysOutputType = Awaited<ReturnType<_GetBirthdaysCfg['execute']>>;
+export const getBirthdays = createCaller<GetBirthdaysInputType, GetBirthdaysOutputType>('getBirthdays');
+
 import type { default as _GetCalendarEp } from '../api/getCalendar';
 
 type _GetCalendarCfg = typeof _GetCalendarEp;
@@ -598,6 +605,7 @@ export const api = {
   checkEmail,
   deletePushSubscription,
   enableLiveShowDevice,
+  getBirthdays,
   getCalendar,
   getCalendarFeed,
   getCatLoginAdmins,

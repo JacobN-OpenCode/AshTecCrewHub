@@ -349,6 +349,22 @@ if (!admin) {
       check('profile change persisted', pr[0]?.firstName === 'Smoke Test');
       await call('updateMyProfile', { firstName: origName });
 
+      // Batch 1 profile extras: status, birthday, contact-sheet opt-in and the
+      // mentor lookup all round-trip through updateMyProfile/getMe.
+      const bits = await call('updateMyProfile', { statusText: 'On lighting desk', statusEmoji: '🎧', birthday: '03-14', contactShare: true, contactPhone: '07700 900123' });
+      check('updateMyProfile accepts status/birthday/contact', bits.status === 200, JSON.stringify(bits.body).slice(0, 160));
+      const meBits = await call('getMe', {});
+      const bm = meBits.body?.member ?? {};
+      check('profile extras read back', bm.statusText === 'On lighting desk' && bm.statusEmoji === '🎧' && bm.birthday === '03-14' && bm.contactShare === true, JSON.stringify(bm).slice(0, 200));
+      const badBd = await call('updateMyProfile', { birthday: '13-45' });
+      check('birthday must be MM-DD', badBd.status !== 200);
+      const contacts = await call('getContacts', {});
+      check('getContacts lists the opt-in', contacts.status === 200 && (contacts.body?.contacts ?? []).some((c: { id: string }) => c.id === memberId), JSON.stringify(contacts.body).slice(0, 160));
+      const bdays = await call('getBirthdays', { days: 30 });
+      check('getBirthdays is members-only and shaped', bdays.status === 200 && Array.isArray(bdays.body?.birthdays));
+      // Restore the row so repeated runs do not leave a status on the admin.
+      await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
+
       // submitSupport -> create + Email.send (logged, SMTP unset).
       const ticket = await call('submitSupport', { type: 'General Support', subject: 'Smoke test ticket', message: 'Automated smoke test, safe to ignore.' });
       check('submitSupport creates a ticket', ticket.status === 200 && typeof ticket.body?.id === 'string', JSON.stringify(ticket.body));

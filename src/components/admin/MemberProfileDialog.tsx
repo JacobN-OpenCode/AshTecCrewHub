@@ -132,6 +132,11 @@ export default function MemberProfileDialog({
                     {detail.member.year && <span className="text-sm font-normal text-muted-foreground">{detail.member.year}</span>}
                   </DialogTitle>
                   <p className="text-muted-foreground">@{detail.member.shortUsername} · {detail.member.email}</p>
+                  {(detail.member.statusEmoji || detail.member.statusText) && (
+                    <p className="text-sm mt-0.5">
+                      {detail.member.statusEmoji} {detail.member.statusText}
+                    </p>
+                  )}
                 </div>
               </div>
             </DialogHeader>

@@ -35,7 +35,7 @@ import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
 import LiveShowDash from './pages/live/LiveShowDash';
 import LiveShowAdmin from './pages/admin/LiveShowAdmin';
-import { MeContext, type Me } from './lib/me';
+import { MeContext, type Me, type Mentor } from './lib/me';
 import { applyAccent, getAccent } from './lib/uiPrefs';
 
 document.documentElement.classList.add('dark');
@@ -51,12 +51,14 @@ const Spinner = () => (
 
 function SignedIn() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  const [mentor, setMentor] = useState<Mentor | null>(null);
   const [supportAwaiting, setSupportAwaiting] = useState(0);
   const [liveShowActive, setLiveShowActive] = useState(false);
   const [specialNote, setSpecialNote] = useState<string | null>(null);
   const refreshMe = useCallback(async () => {
     const r = await getMe(pv());
     setMe(r.member);
+    setMentor(r.mentor ?? null);
     setSupportAwaiting(r.supportAwaiting ?? 0);
     setLiveShowActive(!!r.liveShowActive);
     setSpecialNote(r.specialNote ?? null);
@@ -74,7 +76,7 @@ function SignedIn() {
     );
 
   return (
-    <MeContext.Provider value={{ me, refreshMe, supportAwaiting, liveShowActive, specialNote }}>
+    <MeContext.Provider value={{ me, mentor, refreshMe, supportAwaiting, liveShowActive, specialNote }}>
       <Routes>
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />

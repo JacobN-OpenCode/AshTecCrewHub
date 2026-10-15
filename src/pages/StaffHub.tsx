@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
+import UpcomingBirthdays from '../components/UpcomingBirthdays';
 import { pv } from '../lib/preview';
 import { fmtDate } from '../lib/constants';
 
@@ -134,6 +135,8 @@ export default function StaffHub() {
       )}
       {!next && <p className="text-muted-foreground">No upcoming dated events.</p>}
 
+      <UpcomingBirthdays />
+
       <div className="relative max-w-xs">
         <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search students…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -163,6 +166,7 @@ export default function StaffHub() {
                     <span className="flex items-center gap-2">
                       <MemberAvatar url={student.avatarUrl} firstName={student.firstName} lastName={student.lastName} size="sm" />
                       <span className="font-medium">{student.firstName}{student.lastName ? ' ' + student.lastName : ''}</span>
+                      {student.statusEmoji && <span title={student.statusText || undefined}>{student.statusEmoji}</span>}
                       {student.year && <span className="text-xs text-muted-foreground">{student.year}</span>}
                     </span>
                   </td>

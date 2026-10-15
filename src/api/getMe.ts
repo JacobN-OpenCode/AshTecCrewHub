@@ -24,7 +24,7 @@ export default createEndpoint({
     const specialNote = SPECIAL_NOTES[context.user.email.toLowerCase()] ?? null;
     if (input.previewAs) {
       const p = await actingMember(context.user.email, input.previewAs);
-      return { member: { ...mapMember(p), isAdmin: false }, supportAwaiting: 0, liveShowActive: hasOpenLiveShow, specialNote };
+      return { member: { ...mapMember(p), isAdmin: false }, mentor: null, supportAwaiting: 0, liveShowActive: hasOpenLiveShow, specialNote };
     }
     let m = await findMemberByEmail(context.user.email);
     if (!m && (await adminCount()) === 0) {
@@ -45,6 +45,17 @@ export default createEndpoint({
       const { records } = await zite.supportTickets.findAll({ limit: 2000 });
       supportAwaiting = records.filter((t) => ['Open', 'In Progress'].includes(t.status ?? 'Open') && t.lastReplyFrom !== 'User').length;
     }
-    return { member: m ? mapMember(m) : null, supportAwaiting, liveShowActive: hasOpenLiveShow, specialNote };
+    const mapped = m ? mapMember(m) : null;
+    // Resolve the mentor to a name so Settings can show who to ask, rather
+    // than a bare id the member cannot read.
+    let mentor: { id: string; firstName: string; lastName: string; email: string } | null = null;
+    if (m) {
+      const mentorId = (m as unknown as { mentorId?: string | null }).mentorId;
+      if (mentorId) {
+        const rec = await zite.crewMembers.findOne({ filters: { id: mentorId } });
+        if (rec) mentor = { id: rec.id, firstName: rec.firstName ?? '', lastName: rec.lastName ?? '', email: rec.schoolEmail ?? '' };
+      }
+    }
+    return { member: mapped, mentor, supportAwaiting, liveShowActive: hasOpenLiveShow, specialNote };
   },
 });
