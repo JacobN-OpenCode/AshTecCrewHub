@@ -143,6 +143,13 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   // Profile picture, a URL the member sets in Settings. Lives outside the
   // generated record type until the schema is regenerated, so read it by cast.
   avatarUrl: (m as unknown as { avatarUrl?: string | null }).avatarUrl ?? '',
+  statusText: (m as unknown as { statusText?: string }).statusText ?? '',
+  statusEmoji: (m as unknown as { statusEmoji?: string }).statusEmoji ?? '',
+  birthday: (m as unknown as { birthday?: string }).birthday ?? '',
+  contactShare: !!(m as unknown as { contactShare?: boolean }).contactShare,
+  contactPhone: (m as unknown as { contactPhone?: string }).contactPhone ?? '',
+  mentorId: (m as unknown as { mentorId?: string | null }).mentorId ?? null,
+  isMentor: !!(m as unknown as { isMentor?: boolean }).isMentor,
   // Contractors (ticket 00c0715c) are external: they get the platform and
   // their own attendance, but no stage layout or student information.
   isContractor: m.memberType === 'Contractor',

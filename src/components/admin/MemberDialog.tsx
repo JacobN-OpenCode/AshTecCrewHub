@@ -12,7 +12,7 @@ import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
 import MemberAvatar from '../MemberAvatar';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '' };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', mentorId: null, isMentor: false };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
@@ -70,6 +70,25 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
               <Input type="url" value={f.avatarUrl} onChange={(e) => set({ avatarUrl: e.target.value })} placeholder="https://…" />
             </div>
             <p className="text-xs text-muted-foreground">Leave blank to use their initials.</p>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm">Mentor (someone guiding them)</label>
+            <Select value={f.mentorId ?? "none"} onValueChange={(v) => set({ mentorId: v === "none" ? null : v })}>
+              <SelectTrigger><SelectValue placeholder="No mentor yet" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No mentor yet</SelectItem>
+                {data.members
+                  .filter((m) => m.id !== member?.id)
+                  .sort((a, b) => (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName))
+                  .map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.firstName} {m.lastName} · {m.shortUsername}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Shown on their home page so a new member knows who to ask.</p>
+          </div>
+          <div className="flex flex-col gap-2 self-end pb-2">
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMentor} onCheckedChange={(c) => set({ isMentor: !!c })} />Willing to mentor someone</label>
           </div>
           <div className="sm:col-span-2 space-y-1"><label className="text-sm">Admin notes (things said in person, etc.)</label><Textarea value={f.adminNotes} onChange={(e) => set({ adminNotes: e.target.value })} /></div>
           {member && !member.isStaff && (

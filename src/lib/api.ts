@@ -283,6 +283,13 @@ export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inpu
 export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
 export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
 
+import type { default as _GetContactsEp } from '../api/getContacts';
+
+type _GetContactsCfg = typeof _GetContactsEp;
+export type GetContactsInputType = NonNullable<_GetContactsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetContactsCfg['execute']>[0]['input'];
+export type GetContactsOutputType = Awaited<ReturnType<_GetContactsCfg['execute']>>;
+export const getContacts = createCaller<GetContactsInputType, GetContactsOutputType>('getContacts');
+
 import type { default as _GetLiveShowAdminsEp } from '../api/getLiveShowAdmins';
 
 type _GetLiveShowAdminsCfg = typeof _GetLiveShowAdminsEp;
@@ -594,6 +601,7 @@ export const api = {
   getCalendar,
   getCalendarFeed,
   getCatLoginAdmins,
+  getContacts,
   getLiveShowAdmins,
   getLiveShowState,
   getMe,

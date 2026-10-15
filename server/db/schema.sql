@@ -555,4 +555,22 @@ CREATE TABLE IF NOT EXISTS "FeedbackResponses" (
 CREATE UNIQUE INDEX IF NOT EXISTS "FeedbackResponses_form_member_idx" ON "FeedbackResponses" ("form", "member");
 CREATE INDEX IF NOT EXISTS "FeedbackResponses_form_idx" ON "FeedbackResponses" ("form");
 
+
+-- Member profile extras (status, birthday, contact sharing, mentorship)
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusText" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusEmoji" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "birthday" text NOT NULL DEFAULT ''; -- MM-DD
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NULL DEFAULT false;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactPhone" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
+-- Member profile extras (status, birthday, contact sharing, mentorship)
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusText" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusEmoji" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "birthday" text NOT NULL DEFAULT ''; -- MM-DD
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NULL DEFAULT false;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactPhone" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
+
 COMMIT;

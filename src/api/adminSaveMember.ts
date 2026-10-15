@@ -24,6 +24,13 @@ export default createEndpoint({
     isMaintainer: z.boolean().optional(),
     isPreview: z.boolean().optional(),
     avatarUrl: z.string().max(500).optional(),
+    statusText: z.string().max(120).optional(),
+    statusEmoji: z.string().max(4).optional(),
+    birthday: z.string().max(5).optional(),
+    contactShare: z.boolean().optional(),
+    contactPhone: z.string().max(20).optional(),
+    mentorId: z.string().optional(),
+    isMentor: z.boolean().optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
   execute: async ({ input, context }) => {
@@ -63,6 +70,13 @@ export default createEndpoint({
       preferredRole2: input.preferredRole2 || '',
       adminNotes: input.adminNotes ?? '',
       avatarUrl,
+      statusText: (input.statusText ?? '').trim().slice(0, 120),
+      statusEmoji: (input.statusEmoji ?? '').trim().slice(0, 4),
+      birthday: (input.birthday ?? '').trim(),
+      contactShare: !!input.contactShare,
+      contactPhone: (input.contactPhone ?? '').trim().slice(0, 20),
+      mentorId: input.mentorId || null,
+      isMentor: !!input.isMentor,
     };
     if (input.id) {
       await zite.crewMembers.update({ id: input.id, record });

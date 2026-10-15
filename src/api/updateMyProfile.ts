@@ -25,6 +25,11 @@ export default createEndpoint({
     // Profile picture as a link, not an upload: we do not host images. Empty
     // clears it back to the initial-letter fallback.
     avatarUrl: z.string().max(500).optional(),
+    statusText: z.string().max(120).optional(),
+    statusEmoji: z.string().max(4).optional(),
+    birthday: z.string().max(5).optional(),
+    contactShare: z.boolean().optional(),
+    contactPhone: z.string().max(20).optional(),
   }),
   outputSchema: z.object({ success: z.boolean(), emailChanged: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -65,6 +70,15 @@ export default createEndpoint({
       else if (/\s/.test(url)) throw new Error('That picture link has a space in it - check it is one clean URL.');
       else record.avatarUrl = url;
     }
+    if (input.statusText !== undefined) record.statusText = input.statusText.trim().slice(0, 120);
+    if (input.statusEmoji !== undefined) record.statusEmoji = input.statusEmoji.trim().slice(0, 4);
+    if (input.birthday !== undefined) {
+      const b = input.birthday.trim();
+      if (b && !/^(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$/.test(b)) throw new Error('Birthday should be MM-DD.');
+      record.birthday = b;
+    }
+    if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
+    if (input.contactPhone !== undefined) record.contactPhone = input.contactPhone.trim().slice(0, 20);
 
     let emailChanged = false;
     if (input.schoolEmail !== undefined) {

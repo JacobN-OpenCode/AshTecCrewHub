@@ -32,6 +32,11 @@ export default function Profile() {
   const [p1, setP1] = useState(me.preferredRole1);
   const [p2, setP2] = useState(me.preferredRole2);
   const [avatarUrl, setAvatarUrl] = useState(me.avatarUrl);
+  const [statusText, setStatusText] = useState(me.statusText ?? '');
+  const [statusEmoji, setStatusEmoji] = useState(me.statusEmoji ?? '');
+  const [birthday, setBirthday] = useState(me.birthday ?? '');
+  const [contactShare, setContactShare] = useState(!!me.contactShare);
+  const [contactPhone, setContactPhone] = useState(me.contactPhone ?? '');
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   // Ticket 171e29fa: upload our own copy instead of requiring a public URL.
@@ -59,6 +64,8 @@ export default function Profile() {
   useEffect(() => {
     setFirstName(me.firstName); setLastName(me.lastName); setYear(me.year); setEmail(me.email);
     setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
+    setStatusText(me.statusText ?? ''); setStatusEmoji(me.statusEmoji ?? ''); setBirthday(me.birthday ?? '');
+    setContactShare(!!me.contactShare); setContactPhone(me.contactPhone ?? '');
   }, [me]);
 
   const save = async () => {
@@ -66,6 +73,7 @@ export default function Profile() {
     try {
       const r = await updateMyProfile({
         avatarUrl, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
+        statusText, statusEmoji, birthday, contactShare, contactPhone,
       });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
@@ -207,6 +215,49 @@ export default function Profile() {
             {p1 && p1 === p2 && <p className="text-sm text-destructive">Choose two different roles.</p>}
           </div>
         )}
+
+        {/* Status, birthday and contact sharing: the personal bits the roster
+            and the contact sheet read from. Kept deliberately short. */}
+        <div className="border-t pt-5 space-y-4">
+          <div>
+            <h3 className="font-semibold">Status</h3>
+            <p className="text-sm text-muted-foreground">A short line the roster shows next to your name. Leave it blank to show nothing.</p>
+          </div>
+          <div className="grid sm:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="stx">Status</Label>
+              <Input id="stx" value={statusText} onChange={(e) => setStatusText(e.target.value)} maxLength={120} placeholder="On lighting desk tonight" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="sem">Emoji</Label>
+              <Input id="sem" value={statusEmoji} onChange={(e) => setStatusEmoji(e.target.value)} maxLength={4} placeholder="🎧" />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="bd">Birthday (month &amp; day only)</Label>
+              <Input id="bd" value={birthday} onChange={(e) => setBirthday(e.target.value)} maxLength={5} placeholder="MM-DD, e.g. 03-14" />
+              <p className="text-xs text-muted-foreground">Year is never stored — only the day, so the crew can shout it out.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-5 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold">Contact sheet</h3>
+              <p className="text-sm text-muted-foreground">Share your details with the crew so people can reach you.</p>
+            </div>
+            <Switch checked={contactShare} onCheckedChange={setContactShare} />
+          </div>
+          {contactShare && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="cp">Mobile number (optional)</Label>
+                <Input id="cp" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={20} placeholder="07700 900123" />
+                <p className="text-xs text-muted-foreground">Your school email is always shown when you turn this on. Turn it off any time and you disappear from the sheet.</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Ticket 2ffb3a6d: admins assign their own roles, so they never see the
             preferred-roles picker. Saving their details must not then demand two

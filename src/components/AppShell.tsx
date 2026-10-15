@@ -4,7 +4,7 @@ import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, ChartColumn, DoorOpen, Eye, HeartHandshake,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
+  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, BookUser, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -157,6 +157,7 @@ function Shell() {
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
     main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
+    main.push({ to: '/contacts', label: 'Contacts', icon: BookUser });
   }
   groups.push({ label: 'Main', items: main });
 

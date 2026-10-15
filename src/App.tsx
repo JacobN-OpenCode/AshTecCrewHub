@@ -29,6 +29,8 @@ import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
 import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
+import Contacts from './pages/Contacts';
+import OpenCode from './pages/OpenCode';
 import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
 import LiveShowDash from './pages/live/LiveShowDash';
@@ -80,6 +82,7 @@ function SignedIn() {
         <Route path="/show-dash" element={<LiveShowDash />} />
         {/* Feedback invitations are their own full-screen page, reachable whether or not you are signed in. */}
         <Route path="/feedback/:formId" element={<Feedback />} />
+      <Route path="/opencode" element={<OpenCode />} />
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
         <Route element={<AppShell />}>
@@ -93,6 +96,7 @@ function SignedIn() {
           <Route path="/calendar" element={<Calendar />} />
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
+          <Route path="/contacts" element={<Contacts />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
@@ -134,6 +138,7 @@ function SignedOut() {
       <Route path="/show-dash" element={<LiveShowDash />} />
       {/* A feedback invitation is public: accepting it is what leads to sign-in. */}
       <Route path="/feedback/:formId" element={<Feedback />} />
+      <Route path="/opencode" element={<OpenCode />} />
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="*" element={<Landing />} />
