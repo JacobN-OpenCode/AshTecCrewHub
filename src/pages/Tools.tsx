@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMe } from '../lib/me';
 import { useAdminData, type AdminSubEvent } from '../lib/useAdminData';
 import { getMyEvents, type GetMyEventsOutputType } from '#api';
+import { STATUS_STYLE } from '../lib/constants';
+import { cn } from '@project/components/lib/utils';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Checkbox } from '@project/components/ui/checkbox';
-import { Wrench, Printer, FileDown, Phone, Mail, ExternalLink } from 'lucide-react';
+import { Wrench, Printer, FileDown, Phone, Mail, ExternalLink, Download } from 'lucide-react';
 import { fmtDate } from '../lib/constants';
 import { formatEventTimeRange } from '../lib/icsBuild';
+import { Label } from '@project/components/ui/label';
 
 /**
  * Tools tab. Deliberately not admin-only: the tab is where member tools will
@@ -521,6 +524,206 @@ ${groupsHtml}
   );
 }
 
+function AttendanceExport() {
+  const { data } = useAdminData();
+  const members = data?.members ?? [];
+  const shows = data?.shows ?? [];
+  const subEvents = data?.subEvents ?? [];
+  const attendance = data?.attendance ?? [];
+
+  const [showId, setShowId] = useState<string>('');
+  const [includeContractors, setIncludeContractors] = useState(false);
+  const [allCrew, setAllCrew] = useState(true);
+
+  const events = useMemo(() => {
+    if (!showId) return [];
+    return subEvents
+      .filter((e) => e.showIds.includes(showId))
+      .sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        if (a.date < b.date) return -1;
+        if (a.date > b.date) return 1;
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      });
+  }, [subEvents, showId]);
+
+  const rowMembers = useMemo(() => {
+    if (!showId) return [];
+    let list = members.filter((m) => !m.isPreview);
+    if (!includeContractors) list = list.filter((m) => !m.isContractor);
+    if (!allCrew) {
+      const involved = new Set<string>();
+      events.forEach((e) => {
+        attendance.forEach((a) => {
+          if (a.subEventId === e.id) involved.add(a.memberId);
+        });
+      });
+      list = list.filter((m) => involved.has(m.id));
+    }
+    list.sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`));
+    return list;
+  }, [members, showId, includeContractors, allCrew, events, attendance]);
+
+  const attMap = useMemo(() => {
+    const m = new Map<string, string>();
+    attendance.forEach((a) => {
+      m.set(`${a.memberId}:${a.subEventId}`, a.status);
+    });
+    return m;
+  }, [attendance]);
+
+  const show = shows.find((s) => s.id === showId);
+
+  const csvEscape = (s: string) => {
+    const v = String(s ?? '');
+    if (v.includes(',') || v.includes('\n') || v.includes('\r') || v.includes('"')) {
+      return `"${v.replace(/"/g, '""')}"`;
+    }
+    return v;
+  };
+
+  const downloadCsv = () => {
+    if (events.length === 0 || rowMembers.length === 0) return;
+    const cols = [
+      'First name',
+      'Last name',
+      'Initial',
+      'Year',
+      'Email',
+      'Roles',
+      ...events.map((e) => {
+        const d = fmtDate(e.date);
+        const t = eventTime(e);
+        const name = e.title || e.type;
+        return `${d}${t ? ` ${t}` : ''} - ${name}`.replace(/\r?\n/g, ' ');
+      }),
+    ];
+    const lines: string[] = [cols.map(csvEscape).join(',')];
+    for (const m of rowMembers) {
+      const vals = [
+        m.firstName,
+        m.lastName,
+        m.firstName?.[0] || '',
+        m.year,
+        m.email,
+        Array.isArray(m.roles) ? m.roles.join('; ') : '',
+        ...events.map((e) => {
+          const st = attMap.get(`${m.id}:${e.id}`) || '';
+          if (st === 'Expected Arrival') return 'Yes';
+          if (st === 'Maybe') return 'Maybe';
+          if (st === 'Not Attending' || st === 'Not Attending Event') return 'No';
+          return '';
+        }),
+      ];
+      lines.push(vals.map((v) => csvEscape(String(v))).join(','));
+    }
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-${(show?.code || show?.name || showId).replace(/[^A-Za-z0-9_-]+/g, '-').toLowerCase()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-5">
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Attendance export</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Export a CSV grid of crew vs events for a specific show.</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[220px]">
+          <Label htmlFor="show-choose" className="text-xs">Show</Label>
+          <Select value={showId} onValueChange={setShowId}>
+            <SelectTrigger id="show-choose">
+              <SelectValue placeholder="Pick a show" />
+            </SelectTrigger>
+            <SelectContent>
+              {shows.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox id="incl-con" checked={includeContractors} onCheckedChange={(v) => setIncludeContractors(!!v)} />
+          <Label htmlFor="incl-con" className="text-xs">Include contractors</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox id="all-crew" checked={allCrew} onCheckedChange={(v) => setAllCrew(!!v)} />
+          <Label htmlFor="all-crew" className="text-xs">Include everyone (not just people with attendance)</Label>
+        </div>
+        <div className="ml-auto">
+          <Button disabled={!showId || events.length === 0} onClick={downloadCsv}><Download className="mr-2 h-4 w-4" />Download CSV</Button>
+        </div>
+      </div>
+      {showId && events.length === 0 && (
+        <div className="mt-4 text-xs text-muted-foreground">No events found for this show.</div>
+      )}
+      {showId && events.length > 0 && (
+        <div className="mt-4 overflow-auto">
+          <table className="min-w-max text-xs">
+            <thead>
+              <tr>
+                <th className="sticky left-0 bg-background px-2 py-1 text-left font-medium">First name</th>
+                <th className="sticky left-[80px] bg-background px-2 py-1 text-left font-medium">Last name</th>
+                <th className="px-2 py-1 text-left font-medium">Initial</th>
+                <th className="px-2 py-1 text-left font-medium">Year</th>
+                <th className="px-2 py-1 text-left font-medium">Email</th>
+                <th className="px-2 py-1 text-left font-medium">Roles</th>
+                {events.map((e, i) => {
+                  const d = fmtDate(e.date);
+                  const t = eventTime(e);
+                  const name = e.title || e.type;
+                  return (
+                    <th key={i} className="min-w-[120px] px-2 py-1 text-left font-medium">
+                      <div>{d}{t ? ` ${t}` : ''}</div>
+                      <div className="text-muted-foreground">{name}</div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {rowMembers.map((m) => (
+                <tr key={m.id} className="border-t">
+                  <td className="sticky left-0 bg-background px-2 py-1">{m.firstName}</td>
+                  <td className="sticky left-[80px] bg-background px-2 py-1">{m.lastName}</td>
+                  <td className="px-2 py-1">{m.firstName?.[0] || ''}</td>
+                  <td className="px-2 py-1">{m.year}</td>
+                  <td className="px-2 py-1">{m.email}</td>
+                  <td className="px-2 py-1">{Array.isArray(m.roles) ? m.roles.join('; ') : ''}</td>
+                  {events.map((e, i) => {
+                    const st = attMap.get(`${m.id}:${e.id}`) || '';
+                    if (!st) {
+                      return <td key={i} className="px-2 py-1 text-muted-foreground">–</td>;
+                    }
+                    const label = st === 'Expected Arrival' ? 'Yes' : st === 'Maybe' ? 'Maybe' : 'No';
+                    const style = STATUS_STYLE[st] ?? STATUS_STYLE['Not Attending'];
+                    return (
+                      <td key={i} className="px-2 py-1">
+                        <span className={cn('inline-block rounded-md border px-1.5 py-0.5 text-[11px] font-medium', style)}>{label}</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function Tools() {
   const { me } = useMe();
   return (
@@ -537,6 +740,7 @@ export default function Tools() {
             <span className="flex-1 border-t border-dashed" />
           </div>
           <PhoneExcuseForm />
+          <AttendanceExport />
         </div>
       )}
     </div>
