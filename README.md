@@ -1,13 +1,17 @@
 # AshTec Crew Hub
 
-Crew management for AshTec: shows and events, attendance and availability,
-venue check-in by QR code, and support tickets.
+Everything the AshTec crew needs in one place: shows and events, rehearsals and
+call times, attendance and availability, venue check-in by QR code, the parents
+feed, and support tickets.
 
-Self-hosted. React + Vite on the front, Express + PostgreSQL behind it. There is
-no external platform dependency at runtime.
+It is fully self-hosted. React + Vite on the front, Express + PostgreSQL behind
+it, and no external platform at runtime.
 
-- **Production URL:** https://crew.mini-jacob.hackclub.app/
-- **API port:** `1502` (the Vite dev server uses `8080` and proxies `/api` to it)
+- **Production:** https://ashtec.dino.icu/
+- **Repository:** https://github.com/SmartSparkCoding/AshTecCrewHub
+- **API port:** `1502` (the Vite dev server runs on `8080` and proxies `/api` to it)
+
+Maintained by Jacob ([@SmartSparkCoding](https://github.com/SmartSparkCoding)).
 
 ---
 
@@ -15,7 +19,7 @@ no external platform dependency at runtime.
 
 - Node.js 20 or newer (developed on 26.5.0)
 - PostgreSQL 13 or newer. `gen_random_uuid()` is used, so it must be available —
-  it is built in from PostgreSQL 13, or enable `pgcrypto` on older versions.
+  built in from PostgreSQL 13, or enable `pgcrypto` on older versions.
 
 ## Setup
 
@@ -35,7 +39,7 @@ npm run dev     # Vite on :8080 proxying /api and /healthz to Express on :1502
 ```
 
 ```bash
-npm run build   # type-free production bundle into dist/
+npm run build   # production bundle into dist/
 npm start       # Express serves dist/ and the API on :1502
 ```
 
@@ -45,7 +49,7 @@ path falls through to `index.html` so client-side routes deep-link correctly.
 
 ### Environment
 
-See `.env.example` for the annotated list. The two that matter most:
+See `.env.example` for the annotated list. The ones that matter most:
 
 | Variable | Notes |
 | --- | --- |
@@ -55,7 +59,7 @@ See `.env.example` for the annotated list. The two that matter most:
 | `SMTP_*` | **Optional in development, required in production.** |
 
 With `SMTP_HOST` unset, emails are written to the server log instead of being
-sent and the magic-link URL is printed there. That is deliberate so the app is
+sent, and the magic-link URL is printed there. That is deliberate so the app is
 usable offline, but it means **sign-in links will never arrive in production
 unless SMTP is configured.**
 
@@ -130,5 +134,8 @@ and how to roll back.
 3. Set the environment (including `SMTP_*` and `APP_URL`) in the service unit or
    an environment file with restrictive permissions.
 4. `npm run migrate`
-5. Run `npm start` under a supervisor such as systemd, bound to `1502`.
-6. Terminate TLS in front of it and proxy to `127.0.0.1:1502`.
+5. Copy the built assets into the web root (`cp -r dist/* /var/www/html/`) —
+   the web root is a real copy, not a symlink.
+6. Run `npm start` under a supervisor such as systemd, bound to `1502`, and
+   restart the service.
+7. Terminate TLS in front of it and proxy to `127.0.0.1:1502`.

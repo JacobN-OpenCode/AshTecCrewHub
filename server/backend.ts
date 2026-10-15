@@ -121,7 +121,7 @@ export function createEndpoint<
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      /** Public base URL, e.g. https://crew.mini-jacob.hackclub.app */
+      /** Public base URL, e.g. https://ashtec.dino.icu */
       APP_URL: string;
       DATABASE_URL: string;
     }
