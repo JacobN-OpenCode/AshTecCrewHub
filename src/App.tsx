@@ -80,6 +80,8 @@ function SignedIn() {
         <Route path="/show-dash" element={<LiveShowDash />} />
         {/* Feedback invitations are their own full-screen page, reachable whether or not you are signed in. */}
         <Route path="/feedback/:formId" element={<Feedback />} />
+      <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
+      <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
         <Route element={<AppShell />}>
           <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : me.isStaff ? <StaffHub /> : <MyEvents />} />
           {/* Ticket f455bb8c: non-staff admins asked for the roster too. */}
@@ -132,6 +134,8 @@ function SignedOut() {
       <Route path="/show-dash" element={<LiveShowDash />} />
       {/* A feedback invitation is public: accepting it is what leads to sign-in. */}
       <Route path="/feedback/:formId" element={<Feedback />} />
+      <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
+      <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="*" element={<Landing />} />
     </Routes>
   );

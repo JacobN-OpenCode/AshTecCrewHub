@@ -344,7 +344,10 @@ export default function Landing() {
           <p>
             {PLATFORM} · {SCHOOL}
           </p>
-          <p>Built by the crew, for the crew.</p>
+          <div className="flex items-center gap-4">
+            <p>Built by the crew, for the crew.</p>
+            <a href="/github" target="_blank" rel="noreferrer" className="hover:underline">GitHub</a>
+          </div>
         </div>
       </footer>
 
