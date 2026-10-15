@@ -297,6 +297,13 @@ export type GetContactsInputType = NonNullable<_GetContactsCfg['inputSchema']> e
 export type GetContactsOutputType = Awaited<ReturnType<_GetContactsCfg['execute']>>;
 export const getContacts = createCaller<GetContactsInputType, GetContactsOutputType>('getContacts');
 
+import type { default as _GetLeaderboardEp } from '../api/getLeaderboard';
+
+type _GetLeaderboardCfg = typeof _GetLeaderboardEp;
+export type GetLeaderboardInputType = NonNullable<_GetLeaderboardCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetLeaderboardCfg['execute']>[0]['input'];
+export type GetLeaderboardOutputType = Awaited<ReturnType<_GetLeaderboardCfg['execute']>>;
+export const getLeaderboard = createCaller<GetLeaderboardInputType, GetLeaderboardOutputType>('getLeaderboard');
+
 import type { default as _GetLiveShowAdminsEp } from '../api/getLiveShowAdmins';
 
 type _GetLiveShowAdminsCfg = typeof _GetLiveShowAdminsEp;
@@ -610,6 +617,7 @@ export const api = {
   getCalendarFeed,
   getCatLoginAdmins,
   getContacts,
+  getLeaderboard,
   getLiveShowAdmins,
   getLiveShowState,
   getMe,

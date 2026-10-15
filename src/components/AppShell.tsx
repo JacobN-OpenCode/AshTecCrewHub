@@ -5,7 +5,7 @@ import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, ChartColumn, DoorOpen, Eye, HeartHandshake,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, BookUser, Palette, PanelLeftClose,
-  PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
+  PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -158,6 +158,7 @@ function Shell() {
     main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
     main.push({ to: '/contacts', label: 'Contacts', icon: BookUser });
+    main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
   }
   groups.push({ label: 'Main', items: main });
 

@@ -13,12 +13,13 @@ const SIZES = {
  * their initials when unset or if the link is broken (so a dead link never
  * shows a broken-image icon).
  */
-export default function MemberAvatar({ url, firstName, lastName, size = 'md', className }: {
+export default function MemberAvatar({ url, firstName, lastName, size = 'md', className, title }: {
   url?: string;
   firstName?: string | null;
   lastName?: string | null;
   size?: keyof typeof SIZES;
   className?: string;
+  title?: string;
 }) {
   const [broken, setBroken] = useState(false);
   const base = cn(
@@ -27,8 +28,8 @@ export default function MemberAvatar({ url, firstName, lastName, size = 'md', cl
     className,
   );
   if (url && !broken) {
-    return <img src={url} alt="" onError={() => setBroken(true)} className={cn(base, 'object-cover ring-1 ring-border')} />;
+    return <img src={url} alt="" title={title} onError={() => setBroken(true)} className={cn(base, 'object-cover ring-1 ring-border')} />;
   }
   const initials = `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase() || '?';
-  return <span className={base}>{initials}</span>;
+  return <span className={base} title={title}>{initials}</span>;
 }

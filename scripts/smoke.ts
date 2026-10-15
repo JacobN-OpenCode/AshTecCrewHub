@@ -362,6 +362,15 @@ if (!admin) {
       check('getContacts lists the opt-in', contacts.status === 200 && (contacts.body?.contacts ?? []).some((c: { id: string }) => c.id === memberId), JSON.stringify(contacts.body).slice(0, 160));
       const bdays = await call('getBirthdays', { days: 30 });
       check('getBirthdays is members-only and shaped', bdays.status === 200 && Array.isArray(bdays.body?.birthdays));
+      // Leaderboard: every member gets a row, ranks are 1-based, badges catalog
+      // comes back, and the caller's own row is included.
+      const lb = await call('getLeaderboard', {});
+      const lbRows = lb.body?.rows ?? [];
+      check('getLeaderboard returns ranked rows', lb.status === 200 && lbRows.length >= 1 && lbRows[0].rank === 1 && typeof lbRows[0].hours === 'number', JSON.stringify(lb.body).slice(0, 160));
+      check('getLeaderboard includes the caller and a badge catalog', !!lb.body?.me && Array.isArray(lb.body?.badges) && lb.body.badges.length > 0);
+      check('getLeaderboard ranks are dense and ascending', lbRows.every((r: { rank: number }, i: number) => r.rank === i + 1));
+      const lbUnauth = await fetch(`${BASE}/api/getLeaderboard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      check('getLeaderboard requires a session', lbUnauth.status === 401);
       // Restore the row so repeated runs do not leave a status on the admin.
       await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
 

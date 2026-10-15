@@ -14,6 +14,7 @@ import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
+import MyBadges from '../components/MyBadges';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, ACCENTS } from '../lib/uiPrefs';
@@ -280,6 +281,8 @@ export default function Profile() {
         </div>
 
         <div className="min-w-0 space-y-6">
+          <MyBadges />
+
           <Preferences />
 
           {me.isAdmin && <EmergencySignIn />}

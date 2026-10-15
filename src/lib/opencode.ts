@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
   /** What is being touched right now. */
-  now: 'Batch 1 of the feedback roadmap: member profile extras (custom status, birthday, contact sheet opt-in, mentor pairing).',
+  now: 'Batch 2 of the feedback roadmap: gamification (badges and an hours leaderboard built from attendance).',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -38,20 +38,25 @@ export const OPENCODE_STATUS = {
     },
     {
       state: 'done',
+      title: '/opencode status page',
+      detail: 'This board. Reads the file you are looking at now.',
+    },
+    {
+      state: 'done',
       title: 'Admin attendance CSV export tool',
       detail:
         'Tools tab: pick a show, get a crew x event grid with Yes/Maybe/No, downloadable as CSV. Deployed and verified.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 1: member profile extras',
       detail:
-        'Custom status + emoji, birthday (MM-DD), contact-sheet opt-in with phone, mentor pairing. Schema columns added; endpoints, /contacts page and Settings fields in progress.',
+        'Custom status + emoji on the rosters, birthday (month/day only) with a birthdays strip, contact-sheet opt-in with phone, and mentor pairing shown in Settings. Live in production.',
     },
     {
-      state: 'queued',
+      state: 'active',
       title: 'Feedback roadmap — Batch 2: gamification',
-      detail: 'Badges, hours leaderboard from attendance.',
+      detail: 'Badges for crew milestones, and an hours leaderboard computed from attendance.',
     },
     {
       state: 'queued',
@@ -68,10 +73,11 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
-    'Feedback form: swap out 9 suggestions already built',
-    'Tools: admin attendance CSV export',
-    'Docs: reword README and correct the public URLs',
+    'Batch 1: birthdays strip, mentor display, status on rosters',
+    'Add /opencode status page; batch 1 member profile extras',
     'Add /github and /gh redirects and small GitHub link in landing footer',
+    'Docs: reword README and correct the public URLs',
+    'Tools: admin attendance CSV export',
   ],
   /** How to read the board. */
   legend: 'done = shipped to production · active = being written now · queued = next up',

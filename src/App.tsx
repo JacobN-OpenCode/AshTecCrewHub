@@ -30,6 +30,7 @@ import Ticket from './pages/admin/Ticket';
 import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
 import Contacts from './pages/Contacts';
+import Leaderboard from './pages/Leaderboard';
 import OpenCode from './pages/OpenCode';
 import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
@@ -99,6 +100,7 @@ function SignedIn() {
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
