@@ -12,7 +12,7 @@ import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
-import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell, Camera, MessageSquareHeart, DoorOpen, Search, Ticket, Pin } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell, Camera, MessageSquareHeart, DoorOpen, Search, Ticket, Pin, Printer } from 'lucide-react';
 
 type Ws = GetShowWorkspaceOutputType;
 type Media = GetShowMediaOutputType;
@@ -98,11 +98,20 @@ export default function ShowWorkspace() {
             {openCovers > 0 && <> · <span className="text-amber-500">{openCovers} cover needed</span></>}
           </p>
         </div>
-        {ws.isAdmin && (
-          <Button variant="outline" size="sm" onClick={() => act(() => setTechLock({ showId, locked: !ws.techLocked }), ws.techLocked ? 'Unlocked' : 'Tech Week locked')}>
-            <Lock className="h-4 w-4 mr-1" />{ws.techLocked ? 'Unlock show' : 'Lock for Tech Week'}
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Batch 6: printable call sheet for the show day. */}
+          <Link
+            to={`/show/${showId}/sheet`}
+            className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <Printer className="mr-1 h-4 w-4" />Call sheet
+          </Link>
+          {ws.isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => act(() => setTechLock({ showId, locked: !ws.techLocked }), ws.techLocked ? 'Unlocked' : 'Tech Week locked')}>
+              <Lock className="h-4 w-4 mr-1" />{ws.techLocked ? 'Unlock show' : 'Lock for Tech Week'}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

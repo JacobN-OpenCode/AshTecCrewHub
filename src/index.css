@@ -232,3 +232,34 @@
   }
   .hc-lift:hover { transform: none; }
 }
+
+/* Batch 6: accessibility. Text scale is a root font-size step; the whole app is
+   built on rem / Tailwind's rem-based text-* utilities, so this scales type and
+   spacing together without touching a single component. `data-text` is set on
+   <html> by useTextScale(). */
+[data-text='large'] { font-size: 17.5px; }
+[data-text='larger'] { font-size: 19px; }
+
+/* High contrast: strengthen the borders/dividers that carry structure and make
+   sure muted text stays readable, without inverting the palette. Everything is
+   scoped to [data-contrast='high'] so the default look is untouched. */
+[data-contrast='high'] {
+  --border: 220 14% 42%;
+  --input: 220 14% 42%;
+}
+[data-contrast='high'] :is(.border, [class*='border-']) { border-color: hsl(220 14% 42%); }
+[data-contrast='high'] .text-muted-foreground { color: hsl(var(--foreground) / 0.85); }
+[data-contrast='high'] :focus-visible { outline: 3px solid hsl(var(--ring)); outline-offset: 2px; }
+
+/* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
+   the app chrome (sidebar, help button, toasts) is rendered by the shell for
+   every route, so hide it globally when printing rather than per view. */
+@media print {
+  aside, nav, .app-fab, .skip-link, [data-print-hide] { display: none !important; }
+  body { background: #fff !important; }
+  main { padding: 0 !important; }
+  .print-sheet { color: #000; }
+  .print-sheet a { color: #000; text-decoration: none; }
+  /* A call sheet should start each event on the same page, not break mid-row. */
+  .print-avoid-break { break-inside: avoid; }
+}

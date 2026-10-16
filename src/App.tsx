@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth, logout } from '#auth';
 import { getMe } from '#api';
-import { getDensity, applyDensity } from './lib/uiPrefs';
 import { Toaster } from '@project/components/ui/sonner';
 import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -38,13 +37,17 @@ import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
 import LiveShowDash from './pages/live/LiveShowDash';
 import LiveShowAdmin from './pages/admin/LiveShowAdmin';
+import Widget from './pages/Widget';
+import Watch from './pages/Watch';
+import CallSheet from './pages/CallSheet';
 import { MeContext, type Me, type Mentor } from './lib/me';
-import { applyAccent, getAccent } from './lib/uiPrefs';
+import { applyAccent, getAccent, applyAccessibilityPrefs } from './lib/uiPrefs';
 
 document.documentElement.classList.add('dark');
 // Ticket 8051f385: apply the saved density (roomy/compact) before first paint
-// so the layout does not flash the default.
-applyDensity(getDensity());
+// so the layout does not flash the default. Batch 6 folds density, text scale
+// and high contrast into one call so all three land before the first paint.
+applyAccessibilityPrefs();
 // Apply the saved accent before first paint so the app never flashes the default.
 applyAccent(getAccent());
 
@@ -58,6 +61,7 @@ function SignedIn() {
   const [supportAwaiting, setSupportAwaiting] = useState(0);
   const [liveShowActive, setLiveShowActive] = useState(false);
   const [specialNote, setSpecialNote] = useState<string | null>(null);
+  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
   const refreshMe = useCallback(async () => {
     const r = await getMe(pv());
     setMe(r.member);
@@ -65,6 +69,7 @@ function SignedIn() {
     setSupportAwaiting(r.supportAwaiting ?? 0);
     setLiveShowActive(!!r.liveShowActive);
     setSpecialNote(r.specialNote ?? null);
+    setNotificationPrefs(r.notificationPrefs ?? {});
   }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
 
@@ -79,12 +84,16 @@ function SignedIn() {
     );
 
   return (
-    <MeContext.Provider value={{ me, mentor, refreshMe, supportAwaiting, liveShowActive, specialNote }}>
+    <MeContext.Provider value={{ me, mentor, refreshMe, supportAwaiting, liveShowActive, specialNote, notificationPrefs }}>
       <Routes>
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />
         {/* The live show dashboard lives outside the shell; it keeps only its own back button. */}
         <Route path="/show-dash" element={<LiveShowDash />} />
+        {/* Batch 6: the compact widget and the watch companion are their own
+            minimal surfaces, so they render outside the shell too. */}
+        <Route path="/widget" element={<Widget />} />
+        <Route path="/watch" element={<Watch />} />
         {/* Feedback invitations are their own full-screen page, reachable whether or not you are signed in. */}
         <Route path="/feedback/:formId" element={<Feedback />} />
       <Route path="/opencode" element={<OpenCode />} />
@@ -105,6 +114,9 @@ function SignedIn() {
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/show/:showId" element={<ShowWorkspace />} />
+          {/* Batch 6: printable call sheet (rendered in the shell so nav works
+              on screen; @media print hides the chrome). */}
+          <Route path="/show/:showId/sheet" element={<CallSheet />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}

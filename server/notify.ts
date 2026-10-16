@@ -7,15 +7,18 @@
  *   - personal notifications: about the member's own commitments (a form due, a
  *     response deadline, needing to check in).
  *
- * Personal notifications always go out; only the admin ones have a switch, and it
- * defaults to on for admins. Preview accounts never receive anything, because
- * they are puppets an admin signs into, not people.
+ * Personal notifications have a per-kind switch the member owns (push tuning,
+ * Batch 6): a kind they mute is skipped, and a kind they never touched is on.
+ * Admin notifications have a single switch that defaults to on for admins.
+ * Preview accounts never receive anything, because they are puppets an admin
+ * signs into, not people.
  */
 
 import { zite } from './db/index.js';
 import { ids, isEmailable } from '../src/lib/server.js';
 import { sendToMember, sendToMembers, claimNotification, type PushPayload } from './push.js';
 import { Email } from './email.js';
+import { isKindEnabled, parseNotificationPrefs } from '../src/lib/notificationKinds.js';
 
 interface Person {
   id: string;
@@ -25,6 +28,7 @@ interface Person {
   isMaintainer?: boolean;
   isPreviewAccount?: boolean;
   adminNotifications?: boolean | null;
+  notificationPrefs?: string;
 }
 
 const mayReceiveAdmin = (m: Person) => {
@@ -33,6 +37,23 @@ const mayReceiveAdmin = (m: Person) => {
   // Unset follows the default: on for admins.
   return m.adminNotifications === null || m.adminNotifications === undefined ? !!m.isAdmin : !!m.adminNotifications;
 };
+
+/**
+ * Push tuning (Batch 6): personal notifications obey the member's per-kind
+ * switch. A missing or unparseable blob means everything is on, so this can only
+ * ever turn a notification off when the member explicitly asked for it.
+ */
+const allowsKind = (m: Person, kind: string): boolean => {
+  if (m.isPreviewAccount) return false;
+  return isKindEnabled(parseNotificationPrefs(m.notificationPrefs), kind);
+};
+
+/** The one-member case: load their record to read the tuning blob. */
+async function allowsKindFor(memberId: string, kind: string): Promise<boolean> {
+  const { records } = await zite.crewMembers.findAll({ filters: { id: memberId }, limit: 1 });
+  const person = records[0] as unknown as Person | undefined;
+  return person ? allowsKind(person, kind) : true;
+}
 
 async function crew(): Promise<Person[]> {
   const { records } = await zite.crewMembers.findAll({ limit: 2000 });
@@ -223,6 +244,9 @@ export async function notifyFormDue(
   memberId: string,
   what: { kind: 'show' | 'event'; title: string; dueDate: string }
 ): Promise<void> {
+  // Check the member's tuning before claiming, so a muted member does not burn
+  // the dedupe key and miss the reminder after turning it back on.
+  if (!(await allowsKindFor(memberId, 'form-due'))) return;
   if (!(await claimNotification(memberId, 'form-due', `${what.kind}:${what.title}:${what.dueDate}`))) return;
   await sendToMember(memberId, {
     title: 'A form is due',
@@ -234,6 +258,7 @@ export async function notifyFormDue(
 
 /** A venue check-in session is open and this member has not signed in. */
 export async function notifyCheckInPrompt(memberId: string, sessionId: string, title: string): Promise<void> {
+  if (!(await allowsKindFor(memberId, 'checkin-prompt'))) return;
   if (!(await claimNotification(memberId, 'checkin-prompt', sessionId))) return;
   await sendToMember(memberId, {
     title: 'Check in to the venue',
@@ -249,14 +274,20 @@ export async function notifyCheckInPrompt(memberId: string, sessionId: string, t
  * the stage manager, not only the member.
  */
 export async function notifyOverdueReturn(memberId: string, name: string, expectedBackAt: string): Promise<void> {
-  if (!(await claimNotification(memberId, 'overdue-return', expectedBackAt))) return;
+  // Tuning mutes only the member's own nudge; the stage-manager alert below
+  // still goes out, because someone being overdue is a safety matter.
+  if (await allowsKindFor(memberId, 'overdue-return')) {
+    if (await claimNotification(memberId, 'overdue-return', expectedBackAt)) {
+      const when = new Date(expectedBackAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      await sendToMember(memberId, {
+        title: 'You are overdue',
+        body: `You said you would be back by ${when}. Tap to sign back in.`,
+        url: '/attendance',
+        tag: 'overdue',
+      });
+    }
+  }
   const when = new Date(expectedBackAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  await sendToMember(memberId, {
-    title: 'You are overdue',
-    body: `You said you would be back by ${when}. Tap to sign back in.`,
-    url: '/attendance',
-    tag: 'overdue',
-  });
   const admins = (await adminRecipients()).filter((id) => id !== memberId);
   if (admins.length) {
     await sendToMembers(admins, {
@@ -288,7 +319,11 @@ export async function notifyEventUpdated(eventId: string, title: string, change:
   for (const a of att) if (ids(a.subEvent)[0] === eventId) interested.add(ids(a.member)[0] ?? '');
   interested.delete('');
 
+  const byId = new Map((members as unknown as Person[]).map((m) => [m.id, m]));
   for (const id of interested) {
+    // Honour each member's "event changes" switch before claiming the key.
+    const person = byId.get(id);
+    if (person && !allowsKind(person, 'event-updated')) continue;
     if (!(await claimNotification(id, 'event-updated', `${eventId}:${change}`))) continue;
     await sendToMember(id, {
       title: 'Event updated',
@@ -297,7 +332,6 @@ export async function notifyEventUpdated(eventId: string, title: string, change:
       tag: `event-${eventId}`,
     });
   }
-  void members;
 }
 
 /**
@@ -314,7 +348,10 @@ export async function notifyCueCall(info: {
 }): Promise<void> {
   const body = info.message || 'You are called.';
   const url = info.showId ? `/show/${info.showId}` : '/calendar';
+  const byId = new Map((await crew()).map((m) => [m.id, m]));
   for (const id of [...new Set(info.memberIds)]) {
+    const person = byId.get(id);
+    if (person && !allowsKind(person, 'cue-call')) continue;
     if (!(await claimNotification(id, 'cue-call', `${info.subEventId}:${info.from}:${body}`))) continue;
     await sendToMember(id, { title: `Cue call: ${info.title}`, body: `${info.from}: ${body}`, url, tag: `cue-${info.subEventId}` });
   }
@@ -333,7 +370,9 @@ export async function notifyCoverRequest(info: {
   role: string;
 }): Promise<void> {
   const url = info.showId ? `/show/${info.showId}` : '/calendar';
-  const who = (await crew()).filter((m) => !m.isPreviewAccount && m.id !== info.requesterId).map((m) => m.id);
+  const who = (await crew())
+    .filter((m) => !m.isPreviewAccount && m.id !== info.requesterId && allowsKind(m, 'cover-request'))
+    .map((m) => m.id);
   for (const id of who) {
     if (!(await claimNotification(id, 'cover-request', `${info.subEventId}:${info.requesterId}`))) continue;
     await sendToMember(id, {

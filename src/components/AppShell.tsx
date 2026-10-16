@@ -10,6 +10,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
+import OfflineBanner from './OfflineBanner';
+import KeyboardShortcuts, { type Shortcut } from './KeyboardShortcuts';
 import CommandPalette, { type PaletteItem } from './CommandPalette';
 import MemberAvatar from './MemberAvatar';
 import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
@@ -258,6 +260,26 @@ function Shell() {
 
   const mobileTabs = main.filter((i) => ['/', '/attendance', '/calendar'].includes(i.to));
 
+  // Batch 6: `g` then a letter jumps to a page. Built from the nav that exists
+  // for this account, so a shortcut can never offer a page the member lacks.
+  const shortcuts: Shortcut[] = useMemo(() => {
+    const KEY_FOR: Record<string, string> = {
+      '/': 'h', '/calendar': 'c', '/schedule': 's', '/attendance': 'a', '/profile': 'p', '/roster': 'r',
+      '/contacts': 'n', '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o',
+    };
+    const seen = new Set<string>();
+    const out: Shortcut[] = [];
+    for (const g of groups) {
+      for (const i of g.items) {
+        const key = KEY_FOR[i.to];
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push({ key, label: i.label, to: i.to });
+      }
+    }
+    return out;
+  }, [groups]);
+
   const account = (
     <div className="flex items-center gap-2.5">
       <MemberAvatar url={me.avatarUrl} firstName={me.firstName} lastName={me.lastName} />
@@ -420,6 +442,7 @@ function Shell() {
           </header>
 
           <main className="app-main mx-auto max-w-7xl px-4 pt-6 lg:px-8 lg:pt-8">
+            <OfflineBanner />
             <PresenceBanner hide={loc.pathname === '/attendance'} />
             {/* Keyed on the path so each page fades/slides in when you navigate.
                 Query-only changes do not remount, so in-page state is kept. */}
@@ -493,6 +516,7 @@ function Shell() {
       )}
 
       <CommandPalette open={palette} onOpenChange={setPalette} items={paletteItems} loading={searchLoading} />
+      <KeyboardShortcuts shortcuts={shortcuts} />
       {!previewId() && <SupportButton />}
     </div>
   );

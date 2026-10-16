@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
   /** What is being touched right now. */
-  now: 'Batch 5 of the feedback roadmap: scheduling (clash detector, term overview, availability, rota sign-up, travel time, reminder tuning, a parent calendar feed).',
+  now: 'Batch 6 of the feedback roadmap: app polish (push tuning, keyboard shortcuts, data export, accessibility, notification history, a next-call widget and watch companion, printable call sheets, offline reads).',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -71,20 +71,27 @@ export const OPENCODE_STATUS = {
         'Backstage photo albums (by link), a shared post-show debrief, a green-room noticeboard with pinning, a lost property log, nightly box-office headcounts with a run total, and an opening-night countdown on the home screen. Live in production.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 5: scheduling',
       detail:
-        'A clash detector, term-at-a-glance with exam blackout dates, "when am I not free" availability, self sign-up rotas, travel-time padding, per-event reminder tuning, and a shareable calendar feed for parents.',
+        'A clash detector, term-at-a-glance with exam blackout dates, "when am I not free" availability, self sign-up rotas, travel-time padding, per-event reminder tuning, and a shareable calendar feed for parents. Live in production.',
+    },
+    {
+      state: 'active',
+      title: 'Feedback roadmap — Batch 6: app polish',
+      detail:
+        'Per-kind push tuning and a notification history, keyboard shortcuts, a one-click data export, accessibility settings (text size and high contrast), a next-call widget and a watch companion, printable call sheets, and offline reads for the pages a show day depends on.',
     },
     {
       state: 'queued',
-      title: 'Feedback roadmap — Batches 6–8',
+      title: 'Feedback roadmap — Batches 7–8',
       detail:
-        'App polish (push tuning, shortcuts, data export, accessibility, notification history, widgets/watch, call-sheet packs, offline), announcements + DMs, then the fun ones (more cat, mascot, sound effects, show memories).',
+        'Announcements + DMs, then the fun ones (more cat, mascot, sound effects, show memories).',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Batch 5: scheduling (clash detector, term view, availability, rotas, travel time, parents feed)',
     'Batch 4: show-day extras (photos, debrief, green room, lost property, box office)',
     'Batch 3: per-show workspace (checklists, cues, props, roll call, sign-off, cover)',
     'Batch 2: badges and an hours leaderboard',

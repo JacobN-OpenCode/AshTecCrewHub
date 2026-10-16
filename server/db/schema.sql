@@ -857,4 +857,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS "RotaSignups_slot_member_idx" ON "RotaSignups"
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "travelMinutes" integer NOT NULL DEFAULT 0;
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "reminderPrefs" text NOT NULL DEFAULT '';
 
+-- ---------------------------------------------------------------------------
+-- Batch 6: app polish. Fine-grained push controls and a notification history
+-- so a member can catch up on what they missed while offline.
+-- ---------------------------------------------------------------------------
+-- Per-member push tuning: a small JSON blob of { kind: boolean }. A kind that
+-- is absent (or the blob empty) means "on", so the default stays useful and a
+-- new kind needs no backfill.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "notificationPrefs" text NOT NULL DEFAULT '';
+
+-- One row per push actually delivered to a member (not per device), so the app
+-- can show "what you missed". Kept separate from NotificationLog on purpose:
+-- that table is the per-kind dedupe ledger keyed by a unique dedupeKey, and a
+-- history row must never interfere with "have we already sent this".
+CREATE TABLE IF NOT EXISTS "NotificationHistory" (
+  "id"      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "member"  uuid NOT NULL,
+  "kind"    text NOT NULL DEFAULT '',
+  "title"   text NOT NULL DEFAULT '',
+  "body"    text NOT NULL DEFAULT '',
+  "url"     text NOT NULL DEFAULT '/',
+  "sentAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "NotificationHistory_member_idx" ON "NotificationHistory" ("member", "sentAt" DESC);
+
 COMMIT;

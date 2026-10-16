@@ -34,6 +34,7 @@ import { verifyCalendarToken, buildMemberFeed, buildPublicFeed } from './calenda
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
 import { notifyServerError } from './notify.js';
+import { pruneNotifications, pruneNotificationHistory } from './push.js';
 import { db } from './db/index.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -439,6 +440,12 @@ await pruneAuth().catch((e) => console.error('[server] pruneAuth failed:', e));
 setInterval(() => void schedulerTick(), 60_000).unref();
 setInterval(() => void pruneAuth().catch(() => {}), 3_600_000).unref();
 setInterval(() => void pruneActivity().catch(() => {}), 3_600_000).unref();
+// The diagnostics sheet has always listed a pruneNotifications job; until now
+// nothing ran it, so the dedupe ledger grew forever. Both prunes share the tick.
+setInterval(() => {
+  void pruneNotifications().catch(() => {});
+  void pruneNotificationHistory().catch(() => {});
+}, 3_600_000).unref();
 setInterval(() => rateLimit.gc(), 60 * 60 * 1000).unref();
 
 // A rejected promise floating somewhere is exactly the kind of failure a member

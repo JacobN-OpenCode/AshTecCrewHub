@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { actingMember, findMemberByEmail, adminCount, mapMember } from '../lib/server';
+import { resolvedNotificationPrefs } from '../lib/notificationKinds';
 
 /**
  * A warm little note that glows around the name of people who have really
@@ -22,9 +23,19 @@ export default createEndpoint({
   execute: async ({ input, context }) => {
     const hasOpenLiveShow = !!(await zite.liveShows.findOne({ filters: { open: true } }));
     const specialNote = SPECIAL_NOTES[context.user.email.toLowerCase()] ?? null;
+    // Push tuning (Batch 6): the member's per-kind switches, resolved so the
+    // Settings UI reads a plain { kind: boolean } and never has to parse the blob.
     if (input.previewAs) {
       const p = await actingMember(context.user.email, input.previewAs);
-      return { member: { ...mapMember(p), isAdmin: false }, mentor: null, supportAwaiting: 0, liveShowActive: hasOpenLiveShow, specialNote };
+      const prefs = (p as unknown as { notificationPrefs?: string }).notificationPrefs;
+      return {
+        member: { ...mapMember(p), isAdmin: false },
+        mentor: null,
+        supportAwaiting: 0,
+        liveShowActive: hasOpenLiveShow,
+        specialNote,
+        notificationPrefs: resolvedNotificationPrefs(prefs),
+      };
     }
     let m = await findMemberByEmail(context.user.email);
     if (!m && (await adminCount()) === 0) {
@@ -56,6 +67,14 @@ export default createEndpoint({
         if (rec) mentor = { id: rec.id, firstName: rec.firstName ?? '', lastName: rec.lastName ?? '', email: rec.schoolEmail ?? '' };
       }
     }
-    return { member: mapped, mentor, supportAwaiting, liveShowActive: hasOpenLiveShow, specialNote };
+    const prefs = (m as unknown as { notificationPrefs?: string } | null)?.notificationPrefs;
+    return {
+      member: mapped,
+      mentor,
+      supportAwaiting,
+      liveShowActive: hasOpenLiveShow,
+      specialNote,
+      notificationPrefs: resolvedNotificationPrefs(prefs),
+    };
   },
 });

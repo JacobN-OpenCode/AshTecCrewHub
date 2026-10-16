@@ -276,6 +276,13 @@ export type EnableLiveShowDeviceInputType = NonNullable<_EnableLiveShowDeviceCfg
 export type EnableLiveShowDeviceOutputType = Awaited<ReturnType<_EnableLiveShowDeviceCfg['execute']>>;
 export const enableLiveShowDevice = createCaller<EnableLiveShowDeviceInputType, EnableLiveShowDeviceOutputType>('enableLiveShowDevice');
 
+import type { default as _ExportMyDataEp } from '../api/exportMyData';
+
+type _ExportMyDataCfg = typeof _ExportMyDataEp;
+export type ExportMyDataInputType = NonNullable<_ExportMyDataCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_ExportMyDataCfg['execute']>[0]['input'];
+export type ExportMyDataOutputType = Awaited<ReturnType<_ExportMyDataCfg['execute']>>;
+export const exportMyData = createCaller<ExportMyDataInputType, ExportMyDataOutputType>('exportMyData');
+
 import type { default as _GetBirthdaysEp } from '../api/getBirthdays';
 
 type _GetBirthdaysCfg = typeof _GetBirthdaysEp;
@@ -296,6 +303,13 @@ type _GetCalendarFeedCfg = typeof _GetCalendarFeedEp;
 export type GetCalendarFeedInputType = NonNullable<_GetCalendarFeedCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCalendarFeedCfg['execute']>[0]['input'];
 export type GetCalendarFeedOutputType = Awaited<ReturnType<_GetCalendarFeedCfg['execute']>>;
 export const getCalendarFeed = createCaller<GetCalendarFeedInputType, GetCalendarFeedOutputType>('getCalendarFeed');
+
+import type { default as _GetCallSheetEp } from '../api/getCallSheet';
+
+type _GetCallSheetCfg = typeof _GetCallSheetEp;
+export type GetCallSheetInputType = NonNullable<_GetCallSheetCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCallSheetCfg['execute']>[0]['input'];
+export type GetCallSheetOutputType = Awaited<ReturnType<_GetCallSheetCfg['execute']>>;
+export const getCallSheet = createCaller<GetCallSheetInputType, GetCallSheetOutputType>('getCallSheet');
 
 import type { default as _GetCatLoginAdminsEp } from '../api/getCatLoginAdmins';
 
@@ -373,6 +387,13 @@ type _GetMyFeedbackCfg = typeof _GetMyFeedbackEp;
 export type GetMyFeedbackInputType = NonNullable<_GetMyFeedbackCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMyFeedbackCfg['execute']>[0]['input'];
 export type GetMyFeedbackOutputType = Awaited<ReturnType<_GetMyFeedbackCfg['execute']>>;
 export const getMyFeedback = createCaller<GetMyFeedbackInputType, GetMyFeedbackOutputType>('getMyFeedback');
+
+import type { default as _GetNotificationHistoryEp } from '../api/getNotificationHistory';
+
+type _GetNotificationHistoryCfg = typeof _GetNotificationHistoryEp;
+export type GetNotificationHistoryInputType = NonNullable<_GetNotificationHistoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetNotificationHistoryCfg['execute']>[0]['input'];
+export type GetNotificationHistoryOutputType = Awaited<ReturnType<_GetNotificationHistoryCfg['execute']>>;
+export const getNotificationHistory = createCaller<GetNotificationHistoryInputType, GetNotificationHistoryOutputType>('getNotificationHistory');
 
 import type { default as _GetPresenceEp } from '../api/getPresence';
 
@@ -619,6 +640,13 @@ export type SaveLostItemInputType = NonNullable<_SaveLostItemCfg['inputSchema']>
 export type SaveLostItemOutputType = Awaited<ReturnType<_SaveLostItemCfg['execute']>>;
 export const saveLostItem = createCaller<SaveLostItemInputType, SaveLostItemOutputType>('saveLostItem');
 
+import type { default as _SaveNotificationPrefsEp } from '../api/saveNotificationPrefs';
+
+type _SaveNotificationPrefsCfg = typeof _SaveNotificationPrefsEp;
+export type SaveNotificationPrefsInputType = NonNullable<_SaveNotificationPrefsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveNotificationPrefsCfg['execute']>[0]['input'];
+export type SaveNotificationPrefsOutputType = Awaited<ReturnType<_SaveNotificationPrefsCfg['execute']>>;
+export const saveNotificationPrefs = createCaller<SaveNotificationPrefsInputType, SaveNotificationPrefsOutputType>('saveNotificationPrefs');
+
 import type { default as _SavePropEp } from '../api/saveProp';
 
 type _SavePropCfg = typeof _SavePropEp;
@@ -817,9 +845,11 @@ export const api = {
   claimRotaSlot,
   deletePushSubscription,
   enableLiveShowDevice,
+  exportMyData,
   getBirthdays,
   getCalendar,
   getCalendarFeed,
+  getCallSheet,
   getCatLoginAdmins,
   getContacts,
   getCountdown,
@@ -831,6 +861,7 @@ export const api = {
   getMyCatLoginStatus,
   getMyEvents,
   getMyFeedback,
+  getNotificationHistory,
   getPresence,
   getPublicCalendar,
   getPublicParents,
@@ -866,6 +897,7 @@ export const api = {
   saveGreenRoomNote,
   saveLiveShowScript,
   saveLostItem,
+  saveNotificationPrefs,
   saveProp,
   savePushSubscription,
   saveRehearsalNote,

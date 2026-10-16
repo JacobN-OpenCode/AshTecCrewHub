@@ -1,7 +1,10 @@
 import { previewId, pv } from '../lib/preview';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket } from '#api';
+import {
+  updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket,
+  saveNotificationPrefs, getNotificationHistory, exportMyData, type GetNotificationHistoryOutputType,
+} from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -10,14 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Watch, LayoutPanelTop } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import MyBadges from '../components/MyBadges';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, ACCENTS } from '../lib/uiPrefs';
+import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
 import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
@@ -285,9 +289,19 @@ export default function Profile() {
 
           <Preferences />
 
+          <AccessibilitySettings />
+
           {me.isAdmin && <EmergencySignIn />}
 
           <PwaSettings />
+
+          <NotificationTuning />
+
+          <NotificationHistory />
+
+          <DeviceViews />
+
+          <DataExport />
 
           <WhatsAppCommunity />
         </div>
@@ -690,6 +704,243 @@ function Preferences() {
         </span>
         <Switch checked={density === 'compact'} onCheckedChange={(v) => setDensity(v ? 'compact' : 'roomy')} aria-label="Use compact spacing" />
       </label>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: accessibility. Larger text and higher contrast, both per-device like
+ * the density choice. The switches write to uiPrefs, which sets `data-text` /
+ * `data-contrast` on <html>; the rules live in index.css.
+ */
+function AccessibilitySettings() {
+  const [text, setText] = useTextScale();
+  const [contrast, setContrast] = useHighContrast();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Type className="h-5 w-5 text-primary" />Accessibility
+        </h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Text size</p>
+        <div className="flex gap-2" role="radiogroup" aria-label="Text size">
+          {([['default', 'Default'], ['large', 'Large'], ['larger', 'Larger']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={text === id}
+              onClick={() => setText(id)}
+              className={cn(
+                'flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                text === id ? 'border-primary bg-primary/10 text-foreground' : 'hover:bg-muted/60',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="flex items-center gap-2 font-medium text-sm"><Contrast className="h-4 w-4" />High contrast</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Strengthens borders and dividers and brightens dimmed text, so structure is easier to see.
+          </span>
+        </span>
+        <Switch checked={contrast} onCheckedChange={setContrast} aria-label="Use high contrast" />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: push tuning. The member's own per-kind switches for the personal
+ * notifications, saved server-side so they apply on every device. Absent means
+ * on, so turning everything back on stores an empty set. Admin/operational
+ * pushes are governed by the admin-notifications switch in the card above.
+ */
+function NotificationTuning() {
+  const { me, notificationPrefs, refreshMe } = useMe();
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(notificationPrefs);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setPrefs(notificationPrefs), [notificationPrefs]);
+
+  const toggle = async (kind: string, next: boolean) => {
+    const optimistic = { ...prefs, [kind]: next };
+    setPrefs(optimistic);
+    setBusy(true);
+    try {
+      const r = await saveNotificationPrefs({ prefs: optimistic });
+      setPrefs(r.prefs ?? optimistic);
+      await refreshMe();
+      toast.success(next ? 'Notification turned on' : 'Notification turned off');
+    } catch (e) {
+      setPrefs(prefs);
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" />Push notifications
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Choose which of your own notifications reach you. These follow your account to every device.
+        </p>
+      </div>
+      <div className="space-y-4">
+        {NOTIFICATION_KINDS.map((k) => (
+          <label key={k.id} className="flex items-start justify-between gap-4 cursor-pointer">
+            <span>
+              <span className="block font-medium text-sm">{k.label}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{k.hint}</span>
+            </span>
+            <Switch
+              checked={prefs[k.id] !== false}
+              disabled={busy}
+              onCheckedChange={(v) => void toggle(k.id, v)}
+              aria-label={k.label}
+            />
+          </label>
+        ))}
+      </div>
+      {me.isAdmin || me.isMaintainer ? (
+        <p className="text-xs text-muted-foreground">
+          Ticket and venue alerts are operational and use the switch in the “Notifications” card above.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Batch 6: notification history. What was pushed to this member recently, so
+ * someone who was offline can see what they missed. Read-only and scoped to the
+ * signed-in member.
+ */
+function NotificationHistory() {
+  const [items, setItems] = useState<GetNotificationHistoryOutputType['items'] | null>(null);
+  useEffect(() => {
+    let live = true;
+    getNotificationHistory({ limit: 30 })
+      .then((r) => { if (live) setItems(r.items ?? []); })
+      .catch(() => { if (live) setItems([]); });
+    return () => { live = false; };
+  }, []);
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <History className="h-5 w-5 text-primary" />Recent notifications
+        </h2>
+        <p className="text-sm text-muted-foreground">Your last 30 pushes, so you can catch up on anything you missed.</p>
+      </div>
+      {items === null ? (
+        <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing yet. Notifications you receive will show up here.</p>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((n) => (
+            <li key={n.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+              <Link to={n.url || '/'} className="block rounded-lg transition-colors hover:bg-muted/40">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium text-sm">{n.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{new Date(n.sentAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                {n.body ? <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p> : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Batch 6: the compact views. Both live outside the shell so they can be added
+ * to a home screen; this card is just a way to find them and explains what they
+ * are for.
+ */
+function DeviceViews() {
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <MonitorSmartphone className="h-5 w-5 text-primary" />Compact views
+        </h2>
+        <p className="text-sm text-muted-foreground">Lightweight pages for a phone home screen or a second screen.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Link to="/widget" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
+          <LayoutPanelTop className="h-4 w-4 text-primary" />Next-call widget
+        </Link>
+        <Link to="/watch" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
+          <Watch className="h-4 w-4 text-primary" />Watch companion
+        </Link>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Tip: open one of these and use your browser’s “Add to Home Screen”.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: export data. One download of everything the hub holds about you.
+ * The endpoint returns structured rows; the client turns them into a JSON file
+ * so nothing is lost in a flattening step.
+ */
+function DataExport() {
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    setBusy(true);
+    try {
+      const data = await exportMyData({});
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ashtec-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Your data has been downloaded');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Download className="h-5 w-5 text-primary" />Export your data
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Download everything the hub holds about you: your profile, show responses, attendance, support tickets, availability and rota sign-ups.
+        </p>
+      </div>
+      <Button variant="outline" onClick={download} disabled={busy}>
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+        Download my data (JSON)
+      </Button>
     </div>
   );
 }

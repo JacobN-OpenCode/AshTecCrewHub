@@ -193,3 +193,95 @@ export function useDensity() {
   };
   return [value, set] as const;
 }
+
+/**
+ * Batch 6: accessibility. A larger-text step and a high-contrast switch, both
+ * per-device like the density choice. `data-text` scales the root font size
+ * (everything here sizes off rem / Tailwind's text-* which are rem-based) and
+ * `data-contrast` raises borders and dims nothing, per the rules in index.css.
+ */
+export type TextScale = 'default' | 'large' | 'larger';
+const TEXT_SCALE_KEY = 'ashtec-text-scale';
+const isTextScale = (v: unknown): v is TextScale => v === 'default' || v === 'large' || v === 'larger';
+
+export function getTextScale(): TextScale {
+  try {
+    const v = localStorage.getItem(TEXT_SCALE_KEY);
+    return isTextScale(v) ? v : 'default';
+  } catch {
+    return 'default';
+  }
+}
+export function applyTextScale(s: TextScale): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.text = s;
+}
+
+export function useTextScale() {
+  const [value, setValue] = useState<TextScale>(() => getTextScale());
+  useEffect(() => {
+    const sync = () => {
+      const next = getTextScale();
+      setValue(next);
+      applyTextScale(next);
+    };
+    applyTextScale(getTextScale());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: TextScale) => {
+    try { localStorage.setItem(TEXT_SCALE_KEY, next); } catch {}
+    applyTextScale(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+const CONTRAST_KEY = 'ashtec-high-contrast';
+
+export function getHighContrast(): boolean {
+  try {
+    return localStorage.getItem(CONTRAST_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+export function applyHighContrast(on: boolean): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.contrast = on ? 'high' : 'normal';
+}
+
+export function useHighContrast() {
+  const [value, setValue] = useState<boolean>(() => getHighContrast());
+  useEffect(() => {
+    const sync = () => {
+      const next = getHighContrast();
+      setValue(next);
+      applyHighContrast(next);
+    };
+    applyHighContrast(getHighContrast());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: boolean) => {
+    try { localStorage.setItem(CONTRAST_KEY, next ? '1' : '0'); } catch {}
+    applyHighContrast(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+/** Applied once at boot (in App/tour) so a saved choice is in place before paint. */
+export function applyAccessibilityPrefs(): void {
+  applyTextScale(getTextScale());
+  applyHighContrast(getHighContrast());
+  applyDensity(getDensity());
+}

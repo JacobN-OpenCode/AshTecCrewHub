@@ -10,5 +10,7 @@ export const MeContext = createContext<{
   supportAwaiting: number;
   liveShowActive: boolean;
   specialNote: string | null;
+  /** Batch 6 push tuning: the member's per-kind switches, already resolved. */
+  notificationPrefs: Record<string, boolean>;
 } | null>(null);
 export const useMe = () => useContext(MeContext)!;

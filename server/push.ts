@@ -114,7 +114,26 @@ export async function sendToMember(memberId: string, payload: PushPayload): Prom
       }
     }
   }
+  // Only a notification that actually reached a device is worth remembering;
+  // recording a push nobody received would make "what you missed" lie. A test
+  // push is skipped so the history stays about real commitments.
+  if (sent > 0 && payload.tag !== 'test') await recordHistory(memberId, payload);
   return sent;
+}
+
+/**
+ * Remembers a delivered push so the member can catch up on what they missed
+ * while offline (Batch 6). Best-effort: a history write failing must never
+ * turn a successful send into an error.
+ */
+async function recordHistory(memberId: string, payload: PushPayload): Promise<void> {
+  await db()
+    .query(
+      `INSERT INTO "NotificationHistory" ("id", "member", "kind", "title", "body", "url")
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)`,
+      [memberId, payload.tag ?? '', payload.title ?? '', payload.body ?? '', payload.url ?? '/']
+    )
+    .catch((e) => console.warn('[push] could not record history:', e?.message ?? e));
 }
 
 /** Fan out to a set of members, de-duplicated. */
@@ -143,6 +162,23 @@ export async function claimNotification(memberId: string, kind: string, ref: str
 /** Housekeeping: drop notification-log rows older than a fortnight. */
 export async function pruneNotifications(): Promise<void> {
   await db().query(`DELETE FROM "NotificationLog" WHERE "sentAt" < now() - interval '14 days'`);
+}
+
+/**
+ * History is for catching up, not an archive, so it is capped by age (30 days)
+ * and per-member depth. The dedupe ledger is pruned separately; a history row
+ * must never affect whether something has already been sent.
+ */
+export async function pruneNotificationHistory(): Promise<void> {
+  await db().query(`DELETE FROM "NotificationHistory" WHERE "sentAt" < now() - interval '30 days'`);
+  await db().query(
+    `DELETE FROM "NotificationHistory" h
+       USING (
+         SELECT "id", row_number() OVER (PARTITION BY "member" ORDER BY "sentAt" DESC) AS rn
+         FROM "NotificationHistory"
+       ) ranked
+      WHERE h."id" = ranked."id" AND ranked.rn > 100`
+  );
 }
 
 export { appUrl };

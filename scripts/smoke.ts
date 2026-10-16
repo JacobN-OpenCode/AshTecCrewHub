@@ -755,6 +755,39 @@ if (!admin) {
         await db().query('DELETE FROM "RotaSlots" WHERE "subEvent" = $1', [rotaSubId]);
         await db().query('DELETE FROM "SubEvents" WHERE "id" = $1', [rotaSubId]);
       }
+
+      // ---------------------------------------------- app polish (Batch 6)
+      // Push tuning, notification history, data export and the call sheet.
+      const prefsMe = await callAs(crewJar, 'getMe', {});
+      check('getMe exposes notificationPrefs',
+        prefsMe.status === 200 && typeof prefsMe.body?.notificationPrefs === 'object' && prefsMe.body.notificationPrefs !== null,
+        JSON.stringify(prefsMe.body?.notificationPrefs));
+
+      const muted = await callAs(crewJar, 'saveNotificationPrefs', { prefs: { 'form-due': false } });
+      check('crew can mute a notification kind', muted.status === 200 && muted.body?.prefs?.['form-due'] === false, JSON.stringify(muted.body));
+      const prefsAfter = await callAs(crewJar, 'getMe', {});
+      check('the mute is reflected in getMe', prefsAfter.body?.notificationPrefs?.['form-due'] === false,
+        JSON.stringify(prefsAfter.body?.notificationPrefs));
+      const unmuted = await callAs(crewJar, 'saveNotificationPrefs', { prefs: { 'form-due': true } });
+      check('crew can un-mute a notification kind', unmuted.status === 200 && unmuted.body?.prefs?.['form-due'] === true, JSON.stringify(unmuted.body));
+
+      const history = await callAs(crewJar, 'getNotificationHistory', {});
+      check('getNotificationHistory returns a list', history.status === 200 && Array.isArray(history.body?.items),
+        JSON.stringify(history.body).slice(0, 120));
+
+      const dump = await callAs(crewJar, 'exportMyData', {});
+      check('exportMyData returns the member profile',
+        dump.status === 200 && dump.body?.profile?.email === String(crew.schoolEmail),
+        JSON.stringify(dump.body?.profile?.email));
+
+      if (showId) {
+        const sheet = await call('getCallSheet', { showId });
+        check('getCallSheet returns events for the show',
+          sheet.status === 200 && typeof sheet.body?.show?.name === 'string' && Array.isArray(sheet.body?.events),
+          JSON.stringify(sheet.body).slice(0, 160));
+        const badSheet = await call('getCallSheet', { showId: '00000000-0000-0000-0000-000000000000' });
+        check('getCallSheet refuses an unknown show', badSheet.status >= 400, `status=${badSheet.status}`);
+      }
     }
 
       // ------------------------------------------------------------- logout
