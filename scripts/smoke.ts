@@ -456,6 +456,49 @@ if (!admin) {
         check('workspace cleanup left nothing behind', wsLeft[0].c === 0 && wsLeft[0].cc === 0, `c=${wsLeft[0].c} cc=${wsLeft[0].cc}`);
       }
 
+      // -------------------------------------------- Batch 4: show-day extras
+      {
+        const media = await call('getShowMedia', { showId });
+        check('getShowMedia returns the show-day lists', media.status === 200 && media.body?.showId === showId && Array.isArray(media.body?.photos) && Array.isArray(media.body?.lost), JSON.stringify(media.body).slice(0, 160));
+
+        const photo = await call('saveShowPhoto', { showId, url: 'https://example.com/smoke.jpg', caption: 'Smoke shot' });
+        check('saveShowPhoto stores a URL', photo.status === 200 && typeof photo.body?.id === 'string', JSON.stringify(photo.body));
+        const badPhoto = await call('saveShowPhoto', { showId, url: 'not-a-url' });
+        check('saveShowPhoto rejects a non-URL', badPhoto.status >= 400);
+
+        const deb = await call('saveDebrief', { showId, body: 'Smoke debrief' });
+        check('saveDebrief records', deb.status === 200 && typeof deb.body?.id === 'string');
+
+        const green = await call('saveGreenRoomNote', { showId, title: 'Smoke call', body: 'Be ready', pinned: true });
+        check('saveGreenRoomNote posts', green.status === 200 && typeof green.body?.id === 'string');
+
+        const lost = await call('saveLostItem', { showId, item: 'Smoke sword', location: 'Wings' });
+        check('saveLostItem logs', lost.status === 200 && typeof lost.body?.id === 'string');
+        const found = await call('saveLostItem', { showId, id: lost.body?.id, status: 'Found', holder: memberId });
+        check('lost item updates to Found', found.status === 200);
+
+        const aud = await call('saveAudienceCount', { showId, subEventId: subId, count: 120, capacity: 150 });
+        check('saveAudienceCount records', aud.status === 200 && typeof aud.body?.id === 'string');
+        const aud2 = await call('saveAudienceCount', { showId, subEventId: subId, count: 130 });
+        check('audience count updates in place', aud2.status === 200 && aud2.body?.id === aud.body?.id);
+
+        const cd = await call('getCountdown', {});
+        check('getCountdown answers', cd.status === 200 && 'countdown' in (cd.body ?? {}), JSON.stringify(cd.body).slice(0, 160));
+
+        const media2 = await call('getShowMedia', { showId });
+        check('show-day lists read back', (media2.body?.photos ?? []).some((p: any) => p.caption === 'Smoke shot') && (media2.body?.audience ?? []).some((a: any) => a.count === 130 && a.capacity === 150));
+
+        await db().query(`DELETE FROM "ShowPhotos" WHERE "url" = 'https://example.com/smoke.jpg'`);
+        await db().query(`DELETE FROM "ShowDebriefs" WHERE "body" = 'Smoke debrief'`);
+        await db().query(`DELETE FROM "GreenRoomNotes" WHERE "title" = 'Smoke call'`);
+        await db().query(`DELETE FROM "LostProperty" WHERE "item" = 'Smoke sword'`);
+        await db().query(`DELETE FROM "AudienceCounts" WHERE "subEvent" = $1`, [subId]);
+        const { rows: mLeft } = await db().query(
+          `SELECT (SELECT count(*)::int FROM "ShowPhotos" WHERE "url" = 'https://example.com/smoke.jpg') AS p,
+                  (SELECT count(*)::int FROM "AudienceCounts" WHERE "subEvent" = $1) AS a`, [subId]);
+        check('show-day cleanup left nothing behind', mLeft[0].p === 0 && mLeft[0].a === 0, `p=${mLeft[0].p} a=${mLeft[0].a}`);
+      }
+
       // submitSupport -> create + Email.send (logged, SMTP unset).
       const ticket = await call('submitSupport', { type: 'General Support', subject: 'Smoke test ticket', message: 'Automated smoke test, safe to ignore.' });
       check('submitSupport creates a ticket', ticket.status === 200 && typeof ticket.body?.id === 'string', JSON.stringify(ticket.body));

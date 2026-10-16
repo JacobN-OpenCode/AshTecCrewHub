@@ -304,6 +304,13 @@ export type GetContactsInputType = NonNullable<_GetContactsCfg['inputSchema']> e
 export type GetContactsOutputType = Awaited<ReturnType<_GetContactsCfg['execute']>>;
 export const getContacts = createCaller<GetContactsInputType, GetContactsOutputType>('getContacts');
 
+import type { default as _GetCountdownEp } from '../api/getCountdown';
+
+type _GetCountdownCfg = typeof _GetCountdownEp;
+export type GetCountdownInputType = NonNullable<_GetCountdownCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCountdownCfg['execute']>[0]['input'];
+export type GetCountdownOutputType = Awaited<ReturnType<_GetCountdownCfg['execute']>>;
+export const getCountdown = createCaller<GetCountdownInputType, GetCountdownOutputType>('getCountdown');
+
 import type { default as _GetLeaderboardEp } from '../api/getLeaderboard';
 
 type _GetLeaderboardCfg = typeof _GetLeaderboardEp;
@@ -387,6 +394,13 @@ type _GetRehearsalOrderCfg = typeof _GetRehearsalOrderEp;
 export type GetRehearsalOrderInputType = NonNullable<_GetRehearsalOrderCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetRehearsalOrderCfg['execute']>[0]['input'];
 export type GetRehearsalOrderOutputType = Awaited<ReturnType<_GetRehearsalOrderCfg['execute']>>;
 export const getRehearsalOrder = createCaller<GetRehearsalOrderInputType, GetRehearsalOrderOutputType>('getRehearsalOrder');
+
+import type { default as _GetShowMediaEp } from '../api/getShowMedia';
+
+type _GetShowMediaCfg = typeof _GetShowMediaEp;
+export type GetShowMediaInputType = NonNullable<_GetShowMediaCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetShowMediaCfg['execute']>[0]['input'];
+export type GetShowMediaOutputType = Awaited<ReturnType<_GetShowMediaCfg['execute']>>;
+export const getShowMedia = createCaller<GetShowMediaInputType, GetShowMediaOutputType>('getShowMedia');
 
 import type { default as _GetShowWorkspaceEp } from '../api/getShowWorkspace';
 
@@ -521,6 +535,13 @@ export type RollCallInputType = NonNullable<_RollCallCfg['inputSchema']> extends
 export type RollCallOutputType = Awaited<ReturnType<_RollCallCfg['execute']>>;
 export const rollCall = createCaller<RollCallInputType, RollCallOutputType>('rollCall');
 
+import type { default as _SaveAudienceCountEp } from '../api/saveAudienceCount';
+
+type _SaveAudienceCountCfg = typeof _SaveAudienceCountEp;
+export type SaveAudienceCountInputType = NonNullable<_SaveAudienceCountCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveAudienceCountCfg['execute']>[0]['input'];
+export type SaveAudienceCountOutputType = Awaited<ReturnType<_SaveAudienceCountCfg['execute']>>;
+export const saveAudienceCount = createCaller<SaveAudienceCountInputType, SaveAudienceCountOutputType>('saveAudienceCount');
+
 import type { default as _SaveChecklistItemEp } from '../api/saveChecklistItem';
 
 type _SaveChecklistItemCfg = typeof _SaveChecklistItemEp;
@@ -535,12 +556,33 @@ export type SaveCueInputType = NonNullable<_SaveCueCfg['inputSchema']> extends {
 export type SaveCueOutputType = Awaited<ReturnType<_SaveCueCfg['execute']>>;
 export const saveCue = createCaller<SaveCueInputType, SaveCueOutputType>('saveCue');
 
+import type { default as _SaveDebriefEp } from '../api/saveDebrief';
+
+type _SaveDebriefCfg = typeof _SaveDebriefEp;
+export type SaveDebriefInputType = NonNullable<_SaveDebriefCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveDebriefCfg['execute']>[0]['input'];
+export type SaveDebriefOutputType = Awaited<ReturnType<_SaveDebriefCfg['execute']>>;
+export const saveDebrief = createCaller<SaveDebriefInputType, SaveDebriefOutputType>('saveDebrief');
+
+import type { default as _SaveGreenRoomNoteEp } from '../api/saveGreenRoomNote';
+
+type _SaveGreenRoomNoteCfg = typeof _SaveGreenRoomNoteEp;
+export type SaveGreenRoomNoteInputType = NonNullable<_SaveGreenRoomNoteCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveGreenRoomNoteCfg['execute']>[0]['input'];
+export type SaveGreenRoomNoteOutputType = Awaited<ReturnType<_SaveGreenRoomNoteCfg['execute']>>;
+export const saveGreenRoomNote = createCaller<SaveGreenRoomNoteInputType, SaveGreenRoomNoteOutputType>('saveGreenRoomNote');
+
 import type { default as _SaveLiveShowScriptEp } from '../api/saveLiveShowScript';
 
 type _SaveLiveShowScriptCfg = typeof _SaveLiveShowScriptEp;
 export type SaveLiveShowScriptInputType = NonNullable<_SaveLiveShowScriptCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveLiveShowScriptCfg['execute']>[0]['input'];
 export type SaveLiveShowScriptOutputType = Awaited<ReturnType<_SaveLiveShowScriptCfg['execute']>>;
 export const saveLiveShowScript = createCaller<SaveLiveShowScriptInputType, SaveLiveShowScriptOutputType>('saveLiveShowScript');
+
+import type { default as _SaveLostItemEp } from '../api/saveLostItem';
+
+type _SaveLostItemCfg = typeof _SaveLostItemEp;
+export type SaveLostItemInputType = NonNullable<_SaveLostItemCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveLostItemCfg['execute']>[0]['input'];
+export type SaveLostItemOutputType = Awaited<ReturnType<_SaveLostItemCfg['execute']>>;
+export const saveLostItem = createCaller<SaveLostItemInputType, SaveLostItemOutputType>('saveLostItem');
 
 import type { default as _SavePropEp } from '../api/saveProp';
 
@@ -569,6 +611,13 @@ type _SaveSceneTimingCfg = typeof _SaveSceneTimingEp;
 export type SaveSceneTimingInputType = NonNullable<_SaveSceneTimingCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveSceneTimingCfg['execute']>[0]['input'];
 export type SaveSceneTimingOutputType = Awaited<ReturnType<_SaveSceneTimingCfg['execute']>>;
 export const saveSceneTiming = createCaller<SaveSceneTimingInputType, SaveSceneTimingOutputType>('saveSceneTiming');
+
+import type { default as _SaveShowPhotoEp } from '../api/saveShowPhoto';
+
+type _SaveShowPhotoCfg = typeof _SaveShowPhotoEp;
+export type SaveShowPhotoInputType = NonNullable<_SaveShowPhotoCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveShowPhotoCfg['execute']>[0]['input'];
+export type SaveShowPhotoOutputType = Awaited<ReturnType<_SaveShowPhotoCfg['execute']>>;
+export const saveShowPhoto = createCaller<SaveShowPhotoInputType, SaveShowPhotoOutputType>('saveShowPhoto');
 
 import type { default as _SaveShowSceneEp } from '../api/saveShowScene';
 
@@ -723,6 +772,7 @@ export const api = {
   getCalendarFeed,
   getCatLoginAdmins,
   getContacts,
+  getCountdown,
   getLeaderboard,
   getLiveShowAdmins,
   getLiveShowState,
@@ -735,6 +785,7 @@ export const api = {
   getPublicParents,
   getPushConfig,
   getRehearsalOrder,
+  getShowMedia,
   getShowWorkspace,
   getStaffHome,
   getStageLayout,
@@ -754,13 +805,18 @@ export const api = {
   requestCover,
   respondCover,
   rollCall,
+  saveAudienceCount,
   saveChecklistItem,
   saveCue,
+  saveDebrief,
+  saveGreenRoomNote,
   saveLiveShowScript,
+  saveLostItem,
   saveProp,
   savePushSubscription,
   saveRehearsalNote,
   saveSceneTiming,
+  saveShowPhoto,
   saveShowScene,
   sendCueCall,
   sendTestNotification,

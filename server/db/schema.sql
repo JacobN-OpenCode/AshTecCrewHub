@@ -728,4 +728,79 @@ ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLocked"   boolean NOT NULL DEF
 ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedAt" timestamptz;
 ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedBy" uuid;
 
+-- ---------------------------------------------------------------------------
+-- Batch 4: show-day extras. Backstage photos are referenced by URL (the same
+-- no-upload approach used for member avatars), debriefs and green-room notes
+-- are simple running logs, lost property is a tracked inventory, and box-office
+-- counts are one row per event so a run's numbers can be charted.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "ShowPhotos" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "url"       text NOT NULL,
+  "caption"   text NOT NULL DEFAULT '',
+  "scene"     text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowPhotos_show_idx" ON "ShowPhotos" ("show");
+CREATE TABLE IF NOT EXISTS "ShowDebriefs" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "subEvent"  uuid,
+  "body"      text NOT NULL,
+  "author"    uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowDebriefs_show_idx" ON "ShowDebriefs" ("show");
+
+CREATE TABLE IF NOT EXISTS "GreenRoomNotes" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "subEvent"  uuid,
+  "title"     text NOT NULL DEFAULT '',
+  "body"      text NOT NULL,
+  "pinned"    boolean NOT NULL DEFAULT false,
+  "author"    uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "GreenRoomNotes_show_idx" ON "GreenRoomNotes" ("show");
+
+CREATE TABLE IF NOT EXISTS "LostProperty" (
+  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"        uuid NOT NULL,
+  "subEvent"    uuid,
+  "item"        text NOT NULL,
+  "description" text NOT NULL DEFAULT '',
+  "location"    text NOT NULL DEFAULT '',
+  "status"      text NOT NULL DEFAULT 'Lost',
+  "holder"      uuid,
+  "notes"       text NOT NULL DEFAULT '',
+  "createdBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LostProperty_show_idx" ON "LostProperty" ("show");
+
+CREATE TABLE IF NOT EXISTS "AudienceCounts" (
+  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"        uuid NOT NULL,
+  "subEvent"    uuid NOT NULL,
+  "count"       integer NOT NULL DEFAULT 0,
+  "capacity"    integer NOT NULL DEFAULT 0,
+  "notes"       text NOT NULL DEFAULT '',
+  "recordedBy"  uuid,
+  "recordedAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "AudienceCounts_subEvent_idx" ON "AudienceCounts" ("subEvent");
+
+-- The update shim always writes "updatedAt"; make sure the tables it can update
+-- carry the column even if they were first created without it.
+ALTER TABLE "ShowPhotos" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "GreenRoomNotes" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "AudienceCounts" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+
 COMMIT;

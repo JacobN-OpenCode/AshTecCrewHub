@@ -4,17 +4,19 @@ import { toast } from 'sonner';
 import {
   getShowWorkspace, saveChecklistItem, saveCue, saveProp, saveShowScene, saveRehearsalNote,
   saveSceneTiming, rollCall, signOffShow, sendCueCall, ackCueCall, requestCover, respondCover,
-  setTechLock, getRehearsalOrder, type GetShowWorkspaceOutputType,
+  setTechLock, getRehearsalOrder, getShowMedia, saveShowPhoto, saveDebrief, saveGreenRoomNote,
+  saveLostItem, saveAudienceCount, type GetShowWorkspaceOutputType, type GetShowMediaOutputType,
 } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
-import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell, Camera, MessageSquareHeart, DoorOpen, Search, Ticket, Pin } from 'lucide-react';
 
 type Ws = GetShowWorkspaceOutputType;
-type Tab = 'checklist' | 'cues' | 'props' | 'scenes' | 'notes' | 'timings' | 'day';
+type Media = GetShowMediaOutputType;
+type Tab = 'checklist' | 'cues' | 'props' | 'scenes' | 'notes' | 'timings' | 'day' | 'photos' | 'debrief' | 'green' | 'lost' | 'audience';
 
 const TABS: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
   { id: 'checklist', label: 'Checklist', icon: ClipboardList },
@@ -24,11 +26,17 @@ const TABS: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
   { id: 'notes', label: 'Notes', icon: NotebookPen },
   { id: 'timings', label: 'Timings', icon: Timer },
   { id: 'day', label: 'Show day', icon: CalendarCheck },
+  { id: 'photos', label: 'Photos', icon: Camera },
+  { id: 'debrief', label: 'Debrief', icon: MessageSquareHeart },
+  { id: 'green', label: 'Green room', icon: DoorOpen },
+  { id: 'lost', label: 'Lost property', icon: Search },
+  { id: 'audience', label: 'Box office', icon: Ticket },
 ];
 
 export default function ShowWorkspace() {
   const { showId = '' } = useParams();
   const [ws, setWs] = useState<Ws | null>(null);
+  const [media, setMedia] = useState<Media | null>(null);
   const [tab, setTab] = useState<Tab>('checklist');
   const [error, setError] = useState('');
 
@@ -42,6 +50,18 @@ export default function ShowWorkspace() {
   }, [showId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const loadMedia = useCallback(async () => {
+    try {
+      setMedia(await getShowMedia({ showId }));
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }, [showId]);
+
+  useEffect(() => {
+    if (MEDIA_TABS.includes(tab) && !media) void loadMedia();
+  }, [tab, media, loadMedia]);
 
   if (error) {
     return (
@@ -58,7 +78,7 @@ export default function ShowWorkspace() {
   const openCovers = ws.coverRequests.filter((c) => c.status === 'Open').length;
 
   const act = async (fn: () => Promise<unknown>, msg?: string) => {
-    try { await fn(); await load(); if (msg) toast.success(msg); }
+    try { await fn(); await load(); if (media) await loadMedia(); if (msg) toast.success(msg); }
     catch (e) { toast.error((e as Error).message); }
   };
 
@@ -101,6 +121,15 @@ export default function ShowWorkspace() {
       {tab === 'notes' && <Notes ws={ws} act={act} />}
       {tab === 'timings' && <Timings ws={ws} act={act} />}
       {tab === 'day' && <ShowDay ws={ws} act={act} />}
+      {MEDIA_TABS.includes(tab) && (!media
+        ? <div className="space-y-3"><Skeleton className="h-40 rounded-2xl" /></div>
+        : <>
+            {tab === 'photos' && <Photos media={media} act={act} />}
+            {tab === 'debrief' && <Debrief media={media} act={act} />}
+            {tab === 'green' && <GreenRoom media={media} act={act} />}
+            {tab === 'lost' && <LostProperty media={media} act={act} />}
+            {tab === 'audience' && <Audience media={media} act={act} />}
+          </>)}
     </div>
   );
 }
@@ -422,6 +451,187 @@ function ShowDay({ ws, act }: { ws: Ws; act: ActFn }) {
           ))}
         </div>
       </>}
+    </Section>
+  );
+}
+
+const MEDIA_TABS: Tab[] = ['photos', 'debrief', 'green', 'lost', 'audience'];
+
+function Photos({ media, act }: { media: Media; act: ActFn }) {
+  const [url, setUrl] = useState('');
+  const [caption, setCaption] = useState('');
+  const [scene, setScene] = useState('');
+  return (
+    <Section>
+      <div className="flex flex-wrap gap-2">
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a photo link (https://…)" className="max-w-sm" />
+        <Input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption" className="max-w-xs" />
+        <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-28" />
+        <Button disabled={!url.trim()} onClick={() => act(async () => { await saveShowPhoto({ showId: media.showId, url, caption, scene }); setUrl(''); setCaption(''); setScene(''); }, 'Photo added')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+      </div>
+      {!media.photos.length && <Empty>No photos yet. Paste a link to a shot from the wings and it will gallery here.</Empty>}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {media.photos.map((p) => (
+          <figure key={p.id} className="group overflow-hidden rounded-xl border bg-muted/30">
+            <img src={p.url} alt={p.caption || 'Backstage photo'} loading="lazy" className="aspect-[4/3] w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0'; }} />
+            <figcaption className="p-2 text-xs">
+              <div className="truncate font-medium">{p.caption || p.scene || 'Backstage'}</div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="truncate">{p.byName}</span>
+                {(media.canDelete || p.createdBy === media.meId) && <button onClick={() => act(() => saveShowPhoto({ showId: media.showId, id: p.id, remove: true }))} className="hover:text-red-500"><Trash2 className="h-3 w-3" /></button>}
+              </div>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function Debrief({ media, act }: { media: Media; act: ActFn }) {
+  const [body, setBody] = useState('');
+  const [subEventId, setSubEventId] = useState('');
+  return (
+    <Section>
+      <div className="space-y-2">
+        <select value={subEventId} onChange={(e) => setSubEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm max-w-md">
+          <option value="">Whole run</option>
+          {media.events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+        </select>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="How did it go? What should we change next time?" rows={3} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+        <Button disabled={!body.trim()} onClick={() => act(async () => { await saveDebrief({ showId: media.showId, subEventId: subEventId || undefined, body }); setBody(''); }, 'Added to debrief')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+      </div>
+      {!media.debriefs.length && <Empty>No debrief notes yet. Add the first after the run.</Empty>}
+      <div className="space-y-2">
+        {media.debriefs.map((d) => (
+          <div key={d.id} className="rounded-lg border p-3">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{d.eventName || 'Whole run'} · {d.authorName}</span>
+              <span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-GB') : ''}</span>
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{d.body}</p>
+            {(media.canDelete || d.createdBy === media.meId) && <button onClick={() => act(() => saveDebrief({ showId: media.showId, id: d.id, remove: true }))} className="mt-1 text-xs text-muted-foreground hover:text-red-500">Delete</button>}
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function GreenRoom({ media, act }: { media: Media; act: ActFn }) {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [pinned, setPinned] = useState(false);
+  return (
+    <Section>
+      <div className="space-y-2">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Call time tonight is 5:30pm)" className="max-w-lg" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message for the cast…" rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="h-4 w-4 accent-primary" />Pin to top</label>
+          <Button disabled={!body.trim()} onClick={() => act(async () => { await saveGreenRoomNote({ showId: media.showId, title, body, pinned }); setTitle(''); setBody(''); setPinned(false); }, 'Posted')}><Plus className="h-4 w-4 mr-1" />Post</Button>
+        </div>
+      </div>
+      {!media.greenRoom.length && <Empty>The noticeboard is empty. Pin the call time so everyone sees it.</Empty>}
+      <div className="space-y-2">
+        {media.greenRoom.map((g) => (
+          <div key={g.id} className={cn('rounded-lg border p-3', g.pinned && 'border-primary/40 bg-primary/5')}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                {g.title && <div className="font-semibold text-sm">{g.title}</div>}
+                <p className="whitespace-pre-wrap text-sm">{g.body}</p>
+                <div className="mt-1 text-xs text-muted-foreground">{g.byName} · {g.createdAt ? new Date(g.createdAt).toLocaleDateString('en-GB') : ''}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => act(() => saveGreenRoomNote({ showId: media.showId, id: g.id, pinned: !g.pinned }))} title={g.pinned ? 'Unpin' : 'Pin'} className={cn('rounded p-1 hover:bg-muted', g.pinned ? 'text-primary' : 'text-muted-foreground')}><Pin className="h-3.5 w-3.5" /></button>
+                {(media.canDelete || g.createdBy === media.meId) && <button onClick={() => act(() => saveGreenRoomNote({ showId: media.showId, id: g.id, remove: true }))} className="rounded p-1 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function LostProperty({ media, act }: { media: Media; act: ActFn }) {
+  const [item, setItem] = useState('');
+  const [location, setLocation] = useState('');
+  return (
+    <Section>
+      <div className="flex flex-wrap gap-2">
+        <Input value={item} onChange={(e) => setItem(e.target.value)} placeholder="What is missing?" className="max-w-xs" />
+        <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Last seen" className="w-40" />
+        <Button disabled={!item.trim()} onClick={() => act(async () => { await saveLostItem({ showId: media.showId, item, location, status: 'Lost' }); setItem(''); setLocation(''); }, 'Logged')}><Plus className="h-4 w-4 mr-1" />Log item</Button>
+      </div>
+      {!media.lost.length && <Empty>Nothing logged. When the good sword vanishes, it gets logged here.</Empty>}
+      <div className="space-y-2">
+        {media.lost.map((l) => (
+          <div key={l.id} className="rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm">{l.item}</span>
+              <Badge variant="outline" className={cn(l.status === 'Lost' && 'border-red-500 text-red-500', l.status === 'Found' && 'border-amber-500 text-amber-500', l.status === 'Returned' && 'border-emerald-500 text-emerald-500')}>{l.status}</Badge>
+            </div>
+            {l.location && <div className="text-xs text-muted-foreground mt-0.5">Last seen: {l.location}</div>}
+            {l.holderName && <div className="text-xs text-muted-foreground">Now with {l.holderName}</div>}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select value={l.status} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, status: e.target.value as typeof l.status }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+                {['Lost', 'Found', 'Returned'].map((s) => <option key={s}>{s}</option>)}
+              </select>
+              <select value={l.holder ?? ''} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, holder: e.target.value }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+                <option value="">Nobody yet</option>
+                {media.members.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
+              </select>
+              {media.canDelete && <button onClick={() => act(() => saveLostItem({ showId: media.showId, id: l.id, remove: true }))} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function Audience({ media, act }: { media: Media; act: ActFn }) {
+  const [eventId, setEventId] = useState(media.events[0]?.id ?? '');
+  const [count, setCount] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [notes, setNotes] = useState('');
+  const perfs = media.events.filter((e) => e.type === 'Performance');
+  const list = perfs.length ? perfs : media.events;
+  const recorded = media.audience;
+  const total = recorded.reduce((s, a) => s + a.count, 0);
+  const best = recorded.reduce((m, a) => Math.max(m, a.count), 0);
+  return (
+    <Section>
+      <div className="flex flex-wrap gap-2">
+        <select value={eventId} onChange={(e) => setEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
+          <option value="">Pick a night</option>
+          {list.map((e) => <option key={e.id} value={e.id}>{e.title}{e.date ? ` · ${e.date}` : ''}</option>)}
+        </select>
+        <Input value={count} onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Headcount" inputMode="numeric" className="w-28" />
+        <Input value={capacity} onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Capacity" inputMode="numeric" className="w-28" />
+        <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="max-w-xs" />
+        <Button disabled={!eventId || !count} onClick={() => act(async () => { await saveAudienceCount({ showId: media.showId, subEventId: eventId, count: Number(count), capacity: capacity ? Number(capacity) : 0, notes }); setCount(''); setNotes(''); }, 'Headcount saved')}><Plus className="h-4 w-4 mr-1" />Save</Button>
+      </div>
+      {!recorded.length && <Empty>No headcounts yet. Record tonight's audience and the run total builds up.</Empty>}
+      {recorded.length > 0 && (
+        <div className="flex gap-6 rounded-xl border bg-muted/30 p-4 text-sm">
+          <div><div className="text-2xl font-bold">{total}</div><div className="text-muted-foreground">seats over {recorded.length} night{recorded.length === 1 ? '' : 's'}</div></div>
+          <div><div className="text-2xl font-bold">{best}</div><div className="text-muted-foreground">best night</div></div>
+        </div>
+      )}
+      <div className="space-y-2">
+        {recorded.map((a) => (
+          <div key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+            <span>{a.eventName}{a.notes && <span className="text-muted-foreground"> · {a.notes}</span>}</span>
+            <span className="flex items-center gap-3">
+              <span className="font-mono">{a.count}{a.capacity ? `/${a.capacity}` : ''}</span>
+              {a.capacity > 0 && <span className="text-xs text-muted-foreground">{Math.round((a.count / a.capacity) * 100)}%</span>}
+              <button onClick={() => act(() => saveAudienceCount({ showId: media.showId, subEventId: a.subEvent, remove: true }))} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+            </span>
+          </div>
+        ))}
+      </div>
     </Section>
   );
 }
