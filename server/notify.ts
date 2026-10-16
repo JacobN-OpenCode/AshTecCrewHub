@@ -292,3 +292,48 @@ export async function notifyEventUpdated(eventId: string, title: string, change:
   }
   void members;
 }
+
+/**
+ * A cue call: a direct nudge to specific crew members about an event. The same
+ * call repeated is deduped so a tap-happy sender cannot spam a phone.
+ */
+export async function notifyCueCall(info: {
+  memberIds: string[];
+  subEventId: string;
+  showId?: string;
+  title: string;
+  message: string;
+  from: string;
+}): Promise<void> {
+  const body = info.message || 'You are called.';
+  const url = info.showId ? `/show/${info.showId}` : '/calendar';
+  for (const id of [...new Set(info.memberIds)]) {
+    if (!(await claimNotification(id, 'cue-call', `${info.subEventId}:${info.from}:${body}`))) continue;
+    await sendToMember(id, { title: `Cue call: ${info.title}`, body: `${info.from}: ${body}`, url, tag: `cue-${info.subEventId}` });
+  }
+}
+
+/**
+ * Someone needs cover for an event. Told to the whole crew (a push, not an
+ * email) so whoever is free can step in; deduped per event + requester.
+ */
+export async function notifyCoverRequest(info: {
+  subEventId: string;
+  showId?: string;
+  title: string;
+  requester: string;
+  requesterId: string;
+  role: string;
+}): Promise<void> {
+  const url = info.showId ? `/show/${info.showId}` : '/calendar';
+  const who = (await crew()).filter((m) => !m.isPreviewAccount && m.id !== info.requesterId).map((m) => m.id);
+  for (const id of who) {
+    if (!(await claimNotification(id, 'cover-request', `${info.subEventId}:${info.requesterId}`))) continue;
+    await sendToMember(id, {
+      title: `Cover needed: ${info.title}`,
+      body: `${info.requester} can no longer make it${info.role ? ` (${info.role})` : ''}. Can you help?`,
+      url,
+      tag: `cover-${info.subEventId}`,
+    });
+  }
+}

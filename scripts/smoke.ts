@@ -374,6 +374,88 @@ if (!admin) {
       // Restore the row so repeated runs do not leave a status on the admin.
       await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
 
+      // -------------------------------------------- Batch 3: show workspace
+      // The whole show workspace round-trips through the members-only endpoints:
+      // checklist, cue sheet, props, scenes, notes, timings, then the per-event
+      // roll call, sign-off, cue call and cover request. Everything created here
+      // is deleted again below so repeated runs stay idempotent.
+      {
+        const wsUnauth = await fetch(`${BASE}/api/getShowWorkspace`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ showId }) });
+        check('show workspace requires a session', wsUnauth.status === 401);
+
+        const ws = await call('getShowWorkspace', { showId });
+        check('getShowWorkspace returns the show and lists', ws.status === 200 && ws.body?.show?.id === showId && Array.isArray(ws.body?.checklist) && Array.isArray(ws.body?.scenes), JSON.stringify(ws.body).slice(0, 160));
+
+        const item = await call('saveChecklistItem', { showId, label: 'Smoke test item', category: 'Props' });
+        check('saveChecklistItem creates', item.status === 200 && typeof item.body?.id === 'string');
+        const itemId = item.body?.id;
+        const ticked = await call('saveChecklistItem', { showId, id: itemId, done: true });
+        check('checklist item ticks off', ticked.status === 200);
+        const ws2 = await call('getShowWorkspace', { showId });
+        check('ticked item reads back as done', (ws2.body?.checklist ?? []).some((c: any) => c.id === itemId && c.done === true));
+
+        const cue = await call('saveCue', { showId, number: 'Q1', department: 'Lighting', description: 'Smoke cue' });
+        check('saveCue creates', cue.status === 200 && typeof cue.body?.id === 'string');
+        const cueId = cue.body?.id;
+
+        const prop = await call('saveProp', { showId, name: 'Smoke sword', category: 'Prop', holder: memberId });
+        check('saveProp creates with a holder', prop.status === 200 && typeof prop.body?.id === 'string');
+        const propId = prop.body?.id;
+
+        const scene = await call('saveShowScene', { showId, label: 'S1', title: 'Smoke scene', cast: ['Smoke Admin', 'Smoke Crew'] });
+        check('saveShowScene creates', scene.status === 200 && typeof scene.body?.id === 'string');
+        const sceneId = scene.body?.id;
+
+        const order = await call('getRehearsalOrder', { showId });
+        check('getRehearsalOrder returns an order', order.status === 200 && (order.body?.order ?? []).length >= 1, JSON.stringify(order.body).slice(0, 160));
+
+        const note = await call('saveRehearsalNote', { showId, scene: 'S1', body: 'Smoke note' });
+        check('saveRehearsalNote creates', note.status === 200 && typeof note.body?.id === 'string');
+        const noteId = note.body?.id;
+
+        const timing = await call('saveSceneTiming', { showId, scene: 'S1', minutes: 12 });
+        check('saveSceneTiming creates', timing.status === 200 && typeof timing.body?.id === 'string');
+        const timingId = timing.body?.id;
+
+        const roll = await call('rollCall', { subEventId: subId, memberIds: [memberId] });
+        check('rollCall records who is present', roll.status === 200 && roll.body?.present >= 1, JSON.stringify(roll.body));
+
+        const sign = await call('signOffShow', { subEventId: subId, role: 'Lighting' });
+        check('signOffShow signs off', sign.status === 200 && sign.body?.signed === true);
+        const unsign = await call('signOffShow', { subEventId: subId, remove: true });
+        check('signOffShow can be undone', unsign.status === 200 && unsign.body?.signed === false);
+
+        const cc = await call('sendCueCall', { subEventId: subId, memberIds: [memberId], message: 'Standby LX' });
+        check('sendCueCall sends', cc.status === 200 && cc.body?.sent === 1, JSON.stringify(cc.body));
+        const callRow = (await db().query(`SELECT "id" FROM "CueCalls" WHERE "member" = $1 AND "subEvent" = $2 ORDER BY "at" DESC LIMIT 1`, [memberId, subId])).rows[0];
+        if (callRow) {
+          const ack = await call('ackCueCall', { id: callRow.id });
+          check('ackCueCall acknowledges', ack.status === 200 && ack.body?.ok === true);
+        }
+
+        const cover = await call('requestCover', { subEventId: subId, role: 'Lighting', reason: 'Smoke test' });
+        check('requestCover opens a request', cover.status === 200 && typeof cover.body?.id === 'string');
+
+        const lock = await call('setTechLock', { showId, locked: true });
+        check('setTechLock locks (admin)', lock.status === 200 && lock.body?.locked === true);
+        const unlock = await call('setTechLock', { showId, locked: false });
+        check('setTechLock unlocks again', unlock.status === 200 && unlock.body?.locked === false);
+
+        // Tidy up everything the workspace block created.
+        for (const [table, id] of [['ShowChecklistItems', itemId], ['ShowCues', cueId], ['ShowProps', propId], ['ShowScenes', sceneId], ['RehearsalNotes', noteId], ['SceneTimings', timingId]] as const) {
+          if (id) await db().query(`DELETE FROM "${table}" WHERE "id" = $1`, [id]);
+        }
+        await db().query(`DELETE FROM "RollCalls" WHERE "subEvent" = $1 AND "member" = $2`, [subId, memberId]);
+        await db().query(`DELETE FROM "ShowSignoffs" WHERE "subEvent" = $1 AND "member" = $2`, [subId, memberId]);
+        await db().query(`DELETE FROM "CueCalls" WHERE "subEvent" = $1 AND "member" = $2`, [subId, memberId]);
+        await db().query(`DELETE FROM "CoverRequests" WHERE "subEvent" = $1 AND "member" = $2`, [subId, memberId]);
+        await db().query(`UPDATE "Shows" SET "techLocked" = false, "techLockedAt" = NULL, "techLockedBy" = NULL WHERE "id" = $1`, [showId]);
+        const { rows: wsLeft } = await db().query(
+          `SELECT (SELECT count(*)::int FROM "ShowChecklistItems" WHERE "label" = 'Smoke test item') AS c,
+                  (SELECT count(*)::int FROM "CueCalls" WHERE "member" = $1) AS cc`, [memberId]);
+        check('workspace cleanup left nothing behind', wsLeft[0].c === 0 && wsLeft[0].cc === 0, `c=${wsLeft[0].c} cc=${wsLeft[0].cc}`);
+      }
+
       // submitSupport -> create + Email.send (logged, SMTP unset).
       const ticket = await call('submitSupport', { type: 'General Support', subject: 'Smoke test ticket', message: 'Automated smoke test, safe to ignore.' });
       check('submitSupport creates a ticket', ticket.status === 200 && typeof ticket.body?.id === 'string', JSON.stringify(ticket.body));

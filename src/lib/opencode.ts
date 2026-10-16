@@ -17,12 +17,12 @@ export type Track = {
 
 export const OPENCODE_STATUS = {
   /** When this board was last written by the assistant. */
-  updated: '2026-10-15',
+  updated: '2026-10-16',
   /** One line on the assistant's current focus. */
   headline:
     'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
   /** What is being touched right now. */
-  now: 'Batch 3 of the feedback roadmap: rehearsal and show ops (checklists, pre-show sign-off, roll call, cue sheets and friends).',
+  now: 'Batch 4 of the feedback roadmap: show-day extras (backstage photos, post-show debrief, lost property, audience counts, green room, opening countdown).',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -59,20 +59,27 @@ export const OPENCODE_STATUS = {
       detail: 'Badges derived from crew stats, and a members-only hours leaderboard at /leaderboard, live in production.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 3: rehearsal & show ops',
       detail:
-        'Checklists, pre-show sign-off, roll call, rehearsal notes, tech week, cue sheets, cue calls, sick cover, scene timings, rehearsal shuffle.',
+        'A per-show Workspace at /show/:id: checklists, cue sheets, props and costumes, scenes, rehearsal notes, scene timings, plus a Show-day tab with roll call, pre-show sign-off, cue calls and sick cover. Locked for Tech Week by admins. Live in production.',
+    },
+    {
+      state: 'active',
+      title: 'Feedback roadmap — Batch 4: show-day extras',
+      detail:
+        'Backstage photos, post-show debrief, lost property, audience counts, green room notes and an opening-night countdown.',
     },
     {
       state: 'queued',
-      title: 'Feedback roadmap — Batches 4–8',
+      title: 'Feedback roadmap — Batches 5–8',
       detail:
-        'Show day extras, scheduling (clash detector, term overview, availability), app polish, announcements + DMs, then the fun ones (more cat, mascot, sound effects, show memories).',
+        'Scheduling (clash detector, term overview, availability, rota, travel time, reminder tuning, parent feed), app polish (push tuning, shortcuts, data export, accessibility, widgets/watch, call-sheet packs, offline), announcements + DMs, then the fun ones (more cat, mascot, sound effects, show memories).',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Batch 3: per-show workspace (checklists, cues, props, roll call, sign-off, cover)',
     'Batch 2: badges and an hours leaderboard',
     'Batch 1: birthdays strip, mentor display, status on rosters',
     'Add /opencode status page; batch 1 member profile extras',

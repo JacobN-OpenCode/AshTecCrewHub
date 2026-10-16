@@ -3,6 +3,13 @@
 
 import { createCaller } from './caller';
 
+import type { default as _AckCueCallEp } from '../api/ackCueCall';
+
+type _AckCueCallCfg = typeof _AckCueCallEp;
+export type AckCueCallInputType = NonNullable<_AckCueCallCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AckCueCallCfg['execute']>[0]['input'];
+export type AckCueCallOutputType = Awaited<ReturnType<_AckCueCallCfg['execute']>>;
+export const ackCueCall = createCaller<AckCueCallInputType, AckCueCallOutputType>('ackCueCall');
+
 import type { default as _AdminClearSessionHistoryEp } from '../api/adminClearSessionHistory';
 
 type _AdminClearSessionHistoryCfg = typeof _AdminClearSessionHistoryEp;
@@ -374,6 +381,20 @@ export type GetPushConfigInputType = NonNullable<_GetPushConfigCfg['inputSchema'
 export type GetPushConfigOutputType = Awaited<ReturnType<_GetPushConfigCfg['execute']>>;
 export const getPushConfig = createCaller<GetPushConfigInputType, GetPushConfigOutputType>('getPushConfig');
 
+import type { default as _GetRehearsalOrderEp } from '../api/getRehearsalOrder';
+
+type _GetRehearsalOrderCfg = typeof _GetRehearsalOrderEp;
+export type GetRehearsalOrderInputType = NonNullable<_GetRehearsalOrderCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetRehearsalOrderCfg['execute']>[0]['input'];
+export type GetRehearsalOrderOutputType = Awaited<ReturnType<_GetRehearsalOrderCfg['execute']>>;
+export const getRehearsalOrder = createCaller<GetRehearsalOrderInputType, GetRehearsalOrderOutputType>('getRehearsalOrder');
+
+import type { default as _GetShowWorkspaceEp } from '../api/getShowWorkspace';
+
+type _GetShowWorkspaceCfg = typeof _GetShowWorkspaceEp;
+export type GetShowWorkspaceInputType = NonNullable<_GetShowWorkspaceCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetShowWorkspaceCfg['execute']>[0]['input'];
+export type GetShowWorkspaceOutputType = Awaited<ReturnType<_GetShowWorkspaceCfg['execute']>>;
+export const getShowWorkspace = createCaller<GetShowWorkspaceInputType, GetShowWorkspaceOutputType>('getShowWorkspace');
+
 import type { default as _GetStaffHomeEp } from '../api/getStaffHome';
 
 type _GetStaffHomeCfg = typeof _GetStaffHomeEp;
@@ -479,6 +500,41 @@ export type PresenceStartInputType = NonNullable<_PresenceStartCfg['inputSchema'
 export type PresenceStartOutputType = Awaited<ReturnType<_PresenceStartCfg['execute']>>;
 export const presenceStart = createCaller<PresenceStartInputType, PresenceStartOutputType>('presenceStart');
 
+import type { default as _RequestCoverEp } from '../api/requestCover';
+
+type _RequestCoverCfg = typeof _RequestCoverEp;
+export type RequestCoverInputType = NonNullable<_RequestCoverCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_RequestCoverCfg['execute']>[0]['input'];
+export type RequestCoverOutputType = Awaited<ReturnType<_RequestCoverCfg['execute']>>;
+export const requestCover = createCaller<RequestCoverInputType, RequestCoverOutputType>('requestCover');
+
+import type { default as _RespondCoverEp } from '../api/respondCover';
+
+type _RespondCoverCfg = typeof _RespondCoverEp;
+export type RespondCoverInputType = NonNullable<_RespondCoverCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_RespondCoverCfg['execute']>[0]['input'];
+export type RespondCoverOutputType = Awaited<ReturnType<_RespondCoverCfg['execute']>>;
+export const respondCover = createCaller<RespondCoverInputType, RespondCoverOutputType>('respondCover');
+
+import type { default as _RollCallEp } from '../api/rollCall';
+
+type _RollCallCfg = typeof _RollCallEp;
+export type RollCallInputType = NonNullable<_RollCallCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_RollCallCfg['execute']>[0]['input'];
+export type RollCallOutputType = Awaited<ReturnType<_RollCallCfg['execute']>>;
+export const rollCall = createCaller<RollCallInputType, RollCallOutputType>('rollCall');
+
+import type { default as _SaveChecklistItemEp } from '../api/saveChecklistItem';
+
+type _SaveChecklistItemCfg = typeof _SaveChecklistItemEp;
+export type SaveChecklistItemInputType = NonNullable<_SaveChecklistItemCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveChecklistItemCfg['execute']>[0]['input'];
+export type SaveChecklistItemOutputType = Awaited<ReturnType<_SaveChecklistItemCfg['execute']>>;
+export const saveChecklistItem = createCaller<SaveChecklistItemInputType, SaveChecklistItemOutputType>('saveChecklistItem');
+
+import type { default as _SaveCueEp } from '../api/saveCue';
+
+type _SaveCueCfg = typeof _SaveCueEp;
+export type SaveCueInputType = NonNullable<_SaveCueCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveCueCfg['execute']>[0]['input'];
+export type SaveCueOutputType = Awaited<ReturnType<_SaveCueCfg['execute']>>;
+export const saveCue = createCaller<SaveCueInputType, SaveCueOutputType>('saveCue');
+
 import type { default as _SaveLiveShowScriptEp } from '../api/saveLiveShowScript';
 
 type _SaveLiveShowScriptCfg = typeof _SaveLiveShowScriptEp;
@@ -486,12 +542,47 @@ export type SaveLiveShowScriptInputType = NonNullable<_SaveLiveShowScriptCfg['in
 export type SaveLiveShowScriptOutputType = Awaited<ReturnType<_SaveLiveShowScriptCfg['execute']>>;
 export const saveLiveShowScript = createCaller<SaveLiveShowScriptInputType, SaveLiveShowScriptOutputType>('saveLiveShowScript');
 
+import type { default as _SavePropEp } from '../api/saveProp';
+
+type _SavePropCfg = typeof _SavePropEp;
+export type SavePropInputType = NonNullable<_SavePropCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SavePropCfg['execute']>[0]['input'];
+export type SavePropOutputType = Awaited<ReturnType<_SavePropCfg['execute']>>;
+export const saveProp = createCaller<SavePropInputType, SavePropOutputType>('saveProp');
+
 import type { default as _SavePushSubscriptionEp } from '../api/savePushSubscription';
 
 type _SavePushSubscriptionCfg = typeof _SavePushSubscriptionEp;
 export type SavePushSubscriptionInputType = NonNullable<_SavePushSubscriptionCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SavePushSubscriptionCfg['execute']>[0]['input'];
 export type SavePushSubscriptionOutputType = Awaited<ReturnType<_SavePushSubscriptionCfg['execute']>>;
 export const savePushSubscription = createCaller<SavePushSubscriptionInputType, SavePushSubscriptionOutputType>('savePushSubscription');
+
+import type { default as _SaveRehearsalNoteEp } from '../api/saveRehearsalNote';
+
+type _SaveRehearsalNoteCfg = typeof _SaveRehearsalNoteEp;
+export type SaveRehearsalNoteInputType = NonNullable<_SaveRehearsalNoteCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveRehearsalNoteCfg['execute']>[0]['input'];
+export type SaveRehearsalNoteOutputType = Awaited<ReturnType<_SaveRehearsalNoteCfg['execute']>>;
+export const saveRehearsalNote = createCaller<SaveRehearsalNoteInputType, SaveRehearsalNoteOutputType>('saveRehearsalNote');
+
+import type { default as _SaveSceneTimingEp } from '../api/saveSceneTiming';
+
+type _SaveSceneTimingCfg = typeof _SaveSceneTimingEp;
+export type SaveSceneTimingInputType = NonNullable<_SaveSceneTimingCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveSceneTimingCfg['execute']>[0]['input'];
+export type SaveSceneTimingOutputType = Awaited<ReturnType<_SaveSceneTimingCfg['execute']>>;
+export const saveSceneTiming = createCaller<SaveSceneTimingInputType, SaveSceneTimingOutputType>('saveSceneTiming');
+
+import type { default as _SaveShowSceneEp } from '../api/saveShowScene';
+
+type _SaveShowSceneCfg = typeof _SaveShowSceneEp;
+export type SaveShowSceneInputType = NonNullable<_SaveShowSceneCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveShowSceneCfg['execute']>[0]['input'];
+export type SaveShowSceneOutputType = Awaited<ReturnType<_SaveShowSceneCfg['execute']>>;
+export const saveShowScene = createCaller<SaveShowSceneInputType, SaveShowSceneOutputType>('saveShowScene');
+
+import type { default as _SendCueCallEp } from '../api/sendCueCall';
+
+type _SendCueCallCfg = typeof _SendCueCallEp;
+export type SendCueCallInputType = NonNullable<_SendCueCallCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SendCueCallCfg['execute']>[0]['input'];
+export type SendCueCallOutputType = Awaited<ReturnType<_SendCueCallCfg['execute']>>;
+export const sendCueCall = createCaller<SendCueCallInputType, SendCueCallOutputType>('sendCueCall');
 
 import type { default as _SendTestNotificationEp } from '../api/sendTestNotification';
 
@@ -527,6 +618,20 @@ type _SetShowResponseCfg = typeof _SetShowResponseEp;
 export type SetShowResponseInputType = NonNullable<_SetShowResponseCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SetShowResponseCfg['execute']>[0]['input'];
 export type SetShowResponseOutputType = Awaited<ReturnType<_SetShowResponseCfg['execute']>>;
 export const setShowResponse = createCaller<SetShowResponseInputType, SetShowResponseOutputType>('setShowResponse');
+
+import type { default as _SetTechLockEp } from '../api/setTechLock';
+
+type _SetTechLockCfg = typeof _SetTechLockEp;
+export type SetTechLockInputType = NonNullable<_SetTechLockCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SetTechLockCfg['execute']>[0]['input'];
+export type SetTechLockOutputType = Awaited<ReturnType<_SetTechLockCfg['execute']>>;
+export const setTechLock = createCaller<SetTechLockInputType, SetTechLockOutputType>('setTechLock');
+
+import type { default as _SignOffShowEp } from '../api/signOffShow';
+
+type _SignOffShowCfg = typeof _SignOffShowEp;
+export type SignOffShowInputType = NonNullable<_SignOffShowCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SignOffShowCfg['execute']>[0]['input'];
+export type SignOffShowOutputType = Awaited<ReturnType<_SignOffShowCfg['execute']>>;
+export const signOffShow = createCaller<SignOffShowInputType, SignOffShowOutputType>('signOffShow');
 
 import type { default as _SubmitFeedbackEp } from '../api/submitFeedback';
 
@@ -575,6 +680,7 @@ export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLea
 
 /** Namespace object, kept for parity with the original generated client. */
 export const api = {
+  ackCueCall,
   adminClearSessionHistory,
   adminDeleteSubEvent,
   adminGetData,
@@ -628,6 +734,8 @@ export const api = {
   getPublicCalendar,
   getPublicParents,
   getPushConfig,
+  getRehearsalOrder,
+  getShowWorkspace,
   getStaffHome,
   getStageLayout,
   globalSearch,
@@ -643,13 +751,25 @@ export const api = {
   presenceEnd,
   presenceRequest,
   presenceStart,
+  requestCover,
+  respondCover,
+  rollCall,
+  saveChecklistItem,
+  saveCue,
   saveLiveShowScript,
+  saveProp,
   savePushSubscription,
+  saveRehearsalNote,
+  saveSceneTiming,
+  saveShowScene,
+  sendCueCall,
   sendTestNotification,
   setAdminNotifications,
   setAttendance,
   setMyAdminSecret,
   setShowResponse,
+  setTechLock,
+  signOffShow,
   submitFeedback,
   submitSupport,
   supportDigest,

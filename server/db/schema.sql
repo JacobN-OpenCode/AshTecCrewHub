@@ -564,13 +564,168 @@ ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NU
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactPhone" text NOT NULL DEFAULT '';
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
--- Member profile extras (status, birthday, contact sharing, mentorship)
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusText" text NOT NULL DEFAULT '';
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusEmoji" text NOT NULL DEFAULT '';
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "birthday" text NOT NULL DEFAULT ''; -- MM-DD
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NULL DEFAULT false;
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactPhone" text NOT NULL DEFAULT '';
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
+
+-- ---------------------------------------------------------------------------
+-- Show workspace (Batch 3 of the feedback roadmap): everything that hangs off
+-- a single show. Each table carries the show id, and the child rows that can be
+-- ticked off or signed carry who did it and when so the record is auditable.
+-- ---------------------------------------------------------------------------
+
+-- Show checklists you can tick off: props, costumes, cues. One flat list per
+-- show, grouped by an optional category label.
+CREATE TABLE IF NOT EXISTS "ShowChecklistItems" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "category"   text NOT NULL DEFAULT '',
+  "label"      text NOT NULL,
+  "notes"      text NOT NULL DEFAULT '',
+  "position"   int NOT NULL DEFAULT 0,
+  "done"       boolean NOT NULL DEFAULT false,
+  "doneBy"     uuid,
+  "doneAt"     timestamptz,
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowChecklistItems_show_idx" ON "ShowChecklistItems" ("show");
+
+-- Lighting and sound cue sheets stored per show.
+CREATE TABLE IF NOT EXISTS "ShowCues" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "number"     text NOT NULL DEFAULT '',
+  "department" text NOT NULL DEFAULT 'Lighting',
+  "scene"      text NOT NULL DEFAULT '',
+  "description" text NOT NULL DEFAULT '',
+  "standby"    text NOT NULL DEFAULT '',
+  "go"         text NOT NULL DEFAULT '',
+  "notes"      text NOT NULL DEFAULT '',
+  "position"   int NOT NULL DEFAULT 0,
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowCues_show_idx" ON "ShowCues" ("show");
+
+-- Prop & costume inventory: where it is and who has it.
+CREATE TABLE IF NOT EXISTS "ShowProps" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "name"       text NOT NULL,
+  "category"   text NOT NULL DEFAULT 'Prop',
+  "quantity"   int NOT NULL DEFAULT 1,
+  "location"   text NOT NULL DEFAULT '',
+  "holder"     uuid,
+  "status"     text NOT NULL DEFAULT 'Available',
+  "notes"      text NOT NULL DEFAULT '',
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowProps_show_idx" ON "ShowProps" ("show");
+
+-- Show scenes: label, title, who is in it (free-text names) and an estimate.
+-- Feeds the rehearsal-order shuffle and the scene run-time summaries.
+CREATE TABLE IF NOT EXISTS "ShowScenes" (
+  "id"        uuid PRIMARY KEY,
+  "show"      uuid NOT NULL,
+  "label"     text NOT NULL DEFAULT '',
+  "title"     text NOT NULL DEFAULT '',
+  "minutes"   int NOT NULL DEFAULT 0,
+  "cast"      text[] NOT NULL DEFAULT '{}',
+  "position"  int NOT NULL DEFAULT 0,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowScenes_show_idx" ON "ShowScenes" ("show");
+
+-- Rehearsal notes and blocking, per show and optionally per scene or event.
+CREATE TABLE IF NOT EXISTS "RehearsalNotes" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "subEvent"   uuid,
+  "scene"      text NOT NULL DEFAULT '',
+  "body"       text NOT NULL,
+  "author"     uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "RehearsalNotes_show_idx" ON "RehearsalNotes" ("show");
+
+-- Estimated and actual scene run-times, learned from rehearsals.
+CREATE TABLE IF NOT EXISTS "SceneTimings" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "scene"      text NOT NULL,
+  "minutes"    int NOT NULL DEFAULT 0,
+  "kind"       text NOT NULL DEFAULT 'Actual',
+  "recordedBy" uuid,
+  "recordedAt" timestamptz NOT NULL DEFAULT now(),
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "SceneTimings_show_idx" ON "SceneTimings" ("show");
+
+-- One-tap roll call for who is at a rehearsal. Separate from Attendance, which
+-- is the RSVP: a roll call records who actually turned up.
+CREATE TABLE IF NOT EXISTS "RollCalls" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "present"   boolean NOT NULL DEFAULT true,
+  "by"        uuid,
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "RollCalls_subEvent_member_idx" ON "RollCalls" ("subEvent", "member");
+
+-- Pre-show sign-off: everyone confirms their bit before curtain up.
+CREATE TABLE IF NOT EXISTS "ShowSignoffs" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "role"      text NOT NULL DEFAULT '',
+  "note"      text NOT NULL DEFAULT '',
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "ShowSignoffs_subEvent_member_idx" ON "ShowSignoffs" ("subEvent", "member");
+
+-- Quick cue calls to specific people, and last-minute cover requests.
+CREATE TABLE IF NOT EXISTS "CueCalls" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "message"   text NOT NULL DEFAULT '',
+  "by"        uuid,
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "ackedAt"   timestamptz,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "CueCalls_subEvent_idx" ON "CueCalls" ("subEvent");
+
+CREATE TABLE IF NOT EXISTS "CoverRequests" (
+  "id"          uuid PRIMARY KEY,
+  "subEvent"    uuid NOT NULL,
+  "member"      uuid,
+  "role"        text NOT NULL DEFAULT '',
+  "reason"      text NOT NULL DEFAULT '',
+  "status"      text NOT NULL DEFAULT 'Open',
+  "filledBy"    uuid,
+  "message"     text NOT NULL DEFAULT '',
+  "createdBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "CoverRequests_subEvent_idx" ON "CoverRequests" ("subEvent");
+
+-- Tech Week mode locks a show's plan down: once on, the plan and event changes
+-- are frozen so nothing moves under the crew's feet mid-tech.
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLocked"   boolean NOT NULL DEFAULT false;
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedAt" timestamptz;
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedBy" uuid;
 
 COMMIT;

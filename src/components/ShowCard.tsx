@@ -1,5 +1,6 @@
 import { previewId } from '../lib/preview';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { setShowResponse, setAttendance, type GetMyEventsOutputType } from '#api';
 import { Badge } from '@project/components/ui/badge';
@@ -77,6 +78,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
             <h2 className="text-xl font-bold">{show.name}</h2>
             {show.code && <Badge variant="outline" className="font-mono">{show.code}</Badge>}
             {!show.response && !locked && <Badge className="bg-primary text-primary-foreground">Respond</Badge>}
+            <Link to={`/show/${show.id}`} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Workspace</Link>
           </div>
           {show.description && <p className="text-sm text-muted-foreground mt-1">{show.description}</p>}
           <p className="text-xs text-muted-foreground font-mono mt-1">{dueLabel(show.dueDate, show.dueUnknown)}</p>

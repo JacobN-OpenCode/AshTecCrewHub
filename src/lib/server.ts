@@ -46,6 +46,20 @@ export async function requireAdmin(email: string) {
   return m;
 }
 
+/**
+ * Loads a show for the workspace pages. Hidden shows only exist for staff and
+ * admins, and a missing show reads as not found either way so the two cases are
+ * indistinguishable from outside.
+ */
+export async function requireShowAccess(email: string, showId: string) {
+  const me = await requireMember(email);
+  const show = await zite.shows.findOne({ id: showId }).catch(() => null);
+  if (!show) throw new Error('Show not found.');
+  const mapped = mapShow(show);
+  if (mapped.hidden && !me.isAdmin && !me.isStaff) throw new Error('Show not found.');
+  return { me, show, mapped };
+}
+
 /** Acting as yourself, or (admins only) on behalf of another member. */
 export async function resolveTarget(email: string, memberId?: string) {
   const me = await requireMember(email);
@@ -85,6 +99,7 @@ export const mapShow = (s: ShowsRecordType) => ({
   dueDate: s.responseDueDate ?? null,
   dueUnknown: !!s.dueDateUnknown,
   hidden: !!s.hidden,
+  techLocked: !!(s as unknown as { techLocked?: boolean }).techLocked,
 });
 
 export const mapSubEvent = (e: SubEventsRecordType) => ({

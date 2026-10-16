@@ -32,6 +32,7 @@ import Feedback from './pages/Feedback';
 import Contacts from './pages/Contacts';
 import Leaderboard from './pages/Leaderboard';
 import OpenCode from './pages/OpenCode';
+import ShowWorkspace from './pages/ShowWorkspace';
 import LoginCat from './components/LoginCat';
 import PwaWelcome from './components/PwaWelcome';
 import LiveShowDash from './pages/live/LiveShowDash';
@@ -101,6 +102,7 @@ function SignedIn() {
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/show/:showId" element={<ShowWorkspace />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
