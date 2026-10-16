@@ -670,9 +670,94 @@ if (!admin) {
         await db().query('DELETE FROM "VenuePresence" WHERE "session" = $1', [sessionId]);
         await db().query('DELETE FROM "PresenceSessions" WHERE "id" = $1', [sessionId]);
       }
+
+      // ------------------------------------------------- scheduling (Batch 5)
+      // Rotas, availability, exam blackouts, preferences and the parents feed.
+      // Exercises the whole Schedule page's endpoints over HTTP with both the
+      // admin session (jar) and the ordinary crew session (crewJar).
+      // A rota slot only surfaces in getSchedule for an upcoming, visible event,
+      // and Club Sessions belong to no show so every member can see one - so mint
+      // a throwaway Club Session rather than depending on the imported data.
+      const { rows: clubRows } = await db().query(
+        `INSERT INTO "SubEvents" ("id", "title", "type", "date", "hidden", "meetTime")
+         VALUES (gen_random_uuid(), 'Smoke Club Session', 'Club Session', CURRENT_DATE + 7, false, '18:00')
+         RETURNING "id"`
+      );
+      const rotaSubId = clubRows[0]?.id;
+      if (!rotaSubId) {
+        check('could create a club session for the scheduling flow', false);
+      } else {
+        const slot = await call('saveRotaSlot', { subEventId: rotaSubId, role: 'Front of House', capacity: 1 });
+        check('admin opens a rota slot', slot.status === 200 && typeof slot.body?.id === 'string', JSON.stringify(slot.body));
+        const slotId = slot.body?.id;
+
+        if (slotId) {
+          const claim = await callAs(crewJar, 'claimRotaSlot', { slotId });
+          check('crew claims the rota slot', claim.status === 200 && claim.body?.signedUp === true && claim.body?.full === true,
+            JSON.stringify(claim.body));
+          const again = await callAs(crewJar, 'claimRotaSlot', { slotId });
+          check('claiming twice is idempotent', again.status === 200 && again.body?.signedUp === true, JSON.stringify(again.body));
+          const over = await call('claimRotaSlot', { slotId });
+          check('a full slot refuses an extra sign-up', over.status >= 400, `status=${over.status}`);
+
+          const sched = await callAs(crewJar, 'getSchedule', {});
+          const mine = sched.body?.rotas?.find((r: any) => r.id === slotId);
+          check('getSchedule shows the slot as signed up', sched.status === 200 && mine?.signedUp === true && mine?.taken === 1,
+            JSON.stringify(mine));
+
+          const release = await callAs(crewJar, 'claimRotaSlot', { slotId, release: true });
+          check('crew releases the slot', release.status === 200 && release.body?.signedUp === false, JSON.stringify(release.body));
+        }
+
+        // Availability: add, see it, remove it.
+        const addAvail = await callAs(crewJar, 'saveAvailability', { date: '2030-01-15', allDay: true, reason: 'Exams' });
+        check('crew adds an unavailable day', addAvail.status === 200 && typeof addAvail.body?.id === 'string', JSON.stringify(addAvail.body));
+        const availId = addAvail.body?.id;
+        const sched2 = await callAs(crewJar, 'getSchedule', {});
+        check('getSchedule lists the unavailable day', sched2.body?.availability?.some((a: any) => a.id === availId && a.reason === 'Exams'));
+        if (availId) {
+          const del = await callAs(crewJar, 'saveAvailability', { id: availId, remove: true });
+          check('crew removes the unavailable day', del.status === 200, JSON.stringify(del.body));
+        }
+
+        // Preferences round-trip.
+        const pref = await callAs(crewJar, 'saveSchedulePrefs', { travelMinutes: 25 });
+        check('crew saves travel time', pref.status === 200, JSON.stringify(pref.body));
+        const sched3 = await callAs(crewJar, 'getSchedule', {});
+        check('getSchedule reflects the travel time', sched3.body?.travelMinutes === 25, String(sched3.body?.travelMinutes));
+
+        // Blackouts are admin-only, and drive the "Exam period" badge.
+        const deniedBlackout = await callAs(crewJar, 'saveBlackout', { label: 'X', startDate: '2030-05-01' });
+        check('non-admin cannot set a blackout (403)', deniedBlackout.status === 403, `status=${deniedBlackout.status}`);
+        const blackout = await call('saveBlackout', { label: 'GCSEs', startDate: '2030-05-01', endDate: '2030-06-15' });
+        check('admin adds an exam blackout', blackout.status === 200 && typeof blackout.body?.id === 'string', JSON.stringify(blackout.body));
+        if (blackout.body?.id) {
+          const sched4 = await callAs(crewJar, 'getSchedule', {});
+          check('getSchedule lists the exam blackout', sched4.body?.blackouts?.some((b: any) => b.label === 'GCSEs'));
+          const rm = await call('saveBlackout', { id: blackout.body.id, remove: true });
+          check('admin removes the exam blackout', rm.status === 200, JSON.stringify(rm.body));
+        }
+
+        // Family feed: the parents URL is public and serves a calendar.
+        const feed = await callAs(crewJar, 'getFamilyFeed', {});
+        check('getFamilyFeed returns a parents calendar URL',
+          feed.status === 200 && typeof feed.body?.parentsUrl === 'string' && feed.body.parentsUrl.endsWith('/parents.ics'),
+          JSON.stringify(feed.body));
+        const publicIcs = await get('/parents.ics');
+        check('the parents feed serves text/calendar', publicIcs.status === 200 && (publicIcs.headers.get('content-type') ?? '').includes('text/calendar'),
+          `status=${publicIcs.status} type=${publicIcs.headers.get('content-type')}`);
+
+        // Clean up the slot and the throwaway club session this block created.
+        if (slotId) {
+          const gone = await call('saveRotaSlot', { id: slotId, remove: true });
+          check('admin removes the rota slot', gone.status === 200, JSON.stringify(gone.body));
+        }
+        await db().query('DELETE FROM "RotaSlots" WHERE "subEvent" = $1', [rotaSubId]);
+        await db().query('DELETE FROM "SubEvents" WHERE "id" = $1', [rotaSubId]);
+      }
     }
 
-    // ------------------------------------------------------------- logout
+      // ------------------------------------------------------------- logout
     const res = await fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { cookie: cookieHeader(jar) } });
     check('logout succeeds', res.status === 200);
     jar.clear();

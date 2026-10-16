@@ -106,7 +106,7 @@ export const TOUR: Step[] = [
     path: '/admin/support',
     target: 'support-search',
     title: 'Support tickets',
-    body: 'Bug reports and feature requests land here and email you. Reply in the thread and the user gets an email with your answer, so nobody is left guessing.',
+    body: 'Support tickets land here and email the right people. Reply in the thread and the user gets an email with your answer, so nobody is left guessing.',
     advance: 'next',
     adminOnly: true,
   },
@@ -124,7 +124,7 @@ export const TOUR: Step[] = [
     path: '/',
     target: 'support',
     title: 'Help and feedback',
-    body: 'Found a bug, got an idea, or just need a hand? This button goes straight to the maintainers, and it automatically tells them which page you were on.',
+    body: 'Found a bug, got an idea, or just need a hand? This button reaches the right people, and it automatically tells them which page you were on.',
     advance: 'next',
   },
 ];

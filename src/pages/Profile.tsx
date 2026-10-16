@@ -511,7 +511,7 @@ function PwaSettings() {
             <span className="block font-medium text-sm">Admin notifications</span>
             <span className="block text-xs text-muted-foreground mt-0.5">
               {me.isMaintainer
-                ? 'New bug reports and feature requests, replies, and people waiting at venue check-in.'
+                ? 'New bug reports, replies, and people waiting at venue check-in.'
                 : 'New support tickets, replies, and people waiting for you to approve a venue check-in.'}
             </span>
             {/* Distinguish the preference from whether THIS device can receive. */}

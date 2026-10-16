@@ -274,7 +274,7 @@ export default function Support() {
           </label>
         </div>
         <div className="flex items-center gap-2 font-semibold"><Wrench className="h-4 w-4 text-primary" />Maintainers</div>
-        <p className="text-xs text-muted-foreground">Admins only. Emailed about bug reports and feature requests. General support goes to all admins who aren’t staff.</p>
+        <p className="text-xs text-muted-foreground">Admins only. Emailed about bug reports. Feature requests and general support go to all admins who aren’t staff.</p>
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {candidates.map((m) => (
             <label key={m.id} className="flex items-center gap-2 text-sm">

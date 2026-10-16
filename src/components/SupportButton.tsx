@@ -14,7 +14,7 @@ import { useSupportCollapsed } from '../lib/uiPrefs';
 type T = SubmitSupportInputType['type'];
 const TYPES: { v: T; icon: typeof Bug; hint: string }[] = [
   { v: 'Bug Report', icon: Bug, hint: 'Something broken? Goes to the maintainers.' },
-  { v: 'Feature Request', icon: Lightbulb, hint: 'An idea for the app. Goes to the maintainers.' },
+  { v: 'Feature Request', icon: Lightbulb, hint: 'An idea for the app. Goes to the admins.' },
   { v: 'General Support', icon: MessageCircleQuestion, hint: 'Help with crew stuff. Goes to student admins.' },
 ];
 

@@ -803,4 +803,58 @@ ALTER TABLE "ShowPhotos" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NU
 ALTER TABLE "GreenRoomNotes" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
 ALTER TABLE "AudienceCounts" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
 
+-- ---------------------------------------------------------------------------
+-- Batch 5: scheduling. Exam blackout dates, the member's "I am not free" log,
+-- self sign-up rotas (front-of-house, stewarding) and per-member travel time /
+-- reminder preferences.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "ExamBlackouts" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "label"     text NOT NULL DEFAULT '',
+  "startDate" text NOT NULL DEFAULT '',
+  "endDate"   text NOT NULL DEFAULT '',
+  "note"      text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "MemberAvailability" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "member"    uuid NOT NULL,
+  "date"      text NOT NULL DEFAULT '',
+  "allDay"    boolean NOT NULL DEFAULT true,
+  "fromTime"  text NOT NULL DEFAULT '',
+  "toTime"    text NOT NULL DEFAULT '',
+  "reason"    text NOT NULL DEFAULT '',
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "MemberAvailability_member_idx" ON "MemberAvailability" ("member");
+
+CREATE TABLE IF NOT EXISTS "RotaSlots" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "subEvent"  uuid NOT NULL,
+  "role"      text NOT NULL DEFAULT '',
+  "capacity"  integer NOT NULL DEFAULT 1,
+  "note"      text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "RotaSlots_subEvent_idx" ON "RotaSlots" ("subEvent");
+
+CREATE TABLE IF NOT EXISTS "RotaSignups" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "slot"      uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "RotaSignups_slot_member_idx" ON "RotaSignups" ("slot", "member");
+
+-- Travel time is per member (minutes to pad before a call time); reminder
+-- preferences are a small JSON blob the member tunes per event type.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "travelMinutes" integer NOT NULL DEFAULT 0;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "reminderPrefs" text NOT NULL DEFAULT '';
+
 COMMIT;

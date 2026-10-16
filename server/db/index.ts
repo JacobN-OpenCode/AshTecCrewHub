@@ -78,6 +78,10 @@ const TABLES = {
   greenRoomNotes: { table: 'GreenRoomNotes', arr: [] },
   lostProperty: { table: 'LostProperty', arr: [] },
   audienceCounts: { table: 'AudienceCounts', arr: [] },
+  examBlackouts: { table: 'ExamBlackouts', arr: [] },
+  memberAvailability: { table: 'MemberAvailability', arr: [] },
+  rotaSlots: { table: 'RotaSlots', arr: [] },
+  rotaSignups: { table: 'RotaSignups', arr: [] },
 } as const satisfies Record<string, TableDef>;
 
 export type TableName = keyof typeof TABLES;

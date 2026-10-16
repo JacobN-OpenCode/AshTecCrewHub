@@ -44,31 +44,38 @@ async function adminRecipients(): Promise<string[]> {
   return (await crew()).filter(mayReceiveAdmin).map((m) => m.id);
 }
 
-/** Maintainers who have admin notifications on - bug reports and feature requests. */
+/** Maintainers who have admin notifications on - bug reports only. */
 async function maintainerRecipients(): Promise<string[]> {
   return (await crew()).filter((m) => mayReceiveAdmin(m) && m.isMaintainer).map((m) => m.id);
 }
 
 // ---------------------------------------------------------- admin notifications
 
-/** A new support ticket. Bug reports and feature requests go to maintainers. */
+/**
+ * Only a Bug Report reaches the maintainers; feature requests and general
+ * support go to the admins who aren't staff. Maintainers exist to fix what is
+ * broken, so they should not be paged for an idea or a question.
+ */
+const goesToMaintainers = (type?: string) => type === 'Bug Report';
+
+/** A new support ticket. Bug reports go to maintainers; everything else to admins. */
 export async function notifyNewTicket(ticket: {
   id: string;
   type?: string;
   subject?: string;
   submittedBy?: string | string[] | null;
 }): Promise<void> {
-  const isCoding = ticket.type === 'Bug Report' || ticket.type === 'Feature Request';
+  const isBug = goesToMaintainers(ticket.type);
   const submitterId = ids(ticket.submittedBy)[0];
   // Ticket 42ca4f1f: don't push a maintainer their own ticket back.
-  const recipients = (isCoding ? await maintainerRecipients() : await adminRecipients()).filter((id) => id !== submitterId);
+  const recipients = (isBug ? await maintainerRecipients() : await adminRecipients()).filter((id) => id !== submitterId);
   if (!recipients.length) return;
 
   const from = submitterId ? (await crew()).find((m) => m.id === submitterId) : undefined;
   const who = from ? `${from.firstName ?? ''}`.trim() || 'Someone' : 'Someone';
 
   await sendToMembers(recipients, {
-    title: isCoding ? `New ${ticket.type?.toLowerCase()}` : 'New support ticket',
+    title: isBug ? `New ${ticket.type?.toLowerCase()}` : 'New support ticket',
     body: `${who}: ${ticket.subject ?? 'a new ticket'}`,
     url: `/admin/support/${ticket.id}`,
     tag: `ticket-${ticket.id}`,
@@ -101,8 +108,8 @@ export async function notifyTicketReply(ticket: {
   // Only nudge for a crew member's reply; an admin's own reply does not need to
   // tell the other admins about itself.
   if (ticket.lastReplyFrom === 'Maintainer') return;
-  const isCoding = ticket.type === 'Bug Report' || ticket.type === 'Feature Request';
-  const recipients = isCoding ? await maintainerRecipients() : await adminRecipients();
+  const isBug = goesToMaintainers(ticket.type);
+  const recipients = isBug ? await maintainerRecipients() : await adminRecipients();
   if (!recipients.length) return;
 
   await sendToMembers(recipients, {
@@ -137,8 +144,8 @@ export async function notifyTicketEdited(ticket: {
   type?: string;
   subject?: string;
 }): Promise<void> {
-  const isCoding = ticket.type === 'Bug Report' || ticket.type === 'Feature Request';
-  const recipients = isCoding ? await maintainerRecipients() : await adminRecipients();
+  const isBug = goesToMaintainers(ticket.type);
+  const recipients = isBug ? await maintainerRecipients() : await adminRecipients();
   if (!recipients.length) return;
 
   await sendToMembers(recipients, {

@@ -4,7 +4,7 @@ import { zite } from '#db';
 import { requireAdmin } from '../lib/server';
 
 export default createEndpoint({
-  description: 'Marks a crew member as a maintainer who receives bug reports and feature requests (admins)',
+  description: 'Marks a crew member as a maintainer who receives bug reports (admins)',
   authenticated: true,
   inputSchema: z.object({ memberId: z.string(), value: z.boolean() }),
   // The member is echoed back so the Support page updates its list in place

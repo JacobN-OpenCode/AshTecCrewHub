@@ -1,7 +1,8 @@
 import { pv, previewId } from '../lib/preview';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getMyEvents, setAttendance, type GetMyEventsOutputType } from '#api';
+import { getMyEvents, getSchedule, setAttendance, type GetMyEventsOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import ShowCard from '../components/ShowCard';
 import SubEventRow, { type MySubEvent } from '../components/SubEventRow';
@@ -10,12 +11,17 @@ import UpcomingBirthdays from '../components/UpcomingBirthdays';
 import OpeningCountdown from '../components/OpeningCountdown';
 import { isPastDue } from '../lib/constants';
 import { useMe } from '../lib/me';
+import { AlertTriangle } from 'lucide-react';
 
 export default function MyEvents() {
   const { me } = useMe();
   const [data, setData] = useState<GetMyEventsOutputType | null>(null);
+  const [clashes, setClashes] = useState(0);
   const reload = useCallback(async () => setData(await getMyEvents(pv())), []);
   useEffect(() => { reload(); }, [reload]);
+  // A quiet check for scheduling clashes, so the member is nudged once rather
+  // than having to open the Schedule page to find out.
+  useEffect(() => { getSchedule(pv()).then((s) => setClashes(s.clashes.length)).catch(() => {}); }, []);
 
   if (!data) return <div className="space-y-4">{[0, 1].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}</div>;
 
@@ -48,6 +54,12 @@ export default function MyEvents() {
         </p>
       </div>
       {data.shows.length === 0 && <p className="text-muted-foreground">No shows have been set up yet.</p>}
+      {clashes > 0 && (
+        <Link to="/schedule" className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm hover:bg-amber-500/20">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span><span className="font-semibold text-amber-500">{clashes}</span> scheduling clash{clashes > 1 ? 'es' : ''} need a look. See the Schedule page.</span>
+        </Link>
+      )}
       <OpeningCountdown />
       <UpcomingBirthdays />
       {data.shows.map((s) => (

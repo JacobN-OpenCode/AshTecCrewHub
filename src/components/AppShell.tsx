@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, CalendarPlus, ChartColumn, DoorOpen, Eye, HeartHandshake,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, ChartColumn, DoorOpen, Eye, HeartHandshake,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, BookUser, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
@@ -157,6 +157,7 @@ function Shell() {
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
     main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
+    main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
     main.push({ to: '/contacts', label: 'Contacts', icon: BookUser });
     main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
   }

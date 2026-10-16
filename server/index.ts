@@ -30,7 +30,7 @@ import {
   pruneAuth,
 } from './auth.js';
 import { catLogin } from './catLogin.js';
-import { verifyCalendarToken, buildMemberFeed } from './calendar.js';
+import { verifyCalendarToken, buildMemberFeed, buildPublicFeed } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
 import { notifyServerError } from './notify.js';
@@ -356,6 +356,23 @@ app.get('/calendar.ics', async (req, res) => {
     res.send(ics);
   } catch (e) {
     console.error('[calendar] feed failed:', e);
+    res.status(500).type('text/plain').send('Could not build the calendar.');
+  }
+});
+
+/**
+ * The public parents calendar feed (Batch 5): the same events the parents page
+ * shows, as a subscribable .ics. Unauthenticated by design - it carries nothing
+ * beyond what /parents already publishes.
+ */
+app.get('/parents.ics', async (_req, res) => {
+  try {
+    const ics = await buildPublicFeed();
+    res.set('Content-Type', 'text/calendar; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=600');
+    res.send(ics);
+  } catch (e) {
+    console.error('[calendar] public feed failed:', e);
     res.status(500).type('text/plain').send('Could not build the calendar.');
   }
 });

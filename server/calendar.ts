@@ -104,3 +104,36 @@ export async function buildMemberFeed(memberId: string): Promise<string> {
 
   return buildIcs(events, showName, 'AshTec Crew');
 }
+
+/**
+ * The public parents feed (Batch 5). Same events getPublicCalendar publishes -
+ * no descriptions, no responses, nothing about individual crew - as a
+ * subscribable text/calendar feed. Unauthenticated: it only ever exposes what
+ * the parents page already shows.
+ */
+export async function buildPublicFeed(): Promise<string> {
+  const [shows, subs] = await Promise.all([
+    zite.shows.findAll({ limit: 500 }),
+    zite.subEvents.findAll({ limit: 2000 }),
+  ]);
+  const visibleShows = new Map(shows.records.filter((s) => !s.hidden).map((s) => [s.id, s.showName ?? '']));
+  const showName = (id: string) => visibleShows.get(id) ?? '';
+  const events = subs.records
+    .filter((e) => !e.hidden)
+    .filter((e) => !!e.date && !e.dateTbc)
+    .filter((e) => ids(e.shows).some((id) => visibleShows.has(id)))
+    .map((e) => ({
+      id: e.id,
+      title: e.title ?? 'Untitled',
+      type: e.type ?? 'Rehearsal',
+      subtype: e.subtype ?? '',
+      date: e.date as string,
+      dateTbc: false,
+      meetTime: e.meetTime ?? '',
+      startTime: e.startTime ?? null,
+      endTime: e.endTime ?? null,
+      showIds: ids(e.shows),
+      hidden: false,
+    }));
+  return buildIcs(events, showName, 'AshTec Shows');
+}

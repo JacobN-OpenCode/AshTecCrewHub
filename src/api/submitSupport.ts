@@ -30,7 +30,9 @@ export default createEndpoint({
     });
     const { records } = await zite.crewMembers.findAll({ limit: 2000 });
     const adminsNoStaff = records.filter((m) => m.isAdmin && !isStaff(m) && isEmailable(m));
-    const candidates = input.type === 'General Support' ? adminsNoStaff : records.filter((m) => m.isMaintainer && isEmailable(m));
+    // Only bugs page the maintainers; feature requests and general support go to
+    // the admins who aren't staff.
+    const candidates = input.type === 'Bug Report' ? records.filter((m) => m.isMaintainer && isEmailable(m)) : adminsNoStaff;
     // Ticket 42ca4f1f: never email a maintainer about a ticket they raised
     // themselves. If excluding the sender would notify nobody, fall back to the
     // admins (still without the sender) so a lone maintainer's own ticket is
@@ -66,8 +68,8 @@ export default createEndpoint({
         await Promise.all(sends).catch(() => {});
         if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never }).catch(() => {});
       }
-      // Push as well as email: a feature request or bug report reaches the
-      // maintainers straight away, and General Support reaches the admins.
+      // Push as well as email: a bug report reaches the maintainers straight
+      // away, and feature requests and general support reach the admins.
       await notifyNewTicket({ id: ticket.id, type: input.type, subject: input.subject.trim(), submittedBy: me.id });
     })();
 

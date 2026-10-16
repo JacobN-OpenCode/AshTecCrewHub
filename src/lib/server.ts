@@ -1,5 +1,6 @@
 // Backend-only helpers shared by endpoints in src/api/.
 import { zite } from '#db';
+import { ZiteError } from '#backend';
 import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from '#db';
 
 export const ids = (v?: string | string[] | null): string[] => (v ? (Array.isArray(v) ? v : [v]) : []);
@@ -36,13 +37,13 @@ export async function adminCount(): Promise<number> {
 
 export async function requireMember(email: string) {
   const m = await findMemberByEmail(email);
-  if (!m) throw new Error('Your email is not on the AshTec crew list. Ask an admin to add you.');
+  if (!m) throw new ZiteError({ code: 'FORBIDDEN', message: 'Your email is not on the AshTec crew list. Ask an admin to add you.' });
   return m;
 }
 
 export async function requireAdmin(email: string) {
   const m = await requireMember(email);
-  if (!m.isAdmin) throw new Error('Admins only.');
+  if (!m.isAdmin) throw new ZiteError({ code: 'FORBIDDEN', message: 'Admins only.', userFacingMessage: 'Admins only.' });
   return m;
 }
 

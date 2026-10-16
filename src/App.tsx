@@ -25,6 +25,7 @@ import AdminPresence from './pages/admin/AdminPresence';
 import ServerDiagnostics from './pages/admin/ServerDiagnostics';
 import Tools from './pages/Tools';
 import Calendar from './pages/Calendar';
+import Schedule from './pages/Schedule';
 import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
 import AdminFeedback from './pages/admin/AdminFeedback';
@@ -98,6 +99,7 @@ function SignedIn() {
           {/* Ticket 00c0715c: contractors never get the stage layout. */}
           <Route path="/stage" element={me.isContractor ? <Navigate to="/" replace /> : <StageLayout />} />
           <Route path="/calendar" element={<Calendar />} />
+          <Route path="/schedule" element={<Schedule />} />
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/contacts" element={<Contacts />} />
