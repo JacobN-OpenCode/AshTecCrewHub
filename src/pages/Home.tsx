@@ -9,7 +9,7 @@ import { pv } from '../lib/preview';
 import { pendingForms } from '../lib/reminders';
 import MyBadges from '../components/MyBadges';
 import {
-  Award, Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
+  Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
   Radio, Rocket, Sparkles, Ticket, Users, Wrench,
 } from 'lucide-react';
 
@@ -123,7 +123,6 @@ export default function Home() {
   const baseActions: { to: string; label: string; icon: typeof Calendar; badge?: number }[] = [
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     { to: '/schedule', label: 'My schedule', icon: Clock },
-    { to: '/leaderboard', label: 'Leaderboard', icon: Award },
   ];
   const actions: { to: string; label: string; icon: typeof Calendar; badge?: number }[] = [];
   if (me.isStaff || me.isAdmin) {

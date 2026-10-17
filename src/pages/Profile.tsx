@@ -20,7 +20,8 @@ import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import MyBadges from '../components/MyBadges';
-import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
+import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
+import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, ACCENTS } from '../lib/uiPrefs';
@@ -34,6 +35,10 @@ import { uploadAvatar } from '../lib/avatarUpload';
 
 export default function Profile() {
   const { me, mentor, refreshMe } = useMe();
+  // Feedback round 2: the role and year pickers draw from the admin-curated lists.
+  const { lists } = useAppSettings();
+  const roleOptions = lists.roles;
+  const yearOptions = lists.years.filter((y) => y !== 'Staff');
   const [firstName, setFirstName] = useState(me.firstName);
   const [lastName, setLastName] = useState(me.lastName);
   const [year, setYear] = useState(me.year);
@@ -246,7 +251,7 @@ export default function Profile() {
             <Select value={year || undefined} onValueChange={setYear}>
               <SelectTrigger id="yr"><SelectValue placeholder="Choose a year" /></SelectTrigger>
               <SelectContent>
-                {SELF_YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 {/* An admin-set Staff year must still display, just not be selectable here. */}
                 {year === 'Staff' && <SelectItem value="Staff" disabled>Staff (set by a crew admin)</SelectItem>}
               </SelectContent>
@@ -272,7 +277,7 @@ export default function Profile() {
                   <Label>{c.l}</Label>
                   <Select value={c.v || undefined} onValueChange={c.set}>
                     <SelectTrigger><SelectValue placeholder="Choose a role" /></SelectTrigger>
-                    <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                    <SelectContent>{roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               ))}

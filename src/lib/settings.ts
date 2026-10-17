@@ -16,7 +16,13 @@ export const SETTING_KEYS = {
   catName: 'catName',
   /** Admin-created feedback forms, alongside the built-in ones. */
   feedbackForms: 'feedbackForms',
-  /** Whether admin pages prefer cards over lists (per admin, stored client-side). */
+  /** Branding: the platform and school names shown across the app. */
+  platformName: 'platformName',
+  schoolName: 'schoolName',
+  /** Feature switches: which parts of the app are on at all. */
+  features: 'features',
+  /** The option lists the pickers use (roles, years, types, subtypes). */
+  lists: 'lists',
 } as const;
 
 /** The skills we offer out of the box, until an admin curates their own list. */
@@ -41,6 +47,82 @@ export type AppSettings = {
   skillsEditable: boolean;
   catName: string;
   feedbackForms: CustomFeedbackForm[];
+  platformName: string;
+  schoolName: string;
+  features: Features;
+  lists: CrewLists;
+};
+
+// ---------------------------------------------------------------- features
+
+/** The switches that turn whole parts of the app on or off. */
+export const FEATURE_KEYS = [
+  'schedule', 'announcements', 'memories', 'mascot', 'tools', 'parents', 'liveShow', 'badges', 'checkIn',
+] as const;
+export type FeatureKey = (typeof FEATURE_KEYS)[number];
+
+export const FEATURE_LABELS: Record<FeatureKey, string> = {
+  schedule: 'Schedule',
+  announcements: 'Announcements',
+  memories: 'Show memories',
+  mascot: 'The cat page',
+  tools: 'Tools',
+  parents: 'For parents',
+  liveShow: 'Live show',
+  badges: 'Badges',
+  checkIn: 'Check-in',
+};
+
+export type Features = Record<FeatureKey, boolean>;
+
+export const DEFAULT_FEATURES: Features = {
+  schedule: true,
+  announcements: true,
+  memories: true,
+  mascot: true,
+  tools: true,
+  parents: true,
+  liveShow: true,
+  badges: true,
+  checkIn: true,
+};
+
+export function cleanFeatures(raw: unknown): Features {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const out = { ...DEFAULT_FEATURES };
+  for (const k of FEATURE_KEYS) if (typeof o[k] === 'boolean') out[k] = o[k] as boolean;
+  return out;
+}
+
+// ------------------------------------------------------------ option lists
+
+/** The lists every picker in the app draws from. Admins curate these. */
+export type CrewLists = {
+  roles: string[];
+  years: string[];
+  memberTypes: string[];
+};
+
+const cleanList = (raw: unknown, fallback: string[], max = 40): string[] => {
+  if (!Array.isArray(raw)) return fallback;
+  const out = [...new Set(raw.map((s) => String(s ?? '').trim().replace(/\s+/g, ' ').slice(0, 40)).filter(Boolean))];
+  return out.length ? out.slice(0, max) : fallback;
+};
+
+export function cleanLists(raw: unknown, fallback: CrewLists): CrewLists {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    roles: cleanList(o.roles, fallback.roles),
+    years: cleanList(o.years, fallback.years),
+    memberTypes: cleanList(o.memberTypes, fallback.memberTypes),
+  };
+}
+
+/** The built-in lists, used as the defaults and the fallback. */
+export const DEFAULT_LISTS: CrewLists = {
+  roles: ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'],
+  years: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'],
+  memberTypes: ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'],
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -48,6 +130,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   skillsEditable: true,
   catName: 'Tabby',
   feedbackForms: [],
+  platformName: 'AshTec Crew Hub',
+  schoolName: 'Ashford School Tech Crew',
+  features: DEFAULT_FEATURES,
+  lists: DEFAULT_LISTS,
 };
 
 /**

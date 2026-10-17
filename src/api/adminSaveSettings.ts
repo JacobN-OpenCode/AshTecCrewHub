@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { db } from '#db';
 import { requireAdmin } from '../lib/server';
-import { SETTING_KEYS, cleanSkillOptions, cleanCustomForms } from '../lib/settings';
+import { SETTING_KEYS, DEFAULT_LISTS, cleanSkillOptions, cleanCustomForms, cleanFeatures, cleanLists } from '../lib/settings';
 
 /**
  * The admins' settings page (the ATCMS settings hub). Writes into the generic
@@ -17,6 +17,10 @@ export default createEndpoint({
     skillsEditable: z.boolean().optional(),
     catName: z.string().max(40).optional(),
     feedbackForms: z.array(z.any()).optional(),
+    platformName: z.string().max(60).optional(),
+    schoolName: z.string().max(80).optional(),
+    features: z.record(z.string(), z.boolean()).optional(),
+    lists: z.record(z.string(), z.array(z.string())).optional(),
   }),
   outputSchema: z.object({ success: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -37,6 +41,18 @@ export default createEndpoint({
     if (input.feedbackForms !== undefined) {
       writes.push([SETTING_KEYS.feedbackForms, cleanCustomForms(input.feedbackForms)]);
     }
+    if (input.platformName !== undefined) {
+      const v = input.platformName.trim().slice(0, 60);
+      if (!v) throw new Error('The platform needs a name.');
+      writes.push([SETTING_KEYS.platformName, v]);
+    }
+    if (input.schoolName !== undefined) {
+      const v = input.schoolName.trim().slice(0, 80);
+      if (!v) throw new Error('The school needs a name.');
+      writes.push([SETTING_KEYS.schoolName, v]);
+    }
+    if (input.features !== undefined) writes.push([SETTING_KEYS.features, cleanFeatures(input.features)]);
+    if (input.lists !== undefined) writes.push([SETTING_KEYS.lists, cleanLists(input.lists, DEFAULT_LISTS)]);
 
     for (const [key, value] of writes) {
       await db().query(

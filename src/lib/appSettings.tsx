@@ -21,6 +21,10 @@ export function loadAppSettings(): Promise<AppSettings> {
           skillsEditable: s.skillsEditable !== false,
           catName: s.catName ?? DEFAULT_SETTINGS.catName,
           feedbackForms: s.feedbackForms ?? [],
+          platformName: s.platformName ?? DEFAULT_SETTINGS.platformName,
+          schoolName: s.schoolName ?? DEFAULT_SETTINGS.schoolName,
+          features: { ...DEFAULT_SETTINGS.features, ...(s.features ?? {}) },
+          lists: s.lists ?? DEFAULT_SETTINGS.lists,
         };
         listeners.forEach((l) => l(cache!));
         return cache;

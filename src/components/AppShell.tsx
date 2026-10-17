@@ -5,7 +5,7 @@ import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
-  PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
+  PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -22,6 +22,7 @@ import { previewId, exitPreview, pv } from '../lib/preview';
 import { ACCENTS, useSidebarCollapsed, useAccent, useDensity } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
+import { useAppSettings } from '../lib/appSettings';
 import { PLATFORM, MOD_KEY_LABEL, fmtDate } from '../lib/constants';
 import { globalSearch, type GlobalSearchOutputType } from '#api';
 
@@ -104,6 +105,8 @@ export default function AppShell() {
 
 function Shell() {
   const { me, supportAwaiting, liveShowActive, specialNote } = useMe();
+  // Feedback round 2: branding and feature switches come from ATCMS settings.
+  const { platformName, features } = useAppSettings();
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
@@ -162,14 +165,13 @@ function Shell() {
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
     // Ticket c4d1e0f2: check-in only appears to normal crew while a session is
     // actually open. Admins and staff keep it so they can run one.
-    if (session !== null || me.isAdmin || me.isStaff) {
+    if (features.checkIn && (session !== null || me.isAdmin || me.isStaff)) {
       main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
     }
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
-    main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
+    if (features.schedule) main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
     // Batch 7: crew announcements.
-    main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
-    main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
+    if (features.announcements) main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
   } else {
     // Actors have a deliberately small world; the dashboard plus the stage board
     // (their "who to contact") is all they need.
@@ -182,18 +184,18 @@ function Shell() {
     // page is for the adults who run the club.
     const production: NavItem[] = [{ to: '/stage', label: 'Stage Layout', icon: LayoutGrid }];
     // The live show dashboard shows for admins at all times, everyone else only while a show is on.
-    if (me.isAdmin || liveShowActive) production.push({ to: '/show-dash', label: 'Live Show', icon: Tv });
+    if (features.liveShow && (me.isAdmin || liveShowActive)) production.push({ to: '/show-dash', label: 'Live Show', icon: Tv });
     groups.push({ label: 'Production', items: production });
   }
 
   if (nonActor) {
     const club: NavItem[] = [];
-    if (me.isAdmin || me.isStaff) club.push({ to: '/parents', label: 'For parents', icon: HeartHandshake });
-    club.push({ to: '/tools', label: 'Tools', icon: Wrench });
+    if (features.parents && (me.isAdmin || me.isStaff)) club.push({ to: '/parents', label: 'For parents', icon: HeartHandshake });
+    if (features.tools) club.push({ to: '/tools', label: 'Tools', icon: Wrench });
     // Batch 8: the fun ones.
-    club.push({ to: '/memories', label: 'Memories', icon: Images });
-    club.push({ to: '/mascot', label: 'The cat', icon: Cat });
-    groups.push({ label: 'Club', items: club });
+    if (features.memories) club.push({ to: '/memories', label: 'Memories', icon: Images });
+    if (features.mascot) club.push({ to: '/mascot', label: 'The cat', icon: Cat });
+    if (club.length) groups.push({ label: 'Club', items: club });
   }
 
   // Every admin page lives in its own labelled group now, instead of behind a
@@ -281,7 +283,7 @@ function Shell() {
   const shortcuts: Shortcut[] = useMemo(() => {
     const KEY_FOR: Record<string, string> = {
       '/': 'h', '/calendar': 'c', '/schedule': 's', '/attendance': 'a', '/profile': 'p', '/roster': 'r',
-      '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o', '/team': 'e', '/my-events': 'v',
+      '/tools': 't', '/stage': 'g', '/admin': 'o', '/team': 'e', '/my-events': 'v',
     };
     const seen = new Set<string>();
     const out: Shortcut[] = [];
@@ -329,7 +331,7 @@ function Shell() {
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Lightbulb className="h-5 w-5" />
             </span>
-            {!collapsed && <span className="min-w-0 flex-1 truncate font-bold">{PLATFORM}</span>}
+            {!collapsed && <span className="min-w-0 flex-1 truncate font-bold">{platformName}</span>}
             <button
               type="button"
               onClick={() => setCollapsed(!collapsed)}
@@ -484,7 +486,7 @@ function Shell() {
           <div className="absolute inset-y-0 left-0 flex w-[86%] max-w-sm flex-col border-r bg-background shadow-2xl">
             <div className="flex items-center gap-2 border-b px-3 py-3">
               <Lightbulb className="h-5 w-5 text-primary" />
-              <span className="flex-1 font-bold">{PLATFORM}</span>
+              <span className="flex-1 font-bold">{platformName}</span>
               <button
                 type="button"
                 onClick={() => setDrawer(false)}

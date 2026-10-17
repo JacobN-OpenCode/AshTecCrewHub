@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
-import { useSupportSameTab } from '../../lib/uiPrefs';
+import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
 
 type Ticket = AdminGetSupportOutputType['tickets'][number];
@@ -40,6 +40,8 @@ export default function Support() {
   const [reminding, setReminding] = useState(false);
   const [remindingId, setRemindingId] = useState('');
   const [sameTab] = useSupportSameTab();
+  // Feedback round 2: cards or a list, the admin's choice (default cards).
+  const [layout] = useAdminLayout();
   // Ticket f505c30e: per-ticket vs one daily summary email for new tickets.
   const [summaryMode, setSummaryMode] = useState<'per-ticket' | 'daily'>('per-ticket');
   useEffect(() => {
@@ -160,10 +162,12 @@ export default function Support() {
     return `${days} days`;
   };
 
-  /** One ticket row, shared between the flat list and the by-status groups. */
-  const row = (t: Ticket) => (
+  /** One ticket row, shared between the flat list, the by-status groups and cards. */
+  const row = (t: Ticket, card = false) => (
     <Link key={t.id} to={`/admin/support/${t.id}`} target={sameTab ? undefined : '_blank'} rel={sameTab ? undefined : 'noopener'}
-      className="w-full p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40">
+      className={card
+        ? 'flex h-full flex-col gap-2 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40'
+        : 'w-full p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40'}>
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate flex items-center gap-1.5">
           {t.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
@@ -278,21 +282,28 @@ export default function Support() {
           </label>
         </div>
 
-        <div className="rounded-2xl border bg-card divide-y min-w-0">
-          {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No tickets here. 🎉</p>}
-          {sort === 'status' ? STATUS_ORDER.map((s) => {
-            const inStatus = list.filter((t) => t.status === s);
-            if (!inStatus.length) return null;
-            return (
-              <section key={s} className="divide-y">
-                <h2 className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {s} · {inStatus.length}
-                </h2>
-                {inStatus.map(row)}
-              </section>
-            );
-          }) : list.map(row)}
-        </div>
+        {layout === 'cards' ? (
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {list.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No tickets here. 🎉</p>}
+            {list.map((t) => row(t, true))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border bg-card divide-y min-w-0">
+            {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No tickets here. 🎉</p>}
+            {sort === 'status' ? STATUS_ORDER.map((s) => {
+              const inStatus = list.filter((t) => t.status === s);
+              if (!inStatus.length) return null;
+              return (
+                <section key={s} className="divide-y">
+                  <h2 className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {s} · {inStatus.length}
+                  </h2>
+                  {inStatus.map((t) => row(t))}
+                </section>
+              );
+            }) : list.map((t) => row(t))}
+          </div>
+        )}
       </div>
 
       <aside className="rounded-2xl border bg-card p-4 h-fit space-y-3 min-w-0">

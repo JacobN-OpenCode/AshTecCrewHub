@@ -12,6 +12,7 @@ import {
 import { EyeOff, Pencil, Plus, Recycle, Trash2, Users, ExternalLink } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAdminData, type AdminSubEvent } from '../../lib/useAdminData';
+import { useAdminLayout } from '../../lib/uiPrefs';
 import { dueLabel, fmtDate, IMPORTANCE_STYLE } from '../../lib/constants';
 import ShowDialog from '../../components/admin/ShowDialog';
 import SubEventDialog from '../../components/admin/SubEventDialog';
@@ -34,6 +35,8 @@ export default function AdminEvents({ showId: fixedShowId }: { showId?: string }
   const [inviteOpen, setInviteOpen] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'show' | 'ev'; id: string; name: string } | null>(null);
+  // Feedback round 2: cards or a list, the admin's choice (default cards).
+  const [layout] = useAdminLayout();
 
   useEffect(() => {
     if (fixedShowId) {
@@ -66,8 +69,10 @@ export default function AdminEvents({ showId: fixedShowId }: { showId?: string }
     setConfirm(null);
   };
 
-  const EventRow = ({ e }: { e: AdminSubEvent }) => (
-    <div className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+  const EventRow = ({ e, card }: { e: AdminSubEvent; card?: boolean }) => (
+    <div className={card
+      ? 'flex h-full flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40'
+      : 'p-4 flex flex-col lg:flex-row lg:items-center gap-3'}>
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">{e.title}</span>
@@ -163,10 +168,17 @@ export default function AdminEvents({ showId: fixedShowId }: { showId?: string }
             </div>
             <Button onClick={() => setEvDlg({ ev: null, club: true })}><Plus className="h-4 w-4 mr-1" />Add club session</Button>
           </div>
-          <div className="rounded-2xl border bg-card divide-y">
-            {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
-            {events.map((e) => <EventRow key={e.id} e={e} />)}
-          </div>
+          {layout === 'cards' ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {events.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} card />)}
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-card divide-y">
+              {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} />)}
+            </div>
+          )}
         </>
       ) : show && (
         <>
@@ -201,10 +213,17 @@ export default function AdminEvents({ showId: fixedShowId }: { showId?: string }
               <Button onClick={() => setEvDlg({ ev: null })}><Plus className="h-4 w-4 mr-1" />Add rehearsal / performance</Button>
             </div>
           </div>
-          <div className="rounded-2xl border bg-card divide-y">
-            {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
-            {events.map((e) => <EventRow key={e.id} e={e} />)}
-          </div>
+          {layout === 'cards' ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {events.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} card />)}
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-card divide-y">
+              {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} />)}
+            </div>
+          )}
         </>
       )}
       <ShowDialog open={!!showDlg} show={showDlg === 'edit' ? show ?? null : null} onClose={() => setShowDlg(null)}

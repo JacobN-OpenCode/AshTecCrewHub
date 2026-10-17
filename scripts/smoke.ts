@@ -366,15 +366,13 @@ if (!admin) {
       check('birthday must be MM-DD', badBd.status !== 200);
       const bdays = await call('getBirthdays', { days: 30 });
       check('getBirthdays is members-only and shaped', bdays.status === 200 && Array.isArray(bdays.body?.birthdays));
-      // Leaderboard: every member gets a row, ranks are 1-based, badges catalog
-      // comes back, and the caller's own row is included.
-      const lb = await call('getLeaderboard', {});
-      const lbRows = lb.body?.rows ?? [];
-      check('getLeaderboard returns ranked rows', lb.status === 200 && lbRows.length >= 1 && lbRows[0].rank === 1 && typeof lbRows[0].hours === 'number', JSON.stringify(lb.body).slice(0, 160));
-      check('getLeaderboard includes the caller and a badge catalog', !!lb.body?.me && Array.isArray(lb.body?.badges) && lb.body.badges.length > 0);
-      check('getLeaderboard ranks are dense and ascending', lbRows.every((r: { rank: number }, i: number) => r.rank === i + 1));
-      const lbUnauth = await fetch(`${BASE}/api/getLeaderboard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-      check('getLeaderboard requires a session', lbUnauth.status === 401);
+      // Badges (the leaderboard is gone; getMyBadges replaces the badge half).
+      const myBadges = await call('getMyBadges', {});
+      check('getMyBadges returns the catalogue and the caller’s badges',
+        myBadges.status === 200 && Array.isArray(myBadges.body?.badges) && myBadges.body.badges.length > 0 && Array.isArray(myBadges.body?.mine),
+        JSON.stringify(myBadges.body).slice(0, 160));
+      const badgesUnauth = await fetch(`${BASE}/api/getMyBadges`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      check('getMyBadges requires a session', badgesUnauth.status === 401);
       // Restore the row so repeated runs do not leave a status on the admin.
       await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
 
@@ -525,9 +523,8 @@ if (!admin) {
       check('adminSetBadge grants a manual badge', grant.status === 200 && grant.body?.success === true, JSON.stringify(grant.body));
       const mb = await call('adminGetMemberBadges', { memberId });
       check('adminGetMemberBadges lists the grant', (mb.body?.granted ?? []).includes('first-event'), JSON.stringify(mb.body));
-      const lbGrant = await call('getLeaderboard', {});
-      const grantRow = (lbGrant.body?.rows ?? []).find((r: { id: string }) => r.id === memberId);
-      check('getLeaderboard includes the manual badge', (grantRow?.badgeIds ?? []).includes('first-event'), JSON.stringify(grantRow?.badgeIds));
+      const myGrant = await call('getMyBadges', {});
+      check('getMyBadges includes the manual badge', (myGrant.body?.mine ?? []).includes('first-event'), JSON.stringify(myGrant.body?.mine));
       const revoke = await call('adminSetBadge', { memberId, badgeId: 'first-event', value: false });
       check('adminSetBadge revokes the manual badge', revoke.status === 200, JSON.stringify(revoke.body));
       const { rows: mbLeft } = await db().query(`SELECT count(*)::int AS n FROM "MemberBadges" WHERE "member" = $1`, [memberId]);
@@ -927,8 +924,25 @@ if (!admin) {
       const formsBack = await call('getSettings', {});
       check('a custom feedback form is listed', (formsBack.body?.feedbackForms ?? []).some((f: { id: string }) => f.id === 'smoke-form'), JSON.stringify(formsBack.body?.feedbackForms).slice(0, 160));
 
+      // Branding, feature switches and option lists.
+      await call('adminSaveSettings', {
+        platformName: 'Smoke Hub', schoolName: 'Smoke School',
+        features: { mascot: false },
+        lists: { roles: ['Lighting', 'Sound'], years: ['Year 7', 'Staff'], memberTypes: ['Normal Member'] },
+      });
+      const extras = await call('getSettings', {});
+      check('branding, features and lists read back',
+        extras.body?.platformName === 'Smoke Hub' && extras.body?.features?.mascot === false
+          && Array.isArray(extras.body?.lists?.roles) && extras.body.lists.roles.length === 2,
+        JSON.stringify({ p: extras.body?.platformName, f: extras.body?.features, l: extras.body?.lists }).slice(0, 200));
+
       // Restore the defaults so repeated runs are clean.
-      await call('adminSaveSettings', { catName: 'Tabby', skillOptions: DEFAULT_SKILL_OPTIONS, skillsEditable: true, feedbackForms: [] });
+      await call('adminSaveSettings', {
+        catName: 'Tabby', skillOptions: DEFAULT_SKILL_OPTIONS, skillsEditable: true, feedbackForms: [],
+        platformName: 'AshTec Crew Hub', schoolName: 'Ashford School Tech Crew',
+        features: { schedule: true, announcements: true, memories: true, mascot: true, tools: true, parents: true, liveShow: true, badges: true, checkIn: true },
+        lists: { roles: ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'], years: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'], memberTypes: ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'] },
+      });
 
       // Feedback round 2: profile fixes — a member can move up more than one
       // year, or down.

@@ -8,7 +8,7 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
-import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
+import { useAppSettings } from '../../lib/appSettings';
 import { BADGES } from '../../lib/badges';
 import { PERMISSIONS, type PermissionState } from '../../lib/permissions';
 import MemberAvatar from '../MemberAvatar';
@@ -18,6 +18,11 @@ const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', ema
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
+  // Feedback round 2: the pickers draw from the admin-curated lists.
+  const { lists } = useAppSettings();
+  const YEARS_OPTS = lists.years;
+  const TYPES_OPTS = lists.memberTypes;
+  const ROLES_OPTS = lists.roles;
   const [busy, setBusy] = useState(false);
   // Ticket 3ead37f8: the badges granted by hand (as opposed to the ones the
   // predicates compute). Loaded lazily for an existing member.
@@ -77,8 +82,8 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           <div className="space-y-1"><label className="text-sm">First initial *</label><Input value={f.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={2} /></div>
           <div className="space-y-1"><label className="text-sm">Last name</label><Input value={f.lastName} onChange={(e) => set({ lastName: e.target.value })} /></div>
           <div className="space-y-1"><label className="text-sm">School email {f.isPreview ? '(optional — made up automatically)' : '*'}</label><Input type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} /></div>
-          <div className="space-y-1"><label className="text-sm">Year</label><Pick v={f.year} on={(v) => set({ year: v })} opts={YEARS} ph="Select year" /></div>
-          <div className="space-y-1"><label className="text-sm">Member type</label><Pick v={f.memberType} on={(v) => set({ memberType: v })} opts={MEMBER_TYPES} ph="Type" /></div>
+          <div className="space-y-1"><label className="text-sm">Year</label><Pick v={f.year} on={(v) => set({ year: v })} opts={YEARS_OPTS} ph="Select year" /></div>
+          <div className="space-y-1"><label className="text-sm">Member type</label><Pick v={f.memberType} on={(v) => set({ memberType: v })} opts={TYPES_OPTS} ph="Type" /></div>
           <div className="flex flex-col gap-2 self-end pb-2">
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isAdmin} onCheckedChange={(c) => set({ isAdmin: !!c })} />Admin access</label>}
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMaintainer} onCheckedChange={(c) => set({ isMaintainer: !!c })} />Maintainer (gets bug reports)</label>}
@@ -87,11 +92,11 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           {(['roles', 'headOf'] as const).map((k) => (
             <div key={k} className="space-y-2">
               <p className="text-sm font-medium">{k === 'roles' ? 'Assigned roles' : 'Head of'}</p>
-              {ROLES.map((r) => <label key={r} className="flex items-center gap-2 text-sm"><Checkbox checked={f[k].includes(r)} onCheckedChange={() => toggle(k, r)} />{r}</label>)}
+              {ROLES_OPTS.map((r) => <label key={r} className="flex items-center gap-2 text-sm"><Checkbox checked={f[k].includes(r)} onCheckedChange={() => toggle(k, r)} />{r}</label>)}
             </div>
           ))}
-          <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES} ph="—" /></div>
-          <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES} ph="—" /></div>
+          <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES_OPTS} ph="—" /></div>
+          <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES_OPTS} ph="—" /></div>
           <div className="sm:col-span-2 space-y-1">
             <label className="text-sm">Profile picture URL</label>
             <div className="flex items-center gap-3">

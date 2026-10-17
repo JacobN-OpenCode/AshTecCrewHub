@@ -367,13 +367,6 @@ export type GetFamilyFeedInputType = NonNullable<_GetFamilyFeedCfg['inputSchema'
 export type GetFamilyFeedOutputType = Awaited<ReturnType<_GetFamilyFeedCfg['execute']>>;
 export const getFamilyFeed = createCaller<GetFamilyFeedInputType, GetFamilyFeedOutputType>('getFamilyFeed');
 
-import type { default as _GetLeaderboardEp } from '../api/getLeaderboard';
-
-type _GetLeaderboardCfg = typeof _GetLeaderboardEp;
-export type GetLeaderboardInputType = NonNullable<_GetLeaderboardCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetLeaderboardCfg['execute']>[0]['input'];
-export type GetLeaderboardOutputType = Awaited<ReturnType<_GetLeaderboardCfg['execute']>>;
-export const getLeaderboard = createCaller<GetLeaderboardInputType, GetLeaderboardOutputType>('getLeaderboard');
-
 import type { default as _GetLiveShowAdminsEp } from '../api/getLiveShowAdmins';
 
 type _GetLiveShowAdminsCfg = typeof _GetLiveShowAdminsEp;
@@ -408,6 +401,13 @@ type _GetMemoriesCfg = typeof _GetMemoriesEp;
 export type GetMemoriesInputType = NonNullable<_GetMemoriesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMemoriesCfg['execute']>[0]['input'];
 export type GetMemoriesOutputType = Awaited<ReturnType<_GetMemoriesCfg['execute']>>;
 export const getMemories = createCaller<GetMemoriesInputType, GetMemoriesOutputType>('getMemories');
+
+import type { default as _GetMyBadgesEp } from '../api/getMyBadges';
+
+type _GetMyBadgesCfg = typeof _GetMyBadgesEp;
+export type GetMyBadgesInputType = NonNullable<_GetMyBadgesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMyBadgesCfg['execute']>[0]['input'];
+export type GetMyBadgesOutputType = Awaited<ReturnType<_GetMyBadgesCfg['execute']>>;
+export const getMyBadges = createCaller<GetMyBadgesInputType, GetMyBadgesOutputType>('getMyBadges');
 
 import type { default as _GetMyCatLoginStatusEp } from '../api/getMyCatLoginStatus';
 
@@ -928,12 +928,12 @@ export const api = {
   getCatLoginAdmins,
   getCountdown,
   getFamilyFeed,
-  getLeaderboard,
   getLiveShowAdmins,
   getLiveShowState,
   getMe,
   getMemberProfile,
   getMemories,
+  getMyBadges,
   getMyCatLoginStatus,
   getMyEvents,
   getMyFeedback,

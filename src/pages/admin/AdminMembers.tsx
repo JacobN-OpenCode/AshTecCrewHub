@@ -14,7 +14,9 @@ import { Crown, Eye, Plus, Search, Shield, Trash2, Wrench, X } from 'lucide-reac
 import { startPreview } from '../../lib/preview';
 import { useAdminData, type AdminMember } from '../../lib/useAdminData';
 import { ROLES, YEARS, MEMBER_TYPES } from '../../lib/constants';
+import { useAppSettings } from '../../lib/appSettings';
 import { pendingForms } from '../../lib/reminders';
+import { useAdminLayout } from '../../lib/uiPrefs';
 import MemberDialog from '../../components/admin/MemberDialog';
 import MemberProfileDialog from '../../components/admin/MemberProfileDialog';
 import MemberAvatar from '../../components/MemberAvatar';
@@ -33,6 +35,13 @@ export default function AdminMembers() {
   const [editing, setEditing] = useState<{ m: AdminMember | null; preview?: boolean } | null>(null);
   const [profile, setProfile] = useState<AdminMember | null>(null);
   const [del, setDel] = useState<AdminMember | null>(null);
+  // Feedback round 2: cards or a list, the admin's choice (default cards).
+  const [layout] = useAdminLayout();
+  // The option lists are admin-curated in ATCMS settings.
+  const { lists } = useAppSettings();
+  const yearOptions = lists.years;
+  const typeOptions = lists.memberTypes;
+  const roleOptions = lists.roles;
   // A crew result in the command palette links here with ?member=<id>, which
   // opens that person's profile once the data has loaded (once only).
   const [searchParams] = useSearchParams();
@@ -88,6 +97,48 @@ export default function AdminMembers() {
     setDel(null);
   };
 
+  /** The body of a crew entry, shared by the card and the list layouts. */
+  const memberInner = (m: AdminMember) => (
+    <>
+      <MemberAvatar url={m.avatarUrl} firstName={m.firstName} lastName={m.lastName} size="md" />
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{m.firstName} {m.lastName}</span>
+          {m.statusEmoji && <span title={m.statusText || undefined}>{m.statusEmoji}</span>}
+          {m.isAdmin && <Shield className="h-3.5 w-3.5 text-primary" />}
+          {m.isMaintainer && <Wrench className="h-3.5 w-3.5 text-primary" />}
+          {m.isPreview && <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">Preview</Badge>}
+          <Badge variant="outline">{m.memberType}</Badge>
+          {m.year && <span className="text-xs text-muted-foreground">{m.year}</span>}
+          {!!outstanding.get(m.id) && (
+            <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30" variant="outline">
+              {outstanding.get(m.id)} form{outstanding.get(m.id) === 1 ? '' : 's'} due
+            </Badge>
+          )}
+        </div>
+        {/* Ticket b696f612: the handle reads better than a full school email. */}
+        <p className="text-xs text-muted-foreground truncate" title={m.email}>@{m.shortUsername}</p>
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {m.headOf.map((r) => <Badge key={'h' + r} className="bg-primary/20 text-primary border-primary/30" variant="outline"><Crown className="h-3 w-3 mr-1" />{r}</Badge>)}
+          {m.roles.filter((r) => !m.headOf.includes(r)).map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
+          {(m.preferredRole1 || m.preferredRole2) && <span className="text-xs text-muted-foreground self-center">Prefers: {[m.preferredRole1, m.preferredRole2].filter(Boolean).join(', ')}</span>}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-mono">
+        {data.shows.map((s) => {
+          const r = data.responses.find((x) => x.memberId === m.id && x.showId === s.id)?.response;
+          return <span key={s.id} className={RESP_STYLE[r ?? ''] ?? 'text-muted-foreground'}>{s.code || s.name}: {r ?? '—'}</span>;
+        })}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {m.isPreview
+          ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); startPreview(m.id); }}><Eye className="h-4 w-4 mr-1.5" />Preview as</Button>
+          : <RemindButton memberId={m.id} data={data} />}
+        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDel(m); }}><Trash2 className="h-4 w-4" /></Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -101,9 +152,9 @@ export default function AdminMembers() {
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1"><Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
             <Input className="pl-9" placeholder="Search name or email…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-          <MultiFilter label="Year" selected={years} onChange={setYears} options={YEARS.map((y) => ({ value: y, label: y }))} />
-          <MultiFilter label="Member type" selected={types} onChange={setTypes} options={MEMBER_TYPES.map((t) => ({ value: t, label: t }))} />
-          <MultiFilter label="Role" selected={roles} onChange={setRoles} options={ROLES.map((r) => ({ value: r, label: r }))} />
+          <MultiFilter label="Year" selected={years} onChange={setYears} options={yearOptions.map((y) => ({ value: y, label: y }))} />
+          <MultiFilter label="Member type" selected={types} onChange={setTypes} options={typeOptions.map((t) => ({ value: t, label: t }))} />
+          <MultiFilter label="Role" selected={roles} onChange={setRoles} options={roleOptions.map((r) => ({ value: r, label: r }))} />
           <MultiFilter
             label="Flags"
             selected={flags}
@@ -129,49 +180,25 @@ export default function AdminMembers() {
           )}
         </div>
       </div>
-      <div className="rounded-2xl border bg-card divide-y">
-        {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No crew members match these filters.</p>}
-        {list.map((m) => (
-          <div key={m.id} className="p-4 flex flex-col md:flex-row md:items-center gap-3 hover:bg-muted/40 cursor-pointer" onClick={() => setProfile(m)}>
-            <MemberAvatar url={m.avatarUrl} firstName={m.firstName} lastName={m.lastName} size="md" />
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold">{m.firstName} {m.lastName}</span>
-                {m.statusEmoji && <span title={m.statusText || undefined}>{m.statusEmoji}</span>}
-                {m.isAdmin && <Shield className="h-3.5 w-3.5 text-primary" />}
-                {m.isMaintainer && <Wrench className="h-3.5 w-3.5 text-primary" />}
-                {m.isPreview && <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">Preview</Badge>}
-                <Badge variant="outline">{m.memberType}</Badge>
-                {m.year && <span className="text-xs text-muted-foreground">{m.year}</span>}
-                {!!outstanding.get(m.id) && (
-                  <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30" variant="outline">
-                    {outstanding.get(m.id)} form{outstanding.get(m.id) === 1 ? '' : 's'} due
-                  </Badge>
-                )}
-              </div>
-              {/* Ticket b696f612: the handle reads better than a full school email. */}
-              <p className="text-xs text-muted-foreground truncate" title={m.email}>@{m.shortUsername}</p>
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {m.headOf.map((r) => <Badge key={'h' + r} className="bg-primary/20 text-primary border-primary/30" variant="outline"><Crown className="h-3 w-3 mr-1" />{r}</Badge>)}
-                {m.roles.filter((r) => !m.headOf.includes(r)).map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
-                {(m.preferredRole1 || m.preferredRole2) && <span className="text-xs text-muted-foreground self-center">Prefers: {[m.preferredRole1, m.preferredRole2].filter(Boolean).join(', ')}</span>}
-              </div>
+      {layout === 'cards' ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {list.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No crew members match these filters.</p>}
+          {list.map((m) => (
+            <div key={m.id} onClick={() => setProfile(m)} className="flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40">
+              {memberInner(m)}
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-mono">
-              {data.shows.map((s) => {
-                const r = data.responses.find((x) => x.memberId === m.id && x.showId === s.id)?.response;
-                return <span key={s.id} className={RESP_STYLE[r ?? ''] ?? 'text-muted-foreground'}>{s.code || s.name}: {r ?? '—'}</span>;
-              })}
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border bg-card divide-y">
+          {list.length === 0 && <p className="p-6 text-sm text-muted-foreground">No crew members match these filters.</p>}
+          {list.map((m) => (
+            <div key={m.id} onClick={() => setProfile(m)} className="flex cursor-pointer flex-col gap-3 p-4 hover:bg-muted/40 md:flex-row md:items-center">
+              {memberInner(m)}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {m.isPreview
-                ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); startPreview(m.id); }}><Eye className="h-4 w-4 mr-1.5" />Preview as</Button>
-                : <RemindButton memberId={m.id} data={data} />}
-              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDel(m); }}><Trash2 className="h-4 w-4" /></Button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <MemberProfileDialog member={profile} data={data} onClose={() => setProfile(null)}
         onEdit={(m) => { setProfile(null); setEditing({ m }); }} />
       <MemberDialog open={!!editing} member={editing?.m ?? null} data={data} onClose={() => setEditing(null)}

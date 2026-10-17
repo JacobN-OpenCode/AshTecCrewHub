@@ -6,31 +6,41 @@ import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
 import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
+import { Switch } from '@project/components/ui/switch';
 import { Badge } from '@project/components/ui/badge';
-import { Cat, GraduationCap, LayoutGrid, List, MessageSquareHeart, Plus, Settings2, Trash2, X } from 'lucide-react';
+import { Cat, GraduationCap, LayoutGrid, List, MessageSquareHeart, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAppSettings, refreshAppSettings } from '../../lib/appSettings';
-import { cleanSkillOptions, type CustomFeedbackForm } from '../../lib/settings';
+import {
+  cleanSkillOptions, FEATURE_KEYS, FEATURE_LABELS, type CustomFeedbackForm, type Features, type CrewLists,
+} from '../../lib/settings';
 import { useAdminLayout } from '../../lib/uiPrefs';
 
 /**
- * The ATCMS settings hub (feedback round 2). One page for the knobs that used to
- * be scattered: the cat's name, the skill list members pick from, and the
- * feedback forms an admin can create. Everything writes to the Settings table.
+ * The ATCMS settings hub (feedback round 2). One page for the knobs: how admin
+ * pages look, branding, which parts of the app are on, the cat, the skill list,
+ * the option lists every picker draws from, and the feedback forms.
  */
 export default function AdminSettings() {
   const settings = useAppSettings();
   const [layout, setLayout] = useAdminLayout();
 
   const [catName, setCatName] = useState(settings.catName);
+  const [platformName, setPlatformName] = useState(settings.platformName);
+  const [schoolName, setSchoolName] = useState(settings.schoolName);
+  const [features, setFeatures] = useState<Features>(settings.features);
+  const [lists, setLists] = useState<CrewLists>(settings.lists);
   const [skills, setSkills] = useState<string[]>(settings.skillOptions);
   const [skillsEditable, setSkillsEditable] = useState(settings.skillsEditable);
   const [forms, setForms] = useState<CustomFeedbackForm[]>(settings.feedbackForms);
   const [newSkill, setNewSkill] = useState('');
   const [busy, setBusy] = useState('');
 
-  // Keep the editors in step if the settings load after first paint.
   useEffect(() => { setCatName(settings.catName); }, [settings.catName]);
+  useEffect(() => { setPlatformName(settings.platformName); }, [settings.platformName]);
+  useEffect(() => { setSchoolName(settings.schoolName); }, [settings.schoolName]);
+  useEffect(() => { setFeatures(settings.features); }, [settings.features]);
+  useEffect(() => { setLists(settings.lists); }, [settings.lists]);
   useEffect(() => { setSkills(settings.skillOptions); }, [settings.skillOptions]);
   useEffect(() => { setSkillsEditable(settings.skillsEditable); }, [settings.skillsEditable]);
   useEffect(() => { setForms(settings.feedbackForms); }, [settings.feedbackForms]);
@@ -56,9 +66,14 @@ export default function AdminSettings() {
     ...prev,
     { id: '', title: 'New feedback form', intro: '', prompts: [{ id: 'q1', label: 'What do you think?' }] },
   ]);
-
   const patchForm = (i: number, patch: Partial<CustomFeedbackForm>) =>
     setForms((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
+
+  const listNames: [keyof CrewLists, string][] = [
+    ['roles', 'Roles'],
+    ['years', 'Years'],
+    ['memberTypes', 'Member types'],
+  ];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -68,6 +83,58 @@ export default function AdminSettings() {
         </h1>
         <p className="mt-1 text-muted-foreground">The knobs for the whole crew hub, in one place.</p>
       </div>
+
+      {/* Preferences */}
+      <section className="space-y-3 rounded-2xl border bg-card p-5">
+        <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Preferences</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Admin pages: cards or lists</p>
+            <p className="text-xs text-muted-foreground">Applies to the crew, support, events and overview dashboards. Per device, and yours alone. Cards is the default.</p>
+          </div>
+          <div className="flex gap-2">
+            {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setLayout(id)}
+                className={cn('inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium', layout === id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}
+              >
+                <Icon className="h-4 w-4" />{label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Branding */}
+      <section className="space-y-3 rounded-2xl border bg-card p-5">
+        <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Branding</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1"><Label htmlFor="platform">Platform name</Label><Input id="platform" value={platformName} onChange={(e) => setPlatformName(e.target.value)} maxLength={60} /></div>
+          <div className="space-y-1"><Label htmlFor="school">School / crew name</Label><Input id="school" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} maxLength={80} /></div>
+        </div>
+        <Button disabled={busy === 'brand' || !platformName.trim() || !schoolName.trim()} onClick={() => save('brand', { platformName, schoolName }, 'Branding saved')}>
+          {busy === 'brand' ? 'Saving…' : 'Save branding'}
+        </Button>
+      </section>
+
+      {/* Features */}
+      <section className="space-y-3 rounded-2xl border bg-card p-5">
+        <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Features</h2>
+        <p className="text-sm text-muted-foreground">Turn whole parts of the app off. A switch off hides the nav entry for everyone.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {FEATURE_KEYS.map((k) => (
+            <label key={k} className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm">
+              <span>{FEATURE_LABELS[k]}</span>
+              <Switch checked={features[k]} onCheckedChange={(v) => setFeatures((f) => ({ ...f, [k]: v }))} />
+            </label>
+          ))}
+        </div>
+        <Button disabled={busy === 'features'} onClick={() => save('features', { features }, 'Features saved')}>
+          {busy === 'features' ? 'Saving…' : 'Save features'}
+        </Button>
+      </section>
 
       {/* Cat */}
       <section className="space-y-3 rounded-2xl border bg-card p-5">
@@ -107,6 +174,25 @@ export default function AdminSettings() {
         </label>
         <Button disabled={busy === 'skills' || skills.length === 0} onClick={() => save('skills', { skillOptions: skills, skillsEditable }, 'Skills saved')}>
           {busy === 'skills' ? 'Saving…' : 'Save skills'}
+        </Button>
+      </section>
+
+      {/* Option lists */}
+      <section className="space-y-3 rounded-2xl border bg-card p-5">
+        <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Crew options</h2>
+        <p className="text-sm text-muted-foreground">The lists every picker draws from. Removing one does not unassign it from anyone already set.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {listNames.map(([key, label]) => (
+            <ListEditor
+              key={key}
+              label={label}
+              values={lists[key]}
+              onChange={(next) => setLists((l) => ({ ...l, [key]: next }))}
+            />
+          ))}
+        </div>
+        <Button disabled={busy === 'lists'} onClick={() => save('lists', { lists }, 'Option lists saved')}>
+          {busy === 'lists' ? 'Saving…' : 'Save option lists'}
         </Button>
       </section>
 
@@ -158,27 +244,39 @@ export default function AdminSettings() {
         </div>
       </section>
 
-      {/* Admin layout */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><LayoutGrid className="h-4 w-4 text-primary" /> Admin pages</h2>
-        <p className="text-sm text-muted-foreground">How you like admin lists shown on this device. Cards by default.</p>
-        <div className="flex gap-2">
-          {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setLayout(id)}
-              className={cn('inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium', layout === id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}
-            >
-              <Icon className="h-4 w-4" />{label}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <div className="flex items-center gap-2 rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
         <Badge variant="outline">Tip</Badge>
         Changes here apply to everyone, except the layout choice, which is yours alone.
+      </div>
+    </div>
+  );
+}
+
+/** A small chip editor for one option list. */
+function ListEditor({ label, values, onChange }: { label: string; values: string[]; onChange: (next: string[]) => void }) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...new Set([...values, v])]);
+    setDraft('');
+  };
+  return (
+    <div className="space-y-1.5 rounded-xl border p-3">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {values.map((v) => (
+          <span key={v} className="inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-xs font-medium">
+            {v}
+            <button type="button" onClick={() => onChange(values.filter((x) => x !== v))} className="text-muted-foreground hover:text-red-500" aria-label={`Remove ${v}`}>
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} placeholder="Add…" className="h-8" />
+        <Button size="sm" variant="outline" disabled={!draft.trim()} onClick={add}><Plus className="h-3.5 w-3.5" /></Button>
       </div>
     </div>
   );

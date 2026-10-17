@@ -3,6 +3,7 @@ import { Button } from '@project/components/ui/button';
 import { Lightbulb, LogIn, Github, MessageCircle } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { PLATFORM, SCHOOL, WHATSAPP_COMMUNITY_URL } from '../../lib/constants';
+import { useAppSettings } from '../../lib/appSettings';
 import LoginCat from '../LoginCat';
 
 /** The public site's navigation, in the order it reads to a visitor. */
@@ -17,12 +18,13 @@ export const PUBLIC_NAV = [
 
 /** The crew mark plus the platform name, used in the header and footer. */
 export function PublicBrand({ className }: { className?: string }) {
+  const { platformName } = useAppSettings();
   return (
     <Link to="/" className={cn('flex items-center gap-2.5 font-bold tracking-tight', className)}>
       <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
         <Lightbulb className="h-5 w-5 text-primary" />
       </span>
-      <span>{PLATFORM}</span>
+      <span>{platformName}</span>
     </Link>
   );
 }
