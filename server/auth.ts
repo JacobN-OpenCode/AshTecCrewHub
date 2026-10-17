@@ -74,7 +74,12 @@ export async function destroySession(req: Request, res: Response): Promise<void>
  * the caller to distinguish: the UI must not reveal whether an address is on the
  * crew list (LoginScreen already gates that with checkEmail).
  */
-export async function requestMagicLink(email: string, name: string, callbackURL = '/'): Promise<void> {
+export async function requestMagicLink(
+  email: string,
+  name: string,
+  callbackURL = '/',
+  appScheme?: string,
+): Promise<void> {
   const token = crypto.randomBytes(32).toString('base64url');
   await db().query(
     `INSERT INTO "AuthMagicTokens" ("token", "email", "firstName", "expiresAt")
@@ -82,7 +87,12 @@ export async function requestMagicLink(email: string, name: string, callbackURL 
     [token, email, name, String(TOKEN_TTL_MIN)]
   );
 
-  const link = `${appUrl()}/api/auth/verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`;
+  // The Mac app asks for its own scheme, so the emailed link opens the app
+  // (which then loads the https verify URL in its own window and sets the
+  // cookie there) instead of landing in Safari.
+  const link = appScheme
+    ? `${appScheme}://verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`
+    : `${appUrl()}/api/auth/verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`;
   const first = name?.trim().split(/\s+/)[0] || 'there';
   const text =
     `Hi ${first}!\n\n` +

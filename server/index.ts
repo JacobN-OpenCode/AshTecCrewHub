@@ -203,7 +203,9 @@ app.post('/api/auth/magic-link', async (req, res) => {
     return res.json({ ok: true });
   }
   const callbackURL = typeof req.body?.callbackURL === 'string' && req.body.callbackURL.startsWith('/') ? req.body.callbackURL : '/';
-  await requestMagicLink(email, String(req.body?.name ?? rows[0].firstName ?? ''), callbackURL);
+  // The Mac app passes appScheme=ashtec so the emailed link opens the app.
+  const appScheme = req.body?.appScheme === 'ashtec' ? 'ashtec' : undefined;
+  await requestMagicLink(email, String(req.body?.name ?? rows[0].firstName ?? ''), callbackURL, appScheme);
   res.json({ ok: true });
 });
 
