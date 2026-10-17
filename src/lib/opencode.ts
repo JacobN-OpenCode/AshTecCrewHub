@@ -20,9 +20,9 @@ export const OPENCODE_STATUS = {
   updated: '2026-10-17',
   /** One line on the assistant's current focus. */
   headline:
-    'The eight-batch feedback roadmap is shipped; this round works through the nine open support tickets the crew raised.',
+    'The eight-batch feedback roadmap is shipped; this round works through the ten open support tickets the crew raised.',
   /** What is being touched right now. */
-  now: 'The nine open Bug Report and Feature Request tickets: a home dashboard for every role, pinned tickets, manual badge grants, the maintainer self-toggle and mentor-null save fixes, clearer profile-picture errors, deadline-proof bulk attendance buttons, a team-wide daily-summary label, and error alerts that reach only the maintainers and the person affected.',
+  now: 'The ten open Bug Report and Feature Request tickets: a home dashboard for every role, pinned tickets, manual badge grants, the maintainer self-toggle and mentor-null save fixes, clearer profile-picture errors, deadline-proof bulk attendance buttons, a team-wide daily-summary label, and error alerts that reach only the maintainers and the person affected.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -96,9 +96,9 @@ export const OPENCODE_STATUS = {
     },
     {
       state: 'done',
-      title: 'Support ticket round (the nine open tickets)',
+      title: 'Support ticket round (the ten open tickets)',
       detail:
-        'A home dashboard at / for every role; pinned support tickets; manual badge grants for work the app cannot see; the maintainer self-toggle fix; saving a member with no mentor; clearer profile-picture URL errors and a client-side check; "attending all" buttons that respect the deadline; the daily-summary switch relabelled as team-wide; and error alerts now going only to the maintainers and the person who hit the error. Live in production.',
+        'A home dashboard at / for every role; pinned support tickets; manual badge grants for work the app cannot see; the maintainer self-toggle fix; saving a member with no mentor; clearer profile-picture URL errors and a client-side check; "attending all" buttons that respect the deadline; the daily-summary switch relabelled as team-wide; the desktop help button no longer covering the cat; and error alerts now going only to the maintainers and the person who hit the error. Nine of the ten are closed with a reply. The tenth (the GitHub repo homepage still pointing at the old URL) can only be fixed by the repo owner, so it is left open and flagged for Jacob.',
     },
     {
       state: 'queued',
@@ -109,7 +109,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
-    'Support tickets: a home dashboard, pinned tickets, manual badges, and the nine-ticket tidy-up',
+    'Support tickets: a home dashboard, pinned tickets, manual badges, and the ten-ticket tidy-up',
     'Batch 8: the fun ones (the cat everywhere, sound effects, a named mascot, show memories)',
     'Batch 7: the crew (announcements, direct messages, skills directory)',
     'Batch 6: app polish (push tuning, keyboard shortcuts, data export, accessibility, widgets, call sheets, offline)',
