@@ -90,20 +90,25 @@ export async function requestMagicLink(
   // The Mac app asks for its own scheme, so the emailed link opens the app
   // (which then loads the https verify URL in its own window and sets the
   // cookie there) instead of landing in Safari.
-  const link = appScheme
+  const webLink = `${appUrl()}/api/auth/verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`;
+  const appLink = appScheme
     ? `${appScheme}://verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`
-    : `${appUrl()}/api/auth/verify?token=${token}&callbackURL=${encodeURIComponent(callbackURL)}`;
+    : null;
   const first = name?.trim().split(/\s+/)[0] || 'there';
+  // A mail client that will not make a custom-scheme link clickable (Gmail and
+  // others strip unknown schemes) would otherwise leave the app user stuck, so
+  // the web link is always included as a fallback line too.
   const text =
     `Hi ${first}!\n\n` +
     `Click the button below to sign in to the AshTec crew hub. The link works once and ` +
-    `expires in ${TOKEN_TTL_MIN} minutes. If you did not ask for it, you can ignore this email.`;
+    `expires in ${TOKEN_TTL_MIN} minutes. If you did not ask for it, you can ignore this email.` +
+    (appLink ? `\n\nIf the button does nothing, open this link instead:\n${webLink}` : '');
   await Email.send({
     to: email,
     subject: 'Your AshTec Crew sign-in link',
     body: [
       { type: 'text', content: text },
-      { type: 'button', label: 'Sign in to the crew hub', href: link },
+      { type: 'button', label: 'Sign in to the crew hub', href: appLink ?? webLink },
     ],
   });
   // Log the send so the admin Emails tab shows every message the system emits.

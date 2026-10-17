@@ -3,7 +3,7 @@ import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireMember, findMemberByEmail } from '../lib/server';
 import { openLiveShow, activeAnnouncements, loadLiveShowMessages } from '../lib/liveShow';
-import { verifyAdminSecret } from '../../server/catLogin.js';
+import { verifyAdminSecret, credentialEmail } from '../../server/catLogin.js';
 
 const BODY_MAX = 500;
 
@@ -22,6 +22,7 @@ export default createEndpoint({
     seconds: z.number().min(0).max(145).optional(),
     clear: z.boolean().optional(),
     email: z.string().email().optional(),
+    memberId: z.string().optional(),
     secret: z.string().max(200).optional(),
   }),
   outputSchema: z.any(),
@@ -38,7 +39,7 @@ export default createEndpoint({
       adminId = admin.id;
       authorName = `${admin.firstName ?? ''} ${admin.lastName ?? ''}`.trim() || 'Admin';
     } else {
-      const email = (input.email ?? '').trim();
+      const email = await credentialEmail(input.email, input.memberId);
       const secret = input.secret ?? '';
       if (!email || !secret) throw new Error('Sign in, or give an admin email and cat-login secret.');
       const member = await findMemberByEmail(email);

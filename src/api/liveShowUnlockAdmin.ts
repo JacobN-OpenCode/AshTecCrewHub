@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { findMemberByEmail } from '../lib/server';
-import { verifyAdminSecret } from '../../server/catLogin.js';
+import { verifyAdminSecret, credentialEmail } from '../../server/catLogin.js';
 
 /**
  * Unlock the in-page controls on /show-dash (ticket f75f7b40).

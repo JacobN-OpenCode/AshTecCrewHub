@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { findMemberByEmail } from '../lib/server';
-import { verifyAdminSecret } from '../../server/catLogin.js';
+import { verifyAdminSecret, credentialEmail } from '../../server/catLogin.js';
 import {
   currentLiveShow,
   enableLiveShowDevice,

@@ -33,8 +33,8 @@ const LINES = [
  * is the same for any failure so the route cannot be used to enumerate admins.
  */
 function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [admins, setAdmins] = useState<string[]>([]);
-  const [email, setEmail] = useState('');
+  const [admins, setAdmins] = useState<{ id: string; name: string }[]>([]);
+  const [memberId, setMemberId] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -47,8 +47,7 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
       .then((r) => {
         const list = r.admins ?? [];
         setAdmins(list);
-        if (list.length && !list.includes(email)) setEmail(list[0]);
-        if (!list.length) setEmail('');
+        setMemberId((cur) => (list.some((a) => a.id === cur) ? cur : (list[0]?.id ?? '')));
       })
       .catch(() => setAdmins([]));
   }, [open]);
@@ -62,7 +61,7 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ memberId, password }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -100,11 +99,11 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
               <label htmlFor="cat-admin" className="text-sm font-medium">Which admin are you?</label>
               <select
                 id="cat-admin"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={memberId}
+                onChange={(e) => setMemberId(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
-                {admins.map((a) => <option key={a} value={a}>{a}</option>)}
+                {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div className="space-y-1">
@@ -120,7 +119,7 @@ function CatAdminLogin({ open, onClose }: { open: boolean; onClose: () => void }
               />
             </div>
             {problem && <p className="text-sm text-destructive">{problem}</p>}
-            <Button className="w-full" disabled={busy || !password || !email}>
+            <Button className="w-full" disabled={busy || !password || !memberId}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Sign in
             </Button>

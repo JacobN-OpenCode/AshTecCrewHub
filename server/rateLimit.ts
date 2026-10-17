@@ -61,6 +61,24 @@ export function recordSuccess(email: string, ip: string): void {
   buckets.delete(KEY(email, ip));
 }
 
+/**
+ * Generic sliding-window allowance, for routes that only need "no more than N
+ * in a window" (e.g. magic-link requests, so one source cannot email-bomb a
+ * member). Returns false when the key is over its limit.
+ */
+const hits = new Map<string, number[]>();
+export function allow(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (recent.length >= limit) {
+    hits.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  hits.set(key, recent);
+  return true;
+}
+
 /** Hourly cleanup so the map doesn't grow forever with old buckets. */
 export function gc(): void {
   const now = Date.now();
@@ -69,5 +87,9 @@ export function gc(): void {
   }
   for (const k of ipFailures.keys()) {
     if (!buckets.has(KEY('*', k))) ipFailures.delete(k);
+  }
+  for (const [k, arr] of hits) {
+    const recent = arr.filter((t) => now - t < 60 * 60 * 1000);
+    if (recent.length) hits.set(k, recent); else hits.delete(k);
   }
 }

@@ -88,6 +88,22 @@ export async function hasSecret(email: string): Promise<boolean> {
  * show chat from the stage board) does not have to hand out a cookie.
  * Returns true only when the secret matches AND the member is an admin.
  */
+/**
+ * Resolve the address to verify from either an explicit email or a member id.
+ * The public pickers now hand back a member id rather than an email, so admin
+ * addresses are not published to anyone who asks; the email is looked up here.
+ */
+export async function credentialEmail(email?: string, memberId?: string): Promise<string> {
+  if (memberId) {
+    const { rows } = await db().query<{ schoolEmail: string }>(
+      `SELECT "schoolEmail" FROM "CrewMembers" WHERE "id" = $1`,
+      [memberId],
+    );
+    return String(rows[0]?.schoolEmail ?? '').trim().toLowerCase();
+  }
+  return (email ?? '').trim().toLowerCase();
+}
+
 export async function verifyAdminSecret(email: string, password: string): Promise<boolean> {
   const key = email.trim().toLowerCase();
   const expected = (await secrets())[key];

@@ -3,7 +3,7 @@ import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { findMemberByEmail, requireAdmin } from '../lib/server';
 import { openLiveShow, mapDevice } from '../lib/liveShow';
-import { verifyAdminSecret } from '../../server/catLogin.js';
+import { verifyAdminSecret, credentialEmail } from '../../server/catLogin.js';
 
 /**
  * Edit or remove ONE screen from the live show (ticket f75f7b40). Used by both
@@ -27,6 +27,7 @@ export default createEndpoint({
     movementAdmins: z.array(z.string()).max(50).optional(),
     remove: z.boolean().optional(),
     email: z.string().email().optional(),
+    memberId: z.string().optional(),
     secret: z.string().max(200).optional(),
   }),
   outputSchema: z.any(),
@@ -34,7 +35,7 @@ export default createEndpoint({
     if (context.user) {
       await requireAdmin(context.user.email);
     } else {
-      const email = (input.email ?? '').trim();
+      const email = await credentialEmail(input.email, input.memberId);
       const secret = input.secret ?? '';
       const member = email ? await findMemberByEmail(email) : undefined;
       if (!member?.isAdmin || !secret || !(await verifyAdminSecret(email, secret))) {

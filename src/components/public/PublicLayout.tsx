@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@project/components/ui/button';
-import { Lightbulb, LogIn, Github, MessageCircle } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@project/components/ui/dialog';
+import { Lightbulb, LogIn, Github, MessageCircle, Heart } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { PLATFORM, SCHOOL, WHATSAPP_COMMUNITY_URL } from '../../lib/constants';
 import { useAppSettings } from '../../lib/appSettings';
@@ -41,6 +45,7 @@ const isActive = (pathname: string, to: string) =>
  */
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const [credits, setCredits] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -122,6 +127,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link to="/apps" className="block text-muted-foreground hover:text-foreground">Get the crew apps</Link>
             <Link to="/apps" className="block text-muted-foreground hover:text-foreground">Wear OS</Link>
             <Link to="/apps" className="block text-muted-foreground hover:text-foreground">macOS</Link>
+            <button type="button" onClick={() => setCredits(true)} className="block text-muted-foreground hover:text-foreground">
+              Credits
+            </button>
           </div>
         </div>
         <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t pt-6 text-sm text-muted-foreground">
@@ -135,7 +143,64 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         </div>
       </footer>
 
+      <CreditsDialog open={credits} onOpenChange={setCredits} />
       <LoginCat />
     </div>
+  );
+}
+
+/**
+ * Who made this, and what each of them did. Grounded in the support tickets
+ * and feedback they actually filed: Felix found the bugs, Joshua asked for the
+ * features, Leila sent the ideas, Adam filed the reports, Jacob built it.
+ */
+const CREDITS: { name: string; role: string; what: string }[] = [
+  {
+    name: 'Jacob Navaratne',
+    role: 'Lead Developer & Maintainer',
+    what: 'Built the crew hub and keeps it running: the app, the API, the live show, the bots and everything in between.',
+  },
+  {
+    name: 'Felix Moore',
+    role: 'Testing & bug reports',
+    what: 'Found and reported the bugs that made it better: the support page scaling, attendance not matching between pages, the "NaN days" counter, the mobile and PWA niggles, and the calendar feed request.',
+  },
+  {
+    name: 'Joshua Moore',
+    role: 'Features & reviews',
+    what: 'The feature requests and reviews that shaped it: support ticket editing, sorting and reminders, ticket notifications, the script viewer and the daily-summary wording.',
+  },
+  {
+    name: 'Leila Paice',
+    role: 'Ideas & feedback',
+    what: 'Ideas and feedback that pointed the app in the right direction, and kind words along the way.',
+  },
+  {
+    name: 'Adam Mills',
+    role: 'Bug reports',
+    what: 'Reports that fixed real problems: the emergency admin sign-in, the settings page not opening, and follow spot requests.',
+  },
+];
+
+function CreditsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Heart className="h-4 w-4 text-primary" /> Credits</DialogTitle>
+          <DialogDescription>{PLATFORM} is built by the crew, for the crew. Thank you to:</DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-3">
+          {CREDITS.map((c) => (
+            <li key={c.name} className="rounded-xl border bg-card p-3">
+              <p className="font-semibold">
+                {c.name} <span className="font-normal text-primary">· {c.role}</span>
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{c.what}</p>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
   );
 }

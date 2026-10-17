@@ -29,7 +29,7 @@ import {
   destroySession,
   pruneAuth,
 } from './auth.js';
-import { catLogin } from './catLogin.js';
+import { catLogin, credentialEmail } from './catLogin.js';
 import { verifyCalendarToken, buildMemberFeed, buildPublicFeed, upcomingCalls } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
@@ -193,6 +193,12 @@ for (const ep of endpoints) {
 
 // ---------------------------------------------------------------- auth routes
 app.post('/api/auth/magic-link', async (req, res) => {
+  // Rate limit by source so one client cannot email-bomb a member's inbox with
+  // sign-in links (each request sends a real email).
+  const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim() || 'unknown';
+  if (!rateLimit.allow(`magic:${ip}`, 6, 10 * 60 * 1000)) {
+    return res.status(429).json({ message: 'Too many sign-in links requested. Please wait a few minutes and try again.' });
+  }
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return res.status(400).json({ message: 'That does not look like an email address.' });
@@ -304,7 +310,9 @@ app.post('/api/auth/logout', async (req, res) => {  await destroySession(req, re
  * to enumerate admins.
  */
 app.post('/api/auth/cat-login', async (req, res) => {
-  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  // The picker sends a member id (so admin emails are not published); the
+  // email is resolved server-side. A raw email is still accepted.
+  const email = await credentialEmail(String(req.body?.email ?? ''), String(req.body?.memberId ?? ''));
   const password = String(req.body?.password ?? '');
   const ip = String(req.ip ?? '');
   if (!email || !password) {

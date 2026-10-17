@@ -69,11 +69,16 @@ function getTransporter(): Transporter {
 
 const escapeText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-/** Only http(s) and mailto, so a stored value can never inject `javascript:`. */
+/**
+ * Only http(s), mailto and our own `ashtec:` app scheme, so a stored value can
+ * never inject `javascript:`. The app scheme has to be allowed through: the Mac
+ * app asks for a sign-in link it can open, and without this the button's href
+ * was rewritten to `#` and the link did nothing.
+ */
 function safeHref(href: string): string {
   try {
     const u = new URL(href.trim());
-    return ['http:', 'https:', 'mailto:'].includes(u.protocol) ? u.toString() : '#';
+    return ['http:', 'https:', 'mailto:', 'ashtec:'].includes(u.protocol) ? u.toString() : '#';
   } catch {
     return '#';
   }

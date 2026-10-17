@@ -3,7 +3,7 @@ import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { findMemberByEmail, requireAdmin } from '../lib/server';
 import { mapLiveShow, liveShowElapsedMs, isLiveShowStatus } from '../lib/liveShow';
-import { verifyAdminSecret } from '../../server/catLogin.js';
+import { verifyAdminSecret, credentialEmail } from '../../server/catLogin.js';
 
 /**
  * Drives the show clock, current scene, status and the share-default movement
@@ -25,6 +25,7 @@ export default createEndpoint({
     movementSeconds: z.number().min(2).max(600).optional(),
     movementAdmins: z.array(z.string()).max(50).optional(),
     email: z.string().email().optional(),
+    memberId: z.string().optional(),
     secret: z.string().max(200).optional(),
   }),
   outputSchema: z.any(),
@@ -32,7 +33,7 @@ export default createEndpoint({
     if (context.user) {
       await requireAdmin(context.user.email);
     } else {
-      const email = (input.email ?? '').trim();
+      const email = await credentialEmail(input.email, input.memberId);
       const secret = input.secret ?? '';
       const member = email ? await findMemberByEmail(email) : undefined;
       if (!member?.isAdmin || !secret || !(await verifyAdminSecret(email, secret))) {

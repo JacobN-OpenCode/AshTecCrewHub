@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { getPublicCalendar } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
-import { CalendarDays, Clock, Lightbulb, MapPin, LogIn } from 'lucide-react';
-import { PLATFORM, SCHOOL } from '../lib/constants';
+import { CalendarDays, Clock, MapPin } from 'lucide-react';
+import { SCHOOL } from '../lib/constants';
 import { formatEventTimeRange } from '../lib/icsBuild';
-import LoginCat from '../components/LoginCat';
+import PublicLayout from '../components/public/PublicLayout';
 
 type PublicEvent = {
   id: string;
@@ -136,29 +136,7 @@ export default function PublicCalendar() {
     );
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
-          <div className="flex items-center gap-2.5 font-bold tracking-tight">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
-              <Lightbulb className="h-5 w-5 text-primary" />
-            </span>
-            {PLATFORM}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
-              <a href="/">Home</a>
-            </Button>
-            <Button size="sm" asChild>
-              <a href="/">
-                <LogIn className="mr-2 h-4 w-4" />
-                Crew sign in
-              </a>
-            </Button>
-          </div>
-        </div>
-      </header>
-
+    <PublicLayout>
       <main className="mx-auto max-w-3xl px-4 pt-10 pb-24 space-y-10">
         <div className="space-y-3">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -217,16 +195,6 @@ export default function PublicCalendar() {
           deadlines, are for signed-in crew.
         </p>
       </main>
-
-      <footer className="border-t px-4 py-8">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-          <p>
-            {PLATFORM} · {SCHOOL}
-          </p>
-          <p>Built by the crew, for the crew.</p>
-        </div>
-      </footer>
-      <LoginCat />
-    </div>
+    </PublicLayout>
   );
 }

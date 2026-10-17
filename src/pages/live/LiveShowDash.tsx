@@ -15,7 +15,7 @@ import {
 import { cn } from '@project/components/lib/utils';
 import ShowIdle from '../../components/ShowIdle';
 
-type Cred = { email: string; secret: string; name: string };
+type Cred = { memberId: string; secret: string; name: string };
 
 type Board = {
   id: string;
@@ -152,8 +152,8 @@ function MovementOverlay({ message, onAccept }: { message: string; onAccept: () 
 // ---------------------------------------------------------------- enable / unlock
 
 function EnableScreen({ showName, onEnabled }: { showName: string; onEnabled: (r: StatePayload) => void }) {
-  const [admins, setAdmins] = useState<{ id: string; name: string; email: string }[]>([]);
-  const [email, setEmail] = useState('');
+  const [admins, setAdmins] = useState<{ id: string; name: string }[]>([]);
+  const [memberId, setMemberId] = useState('');
   const [pin, setPin] = useState('');
   const [name, setName] = useState(sessionName() || platformOf());
   const [busy, setBusy] = useState(false);
@@ -164,11 +164,11 @@ function EnableScreen({ showName, onEnabled }: { showName: string; onEnabled: (r
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (busy) return;
-    if (!email) { setErr('Pick which admin is setting up this screen.'); return; }
+    if (!memberId) { setErr('Pick which admin is setting up this screen.'); return; }
     if (!pin) { setErr('Enter that admin\'s cat-login PIN.'); return; }
     setBusy(true); setErr('');
     try {
-      const r = await enableLiveShowDevice({ deviceKey: deviceKey(), name: name.trim() || platformOf(), platform: platformOf(), userAgent: navigator.userAgent, email, pin });
+      const r = await enableLiveShowDevice({ deviceKey: deviceKey(), name: name.trim() || platformOf(), platform: platformOf(), userAgent: navigator.userAgent, memberId, pin });
       setSessionName(name.trim() || platformOf());
       onEnabled(r as StatePayload);
     } catch (e2) { setErr((e2 as Error).message); setBusy(false); }
@@ -187,10 +187,10 @@ function EnableScreen({ showName, onEnabled }: { showName: string; onEnabled: (r
         <div className="rounded-2xl border border-[#2a3040] bg-[#0f1219] p-4 space-y-3">
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-widest text-[#9aa3b2]">Admin</span>
-            <select value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }}
+            <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }}
               className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none">
               <option value="">Select an admin…</option>
-              {admins.map((a) => <option key={a.id} value={a.email}>{a.name}</option>)}
+              {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
           <label className="block space-y-1">
@@ -216,8 +216,8 @@ function EnableScreen({ showName, onEnabled }: { showName: string; onEnabled: (r
 }
 
 function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked: (c: Cred) => void }) {
-  const [admins, setAdmins] = useState<{ id: string; name: string; email: string }[]>([]);
-  const [email, setEmail] = useState('');
+  const [admins, setAdmins] = useState<{ id: string; name: string }[]>([]);
+  const [memberId, setMemberId] = useState('');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -226,8 +226,8 @@ function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked:
     if (busy) return;
     setBusy(true); setErr('');
     try {
-      const r = await liveShowUnlockAdmin({ email, pin });
-      onUnlocked({ email, secret: pin, name: r.admin.name });
+      const r = await liveShowUnlockAdmin({ memberId, pin });
+      onUnlocked({ memberId, secret: pin, name: r.admin.name });
     } catch (e) { setErr((e as Error).message || 'Those details are not right.'); setBusy(false); }
   };
   return (
@@ -238,10 +238,10 @@ function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked:
           <h2 className="font-bold text-cream">Unlock the controls</h2>
         </div>
         <p className="text-xs text-[#9aa3b2]">Pick an admin and enter their cat-login PIN. A second admin can unlock too.</p>
-        <select value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }} autoFocus
+        <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }} autoFocus
           className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none">
           <option value="">Select an admin…</option>
-          {admins.map((a) => <option key={a.id} value={a.email}>{a.name}</option>)}
+          {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
         <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setErr(''); }} autoComplete="off"
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); if (e.key === 'Escape') onClose(); }}
@@ -250,7 +250,7 @@ function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked:
         {err && <p className="text-xs text-red-400">{err}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" disabled={busy || !email || !pin} onClick={() => void submit()}>
+          <Button size="sm" disabled={busy || !memberId || !pin} onClick={() => void submit()}>
             {busy && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Unlock controls
           </Button>
         </div>
@@ -419,7 +419,7 @@ function ControlPanel({
   useEffect(() => { setName(device.name); setMovement(device.movement); }, [device]);
 
   const control = async (action: string, extra?: { status?: string; sceneIndex?: number }) => {
-    try { await adminLiveShowControl({ liveShowId: board.id, action, ...extra, email: cred.email, secret: cred.secret }); onRefresh(); }
+    try { await adminLiveShowControl({ liveShowId: board.id, action, ...extra, memberId: cred.memberId, secret: cred.secret }); onRefresh(); }
     catch (e) { toast.error((e as Error).message); }
   };
 
@@ -427,7 +427,7 @@ function ControlPanel({
     const body = text.trim();
     if (!body) return;
     setBusy(true);
-    try { await liveShowChat({ liveShowId: board.id, body, email: cred.email, secret: cred.secret }); setText(''); onRefresh(); }
+    try { await liveShowChat({ liveShowId: board.id, body, memberId: cred.memberId, secret: cred.secret }); setText(''); onRefresh(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -438,7 +438,7 @@ function ControlPanel({
     setBusy(true);
     try {
       const seconds = annUntilCleared ? 0 : Math.min(145, Math.max(2, Math.floor(annSeconds) || 30));
-      await liveShowAnnouncement({ liveShowId: board.id, body, seconds, email: cred.email, secret: cred.secret });
+      await liveShowAnnouncement({ liveShowId: board.id, body, seconds, memberId: cred.memberId, secret: cred.secret });
       setAnnText(''); toast.success('Announcement is on every screen'); onRefresh();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
@@ -451,7 +451,7 @@ function ControlPanel({
         deviceId: device.id ?? undefined, deviceKey: deviceKey(), name: name.trim(),
         movementAlert: movement.alert, movementMessage: movement.message,
         movementSeconds: Math.min(600, Math.max(2, Math.floor(movement.seconds) || 30)),
-        movementAdmins: movement.admins, email: cred.email, secret: cred.secret,
+        movementAdmins: movement.admins, memberId: cred.memberId, secret: cred.secret,
       });
       toast.success('This screen was updated'); onRefresh();
     } catch (e) { toast.error((e as Error).message); }
@@ -625,7 +625,7 @@ export default function LiveShowDash() {
     if (!cred || !board) return;
     const act = action === 'start' && board.timerMode === 'running' ? 'pause' : action;
     try {
-      await adminLiveShowControl({ liveShowId: board.id, action: act, ...extra, email: cred.email, secret: cred.secret });
+      await adminLiveShowControl({ liveShowId: board.id, action: act, ...extra, memberId: cred.memberId, secret: cred.secret });
       await refresh();
     } catch (e) { toast.error((e as Error).message); }
   }, [cred, board, refresh]);
@@ -801,7 +801,7 @@ export default function LiveShowDash() {
       {move && <MovementOverlay message={move.message} onAccept={() => void acceptMove()} />}
 
       {unlock && (
-        <UnlockModal onClose={() => setUnlock(false)} onUnlocked={(c) => { setCreds((cs) => cs.some((x) => x.email === c.email) ? cs : [...cs, c]); setUnlock(false); setPanel(true); }} />
+        <UnlockModal onClose={() => setUnlock(false)} onUnlocked={(c) => { setCreds((cs) => cs.some((x) => x.memberId === c.memberId) ? cs : [...cs, c]); setUnlock(false); setPanel(true); }} />
       )}
 
       {panel && board && device && cred && (

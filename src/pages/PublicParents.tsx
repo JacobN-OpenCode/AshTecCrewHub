@@ -3,11 +3,11 @@ import { getPublicParents } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import {
-  CalendarDays, Clock, HeartHandshake, Mail, MapPin, Package, Info, LogIn,
+  CalendarDays, Clock, HeartHandshake, Mail, MapPin, Package, Info,
 } from 'lucide-react';
-import { PLATFORM, SCHOOL } from '../lib/constants';
+import { SCHOOL } from '../lib/constants';
 import { formatEventTimeRange } from '../lib/icsBuild';
-import LoginCat from '../components/LoginCat';
+import PublicLayout from '../components/public/PublicLayout';
 
 type PublicShow = {
   id: string;
@@ -197,32 +197,7 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
       </section>
     );
 
-  return (
-    <div className="min-h-screen">
-      {!inShell && (
-        <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur pt-[env(safe-area-inset-top)]">
-          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
-            <div className="flex items-center gap-2.5 font-bold tracking-tight">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
-                <HeartHandshake className="h-5 w-5 text-primary" />
-              </span>
-              {PLATFORM}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" asChild>
-                <a href="/calendar">Public calendar</a>
-              </Button>
-              <Button size="sm" asChild>
-                <a href="/">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Home
-                </a>
-              </Button>
-            </div>
-          </div>
-        </header>
-      )}
-
+  const body = (
       <main className="mx-auto max-w-3xl px-4 pt-10 pb-24 space-y-10">
         <div className="space-y-3">
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
@@ -346,23 +321,10 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
           only, see the <a href="/calendar" className="text-primary underline underline-offset-4">public calendar</a>.
         </p>
       </main>
-
-      {!inShell && (
-        <>
-          <footer className="border-t px-4 py-8">
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-              <p>
-                {PLATFORM} · {SCHOOL}
-              </p>
-              <p className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                East Hill, Ashford, Kent, TN24 8PB
-              </p>
-            </div>
-          </footer>
-          <LoginCat />
-        </>
-      )}
-    </div>
   );
+
+  // Inside the crew app it renders bare (the shell supplies the chrome); on the
+  // public web it uses the same shared header and footer as the rest of the site.
+  if (inShell) return <div className="min-h-screen">{body}</div>;
+  return <PublicLayout>{body}</PublicLayout>;
 }
