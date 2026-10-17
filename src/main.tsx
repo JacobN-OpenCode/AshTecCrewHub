@@ -8,17 +8,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
 
-// The Mac app loads the hub with ?shell=mac and provides its own native
-// sidebar, toolbar and menu bar, so the web app hides its own chrome (see
-// index.css) rather than looking like a website in a box. Remembered locally
-// so a reload inside the app keeps the shell.
-try {
-  const shellParam = new URLSearchParams(location.search).get('shell');
-  if (shellParam === 'mac') localStorage.setItem('ashtec-shell', 'mac');
-  const shell = shellParam ?? localStorage.getItem('ashtec-shell');
-  if (shell === 'mac') document.documentElement.dataset.shell = 'mac';
-} catch { /* private mode */ }
-
 function reloadApp() {
   if (window._ziteOnReload) {
     window._ziteOnReload();

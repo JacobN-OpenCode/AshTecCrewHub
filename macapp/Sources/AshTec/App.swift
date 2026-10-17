@@ -1,119 +1,153 @@
 import AppKit
+import WebKit
 import UserNotifications
 
-// The app: a native sidebar, a content area, a toolbar, a full menu bar, a
-// status-bar countdown, a full-screen Live show window, and sign-in. No web view.
+// AshTec for macOS (feedback round 2, round 3).
+//
+// A full-page embed of the crew hub that presents itself as an installed app
+// (a PWA) and delivers its notifications natively. The site runs exactly as it
+// does in a browser — its own header, sidebar and pages — filling the window.
+// Two things make it an app rather than a browser tab:
+//
+//   * The page is told it is a PWA (standalone display), so the site treats
+//     itself as installed.
+//   * Notifications reach the Mac: the app bridges the Web Notification API to
+//     macOS, and polls the same endpoints the site's push would, so call and
+//     live-show movement alerts arrive as real notifications.
+//
+// AppKit + WKWebView, so it builds with the Command Line Tools (SwiftUI needs
+// full Xcode). Launch with `open AshTec.app`: running the binary directly from
+// a shell does not fire applicationDidFinishLaunching.
 
-enum Screen: Int, CaseIterable {
-    case nextUp, calendar, announcements, liveShow, settings
-    var title: String {
-        switch self {
-        case .nextUp: return "Next up"
-        case .calendar: return "Calendar"
-        case .announcements: return "Announcements"
-        case .liveShow: return "Live show"
-        case .settings: return "Settings"
-        }
+let APP_URL = "https://ashtec.dino.icu"
+
+// MARK: - Next-call model
+
+struct Call: Codable {
+    let title: String
+    let show: String?
+    let date: String?
+    let dateTbc: Bool?
+    let meetTime: String?
+    let startTime: String?
+    let when: String?
+
+    var startDate: Date? {
+        guard let date, let hm = Call.firstTime(startTime) ?? Call.firstTime(meetTime) else { return nil }
+        let p = date.split(separator: "-").compactMap { Int($0) }
+        guard p.count == 3 else { return nil }
+        var c = DateComponents(); c.year = p[0]; c.month = p[1]; c.day = p[2]; c.hour = hm.0; c.minute = hm.1
+        return Calendar.current.date(from: c)
     }
-    var symbol: String {
-        switch self {
-        case .nextUp: return "clock"
-        case .calendar: return "calendar"
-        case .announcements: return "megaphone"
-        case .liveShow: return "play.rectangle"
-        case .settings: return "gearshape"
+    static func firstTime(_ s: String?) -> (Int, Int)? {
+        guard let s else { return nil }
+        for raw in s.split(whereSeparator: { $0 == " " || $0 == "-" || $0 == "–" || $0 == "," }) {
+            let t = raw.trimmingCharacters(in: CharacterSet(charactersIn: ".,()"))
+            let bits = t.split(separator: ":")
+            if bits.count == 2, let h = Int(bits[0]), let m = Int(bits[1]), h < 24, m < 60 { return (h, m) }
         }
+        return nil
     }
 }
+struct Payload: Codable { let next: Call? }
 
-final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
-    var onSelect: ((Screen) -> Void)?
-    private let table = NSTableView()
-    private var selected: Screen = .nextUp
+// MARK: - The injected shim
 
-    override func loadView() {
-        let scroll = NSScrollView()
-        scroll.drawsBackground = false
-        scroll.hasVerticalScroller = true
-        table.style = .sourceList
-        table.headerView = nil
-        table.rowHeight = 32
-        table.addTableColumn(NSTableColumn(identifier: .init("main")))
-        table.dataSource = self
-        table.delegate = self
-        scroll.documentView = table
-        view = scroll
-    }
-    override func viewDidAppear() {
-        super.viewDidAppear()
-        table.selectRowIndexes([Screen.nextUp.rawValue], byExtendingSelection: false)
-    }
+/// Runs in the page before anything else. Makes the site believe it is an
+/// installed PWA, bridges notifications to the native app, sends magic links
+/// back to the app, and keeps the app fed with the data it needs to notify.
+private let SHIM_JS = """
+(() => {
+  try {
+    Object.defineProperty(window.navigator, 'standalone', { value: true, configurable: true });
+    const mm = window.matchMedia.bind(window);
+    window.matchMedia = (q) => (typeof q === 'string' && q.indexOf('display-mode: standalone') !== -1)
+      ? { matches: true, media: q, onchange: null, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return false; } }
+      : mm(q);
+    window.__ASHTEC_APP__ = true;
+  } catch (e) {}
 
-    func numberOfRows(in tableView: NSTableView) -> Int { Screen.allCases.count }
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let s = Screen.allCases[row]
-        let cell = NSTableCellView()
-        let img = NSImageView()
-        img.image = NSImage(systemSymbolName: s.symbol, accessibilityDescription: s.title)
-        img.translatesAutoresizingMaskIntoConstraints = false
-        let label = NSTextField(labelWithString: s.title)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .systemFont(ofSize: 13)
-        cell.addSubview(img); cell.addSubview(label)
-        cell.imageView = img; cell.textField = label
-        NSLayoutConstraint.activate([
-            img.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-            img.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            img.widthAnchor.constraint(equalToConstant: 18),
-            img.heightAnchor.constraint(equalToConstant: 18),
-            label.leadingAnchor.constraint(equalTo: img.trailingAnchor, constant: 8),
-            label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-        ])
-        return cell
-    }
-    func tableViewSelectionDidChange(_ notification: Notification) {
-        let row = table.selectedRow
-        guard row >= 0, row < Screen.allCases.count else { return }
-        let s = Screen.allCases[row]
-        if s != selected { selected = s; onSelect?(s) }
-    }
-    func select(_ s: Screen) {
-        selected = s
-        table.selectRowIndexes([s.rawValue], byExtendingSelection: false)
-    }
-}
+  const native = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ashtec;
+  const post = (m) => { try { native && native.postMessage(m); } catch (e) {} };
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSToolbarDelegate {
-    static weak var shared: AppDelegate?
+  // Web Notification API -> native macOS notifications.
+  try {
+    class AppNotification extends EventTarget {
+      constructor(title, options) {
+        super();
+        this.title = String(title == null ? 'AshTec' : title);
+        this.body = (options && options.body) || '';
+        post({ notify: { title: this.title, body: this.body } });
+      }
+      close() {}
+      static get permission() { return window.__ashtecPerm || 'default'; }
+      static requestPermission() {
+        post({ askPermission: true });
+        return Promise.resolve(window.__ashtecPerm || 'granted');
+      }
+    }
+    window.Notification = AppNotification;
+  } catch (e) {}
+
+  // Magic links should come back to this app, not a browser.
+  try {
+    const orig = window.fetch;
+    window.fetch = function (input, init) {
+      try {
+        const url = typeof input === 'string' ? input : (input && input.url) || '';
+        if (url.indexOf('/api/auth/magic-link') !== -1 && init && typeof init.body === 'string') {
+          const b = JSON.parse(init.body); b.appScheme = 'ashtec';
+          init = Object.assign({}, init, { body: JSON.stringify(b) });
+        }
+      } catch (e) {}
+      return orig.call(this, input, init);
+    };
+  } catch (e) {}
+
+  // Keep the app fed so it can notify even though a web view has no web push.
+  const deviceKey = 'mac-' + Math.random().toString(36).slice(2, 10);
+  async function poll() {
+    try {
+      const r = await window.fetch('/api/getCalendarFeed', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      if (r.ok) { const d = await r.json(); if (d && d.url) post({ feed: d.url }); }
+    } catch (e) {}
+    try {
+      const r = await window.fetch('/api/getLiveShowState', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ deviceKey, deviceName: 'AshTec for Mac', platform: 'macOS' }) });
+      if (r.ok) {
+        const d = await r.json();
+        const ls = d && d.liveShow;
+        post({ live: { open: !!(d && d.open), alert: !!(ls && ls.movementAlert), message: (ls && ls.movementMessage) || '', name: (ls && ls.name) || '' } });
+      }
+    } catch (e) {}
+  }
+  setTimeout(poll, 4000);
+  setInterval(poll, 30000);
+})();
+"""
+
+// MARK: - App delegate
+
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NSMenuDelegate {
 
     private var window: NSWindow!
-    private var splitVC: NSSplitViewController!
-    private var sidebar: SidebarViewController!
-    private var container: NSView!
-    private var current: PanelViewController?
-    private var statusItem: NSStatusItem!
-    private var liveWindow: LiveShowWindowController?
+    private var webView: WKWebView!
 
-    private let controllers: [Screen: PanelViewController] = [
-        .nextUp: NextUpViewController(),
-        .calendar: CalendarViewController(),
-        .announcements: AnnouncementsViewController(),
-        .liveShow: LiveShowViewController(),
-        .settings: SettingsViewController(),
-    ]
+    private var feedURL: String = ""
+    private var lastRefresh = Date.distantPast
+    private var notifiedCalls = Set<String>()
+    private var notifiedMovement: String?
+
+    // MARK: lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        AppDelegate.shared = self
-        buildMainMenu()
+        buildMenu()
+        buildWebView()
         buildWindow()
-        setupStatusItem()
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        requestNotificationPermission()
 
-        Store.shared.onChange = { [weak self] in self?.reloadAll() }
-        Store.shared.startTimers()
-        show(.nextUp)
-        reloadAll()
-        if Store.shared.isSignedIn { Store.shared.refresh() }
+        // The next-call poll: a notification 15 minutes before a call.
+        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.checkNextCall() }
 
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -125,168 +159,141 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTool
         return true
     }
 
-    // MARK: sign-in via the emailed link
-
+    /// `ashtec://verify?token=…` from the emailed sign-in link: redeem it in the
+    /// web view so the session cookie lands where the site can use it.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "ashtec" {
             let token = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "token" }?.value ?? ""
             guard !token.isEmpty else { continue }
-            Task { @MainActor in
-                do {
-                    try await API.shared.completeSignIn(token: token)
-                    Store.shared.refresh()
-                } catch {
-                    let a = NSAlert(); a.messageText = "Sign-in failed"; a.informativeText = error.localizedDescription; a.runModal()
-                }
-            }
+            var target = URLComponents(string: "\(APP_URL)/api/auth/verify")!
+            target.queryItems = [URLQueryItem(name: "token", value: token), URLQueryItem(name: "callbackURL", value: "/")]
+            window.makeKeyAndOrderFront(nil)
+            webView.load(URLRequest(url: target.url!))
         }
     }
 
-    @objc func signIn() {
-        let alert = NSAlert()
-        alert.messageText = "Sign in to AshTec"
-        alert.informativeText = "Enter your school email. We'll send a link; clicking it opens this app and signs you in."
-        alert.addButton(withTitle: "Send link")
-        alert.addButton(withTitle: "Cancel")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.placeholderString = "you@ashpupil.co.uk"
-        alert.accessoryView = field
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let email = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard email.contains("@") else { return }
-        Task { @MainActor in
-            try? await API.shared.requestMagicLink(email: email)
-            let done = NSAlert()
-            done.messageText = "Check your email"
-            done.informativeText = "If \(email) is on the crew list, a sign-in link is on its way. Click it and this app will finish signing you in."
-            done.addButton(withTitle: "OK")
-            done.runModal()
-        }
+    // MARK: web view
+
+    private func buildWebView() {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .default() // persistent cookies + service worker
+        let controller = WKUserContentController()
+        controller.addUserScript(WKUserScript(source: SHIM_JS, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        controller.add(self, name: "ashtec")
+        config.userContentController = controller
+
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        webView.uiDelegate = self
+        webView.allowsBackForwardNavigationGestures = true
+        webView.load(URLRequest(url: URL(string: APP_URL)!))
     }
 
-    // MARK: window / sidebar / content
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any] else { return }
+
+        if let notify = body["notify"] as? [String: Any] {
+            post(title: (notify["title"] as? String) ?? "AshTec", body: (notify["body"] as? String) ?? "", id: UUID().uuidString)
+        }
+        if body["askPermission"] != nil { requestNotificationPermission() }
+        if let feed = body["feed"] as? String, !feed.isEmpty {
+            feedURL = feed.replacingOccurrences(of: "/calendar.ics", with: "/next-call.json")
+        }
+        if let live = body["live"] as? [String: Any] { handleLive(live) }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let t = webView.title, !t.isEmpty { window.title = t }
+    }
+
+    // External links (target=_blank) open in the browser.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url { NSWorkspace.shared.open(url) }
+        return nil
+    }
+
+    // MARK: window
 
     private func buildWindow() {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 820),
                          styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                          backing: .buffered, defer: false)
         w.title = "AshTec"
         w.center()
         w.isReleasedWhenClosed = false
-
-        sidebar = SidebarViewController()
-        sidebar.onSelect = { [weak self] screen in
-            if screen == .liveShow { self?.openLiveShow() } else { self?.show(screen) }
-        }
-        let sideItem = NSSplitViewItem(sidebarWithViewController: sidebar)
-        sideItem.canCollapse = true
-        sideItem.minimumThickness = 200
-        sideItem.maximumThickness = 280
-
-        container = NSView()
-        let contentVC = NSViewController()
-        contentVC.view = container
-
-        splitVC = NSSplitViewController()
-        splitVC.addSplitViewItem(sideItem)
-        splitVC.addSplitViewItem(NSSplitViewItem(viewController: contentVC))
-        w.contentViewController = splitVC
-        // Assigning contentViewController shrinks the window to the split view's
-        // (tiny) fitting size, so set a real size back and a sensible minimum.
-        w.setContentSize(NSSize(width: 1080, height: 760))
-        w.minSize = NSSize(width: 880, height: 600)
-        w.center()
-
-        let toolbar = NSToolbar(identifier: "main")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-        w.toolbar = toolbar
-        w.toolbarStyle = .unified
+        w.contentView = webView
+        w.minSize = NSSize(width: 700, height: 500)
         window = w
     }
 
-    private func show(_ screen: Screen) {
-        guard let vc = controllers[screen] else { return }
-        current?.view.removeFromSuperview()
-        vc.loadView()
-        vc.view.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(vc.view)
-        NSLayoutConstraint.activate([
-            vc.view.topAnchor.constraint(equalTo: container.topAnchor),
-            vc.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            vc.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            vc.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
-        current = vc
-        vc.reload()
-    }
+    // MARK: notifications
 
-    @objc func openLiveShow() {
-        if liveWindow == nil { liveWindow = LiveShowWindowController() }
-        liveWindow?.vc.reload()
-        liveWindow?.show()
-    }
-
-    @objc func reloadAll() {
-        window?.title = "AshTec"
-        current?.reload()
-        liveWindow?.vc.reload()
-        statusItem.button?.title = menuTitle()
-    }
-
-    // MARK: toolbar
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .init("refresh"), .init("live"), .flexibleSpace, .init("signin")]
-    }
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.toggleSidebar, .init("refresh"), .init("live"), .flexibleSpace, .init("signin")]
-    }
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier id: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-        if id == .toggleSidebar {
-            let item = NSToolbarItem(itemIdentifier: .toggleSidebar)
-            item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Sidebar")
-            item.action = #selector(NSSplitViewController.toggleSidebar(_:))
-            item.target = splitVC
-            item.label = "Sidebar"
-            return item
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            DispatchQueue.main.async {
+                self.webView.evaluateJavaScript("window.__ashtecPerm = '\(granted ? "granted" : "denied")';", completionHandler: nil)
+            }
         }
-        let item = NSToolbarItem(itemIdentifier: id)
-        item.isBordered = true
-        switch id.rawValue {
-        case "refresh": item.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh"); item.action = #selector(refreshNow); item.target = self; item.label = "Refresh"
-        case "live": item.image = NSImage(systemSymbolName: "play.rectangle", accessibilityDescription: "Live show"); item.action = #selector(openLiveShow); item.target = self; item.label = "Live show"
-        case "signin": item.image = NSImage(systemSymbolName: "person.crop.circle", accessibilityDescription: "Sign in"); item.action = #selector(signIn); item.target = self; item.label = "Sign in"
-        default: return nil
-        }
-        return item
     }
-    @objc private func refreshNow() { Store.shared.refresh() }
 
-    // MARK: menu bar
+    private func post(title: String, body: String, id: String) {
+        let c = UNMutableNotificationContent()
+        c.title = title
+        c.body = body
+        c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: c, trigger: nil))
+    }
 
-    private func buildMainMenu() {
+    private func checkNextCall() {
+        guard let url = URL(string: feedURL) else { return }
+        if Date().timeIntervalSince(lastRefresh) < 20 { return }
+        lastRefresh = Date()
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let self, let data, let payload = try? JSONDecoder().decode(Payload.self, from: data), let call = payload.next else { return }
+            DispatchQueue.main.async {
+                guard let start = call.startDate else { return }
+                let secs = start.timeIntervalSinceNow
+                guard secs > 0, secs <= 15 * 60 else { return }
+                let id = "call-\(call.date ?? "")-\(call.title)"
+                guard !self.notifiedCalls.contains(id) else { return }
+                self.notifiedCalls.insert(id)
+                self.post(title: "Next call: \(call.title)", body: [call.show, call.when].compactMap { $0 }.joined(separator: " · "), id: id)
+            }
+        }.resume()
+    }
+
+    /// Movement alerts from the live show — the whole point of having this open
+    /// on the desk during a show.
+    private func handleLive(_ live: [String: Any]) {
+        let alert = (live["alert"] as? Bool) ?? false
+        let open = (live["open"] as? Bool) ?? false
+        let message = (live["message"] as? String) ?? ""
+        let name = (live["name"] as? String) ?? "Live show"
+        guard open, alert else { notifiedMovement = nil; return }
+        let body = message.isEmpty ? "Movement on stage" : message
+        guard notifiedMovement != body else { return }
+        notifiedMovement = body
+        post(title: "Movement — \(name)", body: body, id: "movement-\(body.hashValue)")
+    }
+
+    // MARK: menu
+
+    private func buildMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu(); appItem.submenu = appMenu
         appMenu.addItem(withTitle: "About AshTec", action: #selector(about), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Sign in…", action: #selector(signIn), keyEquivalent: "s").target = self
-        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide AshTec", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        let hideOthers = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
-        hideOthers.keyEquivalentModifierMask = [.command, .option]
-        appMenu.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit AshTec", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         let fileItem = NSMenuItem(); main.addItem(fileItem)
         let fileMenu = NSMenu(title: "File"); fileItem.submenu = fileMenu
-        fileMenu.addItem(withTitle: "Refresh", action: #selector(refreshNow), keyEquivalent: "r").target = self
-        fileMenu.addItem(withTitle: "Live show", action: #selector(openLiveShow), keyEquivalent: "l").target = self
+        fileMenu.addItem(withTitle: "Home", action: #selector(goHome), keyEquivalent: "h").target = self
+        fileMenu.addItem(withTitle: "Reload", action: #selector(reload), keyEquivalent: "r").target = self
+        fileMenu.addItem(withTitle: "Open in Browser", action: #selector(openInBrowser), keyEquivalent: "b").target = self
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
 
@@ -302,16 +309,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTool
 
         let viewItem = NSMenuItem(); main.addItem(viewItem)
         let viewMenu = NSMenu(title: "View"); viewItem.submenu = viewMenu
-        let sidebarItem = viewMenu.addItem(withTitle: "Toggle Sidebar", action: #selector(NSSplitViewController.toggleSidebar(_:)), keyEquivalent: "l")
-        sidebarItem.target = splitVC
+        viewMenu.addItem(withTitle: "Back", action: #selector(goBack), keyEquivalent: "[").target = self
+        viewMenu.addItem(withTitle: "Forward", action: #selector(goForward), keyEquivalent: "]").target = self
+        viewMenu.addItem(.separator())
+        viewMenu.addItem(withTitle: "Actual Size", action: #selector(actualSize), keyEquivalent: "0").target = self
+        viewMenu.addItem(withTitle: "Zoom In", action: #selector(zoomIn), keyEquivalent: "+").target = self
+        viewMenu.addItem(withTitle: "Zoom Out", action: #selector(zoomOut), keyEquivalent: "-").target = self
+        viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
 
         let windowItem = NSMenuItem(); main.addItem(windowItem)
         let windowMenu = NSMenu(title: "Window"); windowItem.submenu = windowMenu
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
-        windowMenu.addItem(.separator())
-        windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
 
         NSApp.mainMenu = main
         NSApp.windowsMenu = windowMenu
@@ -320,63 +330,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTool
     @objc private func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "AshTec",
-            .applicationVersion: "1.1",
+            .applicationVersion: "2.0",
             .credits: NSAttributedString(string: "The Ashford School Tech Crew hub.\nBuilt by the crew, for the crew."),
         ])
     }
-
-    // MARK: status bar countdown
-
-    private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        if let b = statusItem.button {
-            if let img = Bundle.main.image(forResource: "cat") {
-                let copy = img.copy() as? NSImage ?? img
-                copy.size = NSSize(width: 18, height: 18)
-                b.image = copy
-                b.imagePosition = .imageLeading
-            }
-            b.title = " AshTec"
-            b.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        }
-        let menu = NSMenu()
-        menu.delegate = self
-        statusItem.menu = menu
-    }
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.removeAllItems()
-        let s = Store.shared
-        if let next = s.nextEvent {
-            menu.addItem(disabled("Next call"))
-            menu.addItem(disabled(next.title))
-            if let sid = next.showIds?.first, !s.showName(sid).isEmpty { menu.addItem(disabled(s.showName(sid))) }
-            menu.addItem(disabled(s.whenText(next)))
-            menu.addItem(disabled(s.countdown(to: next)))
-        } else {
-            menu.addItem(disabled("Nothing coming up"))
-        }
-        menu.addItem(.separator())
-        menu.addItem(item("Open AshTec", #selector(showMain), "o"))
-        menu.addItem(item("Live show", #selector(openLiveShow), "l"))
-        menu.addItem(item("Refresh", #selector(refreshNow), "r"))
-        menu.addItem(.separator())
-        menu.addItem(item("Quit AshTec", #selector(NSApplication.terminate(_:)), "q"))
-    }
-    private func disabled(_ t: String) -> NSMenuItem { let i = NSMenuItem(title: t, action: nil, keyEquivalent: ""); i.isEnabled = false; return i }
-    private func item(_ t: String, _ a: Selector, _ k: String) -> NSMenuItem { let i = NSMenuItem(title: t, action: a, keyEquivalent: k); i.target = self; return i }
-    @objc private func showMain() { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
-
-    private func menuTitle() -> String {
-        let s = Store.shared
-        guard let next = s.nextEvent, let d = s.eventStart(next) else { return " AshTec" }
-        let secs = Int(d.timeIntervalSinceNow)
-        if secs < 0 { return " on now" }
-        if secs < 60 { return " <1m" }
-        let m = secs / 60
-        if m < 60 { return " \(m)m" }
-        let h = m / 60
-        if h < 24 { return " \(h)h\(m % 60)m" }
-        return " \(h / 24)d"
-    }
+    @objc private func goHome() { webView.load(URLRequest(url: URL(string: APP_URL)!)) }
+    @objc private func reload() { webView.reload() }
+    @objc private func goBack() { webView.goBack() }
+    @objc private func goForward() { webView.goForward() }
+    @objc private func openInBrowser() { if let u = webView.url { NSWorkspace.shared.open(u) } }
+    @objc private func actualSize() { webView.pageZoom = 1.0 }
+    @objc private func zoomIn() { webView.pageZoom = min(2.0, webView.pageZoom + 0.1) }
+    @objc private func zoomOut() { webView.pageZoom = max(0.5, webView.pageZoom - 0.1) }
 }

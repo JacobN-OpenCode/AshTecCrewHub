@@ -12,6 +12,19 @@
 
 import { getPushConfig, savePushSubscription, deletePushSubscription, setAdminNotifications, sendTestNotification } from '#api';
 
+/**
+ * The Mac app (feedback round 2, round 3) embeds the site and delivers
+ * notifications natively. It sets `window.__ASHTEC_APP__` and exposes a bridge,
+ * so push "works" here without a browser PushManager: enabling routes to the
+ * app, and the app posts the notifications (calls and live-show movement).
+ */
+const APP_ENDPOINT = 'ashtec-mac-app';
+const isMacApp = (): boolean =>
+  typeof window !== 'undefined' && (window as unknown as { __ASHTEC_APP__?: boolean }).__ASHTEC_APP__ === true;
+const appBridge = (): { postMessage: (m: unknown) => void } | undefined =>
+  (window as unknown as { webkit?: { messageHandlers?: { ashtec?: { postMessage: (m: unknown) => void } } } })
+    .webkit?.messageHandlers?.ashtec;
+
 /** Ask the server to push a test to this member's devices and report how many. */
 export async function sendTest(): Promise<{ sent: number; subscriptions: number }> {
   return sendTestNotification({});
@@ -42,6 +55,8 @@ export type PushSupport = 'ready' | 'unsupported' | 'needs-install' | 'denied';
 /** What to tell the member about whether push can work here. */
 export function pushSupport(): PushSupport {
   if (typeof window === 'undefined') return 'unsupported';
+  // The Mac app delivers notifications itself, so it is always "ready".
+  if (isMacApp()) return 'ready';
   const hasApi = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
   if (!hasApi) {
     // iOS Safari exposes these only once installed to the home screen.
@@ -75,6 +90,7 @@ async function registration(): Promise<ServiceWorkerRegistration | null> {
 
 /** The endpoint of this device's subscription, or null if it has none. */
 export async function currentEndpoint(): Promise<string | null> {
+  if (isMacApp()) return APP_ENDPOINT;
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
   const reg = await registration();
   if (!reg) return null;
@@ -89,6 +105,13 @@ export async function currentEndpoint(): Promise<string | null> {
 export async function enablePush(): Promise<{ ok: boolean; endpoint?: string; reason?: PushSupport | 'error' }> {
   const support = pushSupport();
   if (support !== 'ready') return { ok: false, reason: support };
+
+  // In the Mac app, ask the native side for permission and let it notify.
+  if (isMacApp()) {
+    appBridge()?.postMessage({ askPermission: true });
+    await new Promise((r) => setTimeout(r, 300));
+    return { ok: true, endpoint: APP_ENDPOINT };
+  }
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return { ok: false, reason: 'denied' };
@@ -120,6 +143,7 @@ export async function enablePush(): Promise<{ ok: boolean; endpoint?: string; re
 
 /** Drop the browser subscription and tell the server to forget it. */
 export async function disablePush(): Promise<void> {
+  if (isMacApp()) return;
   const reg = await registration();
   if (reg) {
     const sub = await reg.pushManager.getSubscription();
