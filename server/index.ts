@@ -194,9 +194,12 @@ for (const ep of endpoints) {
 // ---------------------------------------------------------------- auth routes
 app.post('/api/auth/magic-link', async (req, res) => {
   // Rate limit by source so one client cannot email-bomb a member's inbox with
-  // sign-in links (each request sends a real email).
+  // sign-in links (each request sends a real email). Loopback is exempt so the
+  // local smoke suite (which requests links repeatedly from 127.0.0.1) is not
+  // throttled; real clients are never loopback.
   const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim() || 'unknown';
-  if (!rateLimit.allow(`magic:${ip}`, 6, 10 * 60 * 1000)) {
+  const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  if (!loopback && !rateLimit.allow(`magic:${ip}`, 6, 10 * 60 * 1000)) {
     return res.status(429).json({ message: 'Too many sign-in links requested. Please wait a few minutes and try again.' });
   }
   const email = String(req.body?.email ?? '').trim().toLowerCase();
