@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'The big /feedback/2 response is shipped, and round two of the settings work is going out: cards-or-lists everywhere, far more control in ATCMS settings, and the leaderboard removed.',
   /** What is being touched right now. */
-  now: 'The Mac and Wear OS apps are shipped and downloadable from /apps (invite code JN202610), and the in-app icons are back to normal.',
+  now: 'A full security pass: sign-in links fixed, the sign-in request rate-limited, admin email addresses no longer published, and a dependency upgrade. Plus one public header across the site and a credits dialog.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -136,6 +136,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Security audit, one public header, credits',
     'Mac app, Wear OS app, and the /apps download page',
     'Badges removed (with the leaderboard), settings expanded',
     'Round 2: cards/lists everywhere, ATCMS settings expanded, leaderboard removed',
