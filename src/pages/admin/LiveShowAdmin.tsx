@@ -81,12 +81,17 @@ const timeOf = (iso: string | null) => {
 };
 const platformIcon = (p: string) => (/Mobile/i.test(p) ? <Smartphone className="h-4 w-4" /> : /Tablet/i.test(p) ? <Tablet className="h-4 w-4" /> : <Monitor className="h-4 w-4" />);
 
-export default function LiveShowAdmin() {
+/**
+ * Live show setup. Standalone it carries its own show picker; pass `showId` to
+ * pin it to one show and hide the picker, which is how the show dashboard
+ * embeds it.
+ */
+export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string } = {}) {
   const { data } = useAdminData();
   const shows = data?.shows ?? [];
   const admins = (data?.members ?? []).filter((m) => m.isAdmin);
 
-  const [showId, setShowId] = useState<string | null>(null);
+  const [showId, setShowId] = useState<string | null>(fixedShowId ?? null);
   const [ls, setLs] = useState<LS | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm());
   const [rows, setRows] = useState<SceneRow[]>([]);
@@ -117,12 +122,15 @@ export default function LiveShowAdmin() {
   const [busyAction, setBusyAction] = useState('');
 
   useEffect(() => {
-    if (!showId && shows.length > 0) {
-      // 331a178a: auto-select the show if one is live/open; else first
-      const live = shows.find((s: any) => s.open || s.status === 'live' || s.status === 'rehearsal' || s.status === 'intermission');
-      setShowId(String((live ?? shows[0]).id));
+    if (fixedShowId) {
+      if (showId !== fixedShowId) setShowId(fixedShowId);
+      return;
     }
-  }, [shows, showId]);
+    if (showId || shows.length === 0) return;
+    // 331a178a: auto-select the show if one is live/open; else first
+    const live = shows.find((s: any) => s.open || s.status === 'live' || s.status === 'rehearsal' || s.status === 'intermission');
+    setShowId(String((live ?? shows[0]).id));
+  }, [shows, showId, fixedShowId]);
 
   const loadShow = useCallback(async (id: string) => {
     setLoading(true);
@@ -319,7 +327,7 @@ export default function LiveShowAdmin() {
     catch (e) { toast.error((e as Error).message); }
   };
 
-  if (shows.length === 0) {
+  if (!fixedShowId && shows.length === 0) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold flex items-center gap-2"><Tv className="h-5 w-5" />Live Show Setup</h1>
@@ -332,21 +340,28 @@ export default function LiveShowAdmin() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Tv className="h-5 w-5" />Live Show Setup</h1>
-        <p className="text-muted-foreground">Start tonight's show, watch every screen, and control it from here.</p>
-      </div>
+      {!fixedShowId && (
+        <>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><Tv className="h-5 w-5" />Live Show Setup</h1>
+            <p className="text-muted-foreground">Start tonight's show, watch every screen, and control it from here.</p>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm text-muted-foreground">Show</span>
-        <Select value={showId ?? undefined} onValueChange={setShowId}>
-          <SelectTrigger className="w-64"><SelectValue placeholder="Pick a show" /></SelectTrigger>
-          <SelectContent>
-            {shows.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-      </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-muted-foreground">Show</span>
+            <Select value={showId ?? undefined} onValueChange={setShowId}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Pick a show" /></SelectTrigger>
+              <SelectContent>
+                {shows.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
+        </>
+      )}
+      {fixedShowId && loading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading the live show…</div>
+      )}
 
       {/* Start / stop */}
       <div className={cn('rounded-lg border p-5 space-y-4', ls?.open ? 'border-emerald-500/40 bg-emerald-500/5' : 'bg-card')}>

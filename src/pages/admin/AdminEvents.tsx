@@ -21,9 +21,14 @@ import ContractorInviteDialog from '../../components/admin/ContractorInviteDialo
 /** Synthetic tab id for the club-session category, which has no show row. */
 const CLUB = '__club__';
 
-export default function AdminEvents() {
+/**
+ * Manage a show's rehearsals and performances. Standalone it has its own show
+ * tabs and a club-session tab; pass `showId` to pin it to one show and hide
+ * that chrome, which is how the show dashboard embeds it.
+ */
+export default function AdminEvents({ showId: fixedShowId }: { showId?: string } = {}) {
   const { data, reload } = useAdminData();
-  const [showId, setShowId] = useState<string>('');
+  const [showId, setShowId] = useState<string>(fixedShowId ?? '');
   const [showDlg, setShowDlg] = useState<'new' | 'edit' | null>(null);
   const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null; club?: boolean } | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -31,10 +36,14 @@ export default function AdminEvents() {
   const [confirm, setConfirm] = useState<{ kind: 'show' | 'ev'; id: string; name: string } | null>(null);
 
   useEffect(() => {
+    if (fixedShowId) {
+      if (showId !== fixedShowId) setShowId(fixedShowId);
+      return;
+    }
     if (!data) return;
     if (showId === CLUB) return;
     if (!data.shows.some((s) => s.id === showId)) setShowId(data.shows[0]?.id ?? CLUB);
-  }, [data, showId]);
+  }, [data, showId, fixedShowId]);
   if (!data) return <Skeleton className="h-96 rounded-2xl" />;
 
   const onClub = showId === CLUB;
@@ -99,6 +108,7 @@ export default function AdminEvents() {
 
   return (
     <div className="space-y-6">
+      {!fixedShowId && (<>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -143,6 +153,7 @@ export default function AdminEvents() {
           Club sessions
         </button>
       </div>
+      </>)}
       {onClub ? (
         <>
           <div className="rounded-2xl border bg-card p-5 flex flex-col md:flex-row gap-4 md:items-center justify-between">
@@ -179,6 +190,11 @@ export default function AdminEvents() {
                 pushed the page's scrollWidth to 466px and made mobile scale the
                 whole layout down ("the site thinks it's zoomed in"). */}
             <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" asChild>
+                <Link to={`/show/${show.id}`} title="Open the unified show dashboard">
+                  <ExternalLink className="h-4 w-4 mr-1" />Show dashboard
+                </Link>
+              </Button>
               <Button variant="outline" onClick={() => setInviteOpen(true)}><Users className="h-4 w-4 mr-1" />Contractor invites</Button>
               <Button variant="outline" onClick={() => setShowDlg('edit')}><Pencil className="h-4 w-4 mr-1" />Edit show</Button>
               <Button variant="outline" onClick={() => setConfirm({ kind: 'show', id: show.id, name: show.name })}><Trash2 className="h-4 w-4" /></Button>

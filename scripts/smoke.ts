@@ -239,7 +239,12 @@ if (!admin) {
     const migrated = (data.body?.members ?? []).filter(
       (m: any) => !/@example\.com$/i.test(String(m?.email ?? m?.schoolEmail ?? ''))
     );
-    check('adminGetData sees the migrated rows', migrated.length === 18 && data.body?.subEvents?.length === 21 && data.body?.shows?.length === 5, `members=${migrated.length} subs=${data.body?.subEvents?.length} shows=${data.body?.shows?.length}`);
+    // Members stay exact (nothing adds members). Events and shows are a floor
+    // rather than an exact count: the migration is the minimum, and real data
+    // (e.g. `npm run seed:hsm`, which schedules the term's rehearsals) sits on
+    // top of it, so an exact number would fail on any database that has been
+    // used.
+    check('adminGetData sees the migrated rows', migrated.length === 18 && (data.body?.subEvents?.length ?? 0) >= 21 && (data.body?.shows?.length ?? 0) >= 5, `members=${migrated.length} subs=${data.body?.subEvents?.length} shows=${data.body?.shows?.length}`);
     check('adminGetData maps linked ids off responses/attendance', Array.isArray(data.body?.responses) && Array.isArray(data.body?.attendance));
 
     const cal = await call('getCalendar', {});

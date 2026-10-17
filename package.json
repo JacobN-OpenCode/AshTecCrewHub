@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json",
     "gen:api": "tsx scripts/gen-api-client.ts",
     "migrate": "tsx scripts/migrate.ts",
+    "seed:hsm": "tsx scripts/seed-hsm.ts",
     "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {

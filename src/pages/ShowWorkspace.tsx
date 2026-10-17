@@ -12,13 +12,17 @@ import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
-import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell, Camera, MessageSquareHeart, DoorOpen, Search, Ticket, Pin, Printer } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Lightbulb, Package, Layers, NotebookPen, Timer, CalendarCheck, Lock, Plus, Trash2, Megaphone, Bell, Camera, MessageSquareHeart, DoorOpen, Search, Ticket, Pin, Printer, Tv, CalendarDays } from 'lucide-react';
+import LiveShowAdmin from './admin/LiveShowAdmin';
+import AdminEvents from './admin/AdminEvents';
 
 type Ws = GetShowWorkspaceOutputType;
 type Media = GetShowMediaOutputType;
-type Tab = 'checklist' | 'cues' | 'props' | 'scenes' | 'notes' | 'timings' | 'day' | 'photos' | 'debrief' | 'green' | 'lost' | 'audience';
+type Tab = 'live' | 'events' | 'checklist' | 'cues' | 'props' | 'scenes' | 'notes' | 'timings' | 'day' | 'photos' | 'debrief' | 'green' | 'lost' | 'audience';
 
 const TABS: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
+  { id: 'live', label: 'Live show', icon: Tv },
+  { id: 'events', label: 'Events', icon: CalendarDays },
   { id: 'checklist', label: 'Checklist', icon: ClipboardList },
   { id: 'cues', label: 'Cue sheet', icon: Lightbulb },
   { id: 'props', label: 'Props', icon: Package },
@@ -32,6 +36,9 @@ const TABS: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
   { id: 'lost', label: 'Lost property', icon: Search },
   { id: 'audience', label: 'Box office', icon: Ticket },
 ];
+
+/** Setup tabs only an admin gets: they manage the show rather than work it. */
+const ADMIN_TABS: Tab[] = ['live', 'events'];
 
 export default function ShowWorkspace() {
   const { showId = '' } = useParams();
@@ -76,6 +83,7 @@ export default function ShowWorkspace() {
 
   const done = ws.checklist.filter((c) => c.done).length;
   const openCovers = ws.coverRequests.filter((c) => c.status === 'Open').length;
+  const tabs = ws.isAdmin ? TABS : TABS.filter((t) => !ADMIN_TABS.includes(t.id));
 
   const act = async (fn: () => Promise<unknown>, msg?: string) => {
     try { await fn(); await load(); if (media) await loadMedia(); if (msg) toast.success(msg); }
@@ -115,7 +123,7 @@ export default function ShowWorkspace() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={cn('px-3.5 py-2 rounded-xl border text-sm font-medium inline-flex items-center gap-1.5', tab === t.id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>
             <t.icon className="h-4 w-4" />{t.label}
@@ -123,6 +131,8 @@ export default function ShowWorkspace() {
         ))}
       </div>
 
+      {tab === 'live' && ws.isAdmin && <LiveShowAdmin showId={showId} />}
+      {tab === 'events' && ws.isAdmin && <AdminEvents showId={showId} />}
       {tab === 'checklist' && <Checklist ws={ws} act={act} />}
       {tab === 'cues' && <Cues ws={ws} act={act} />}
       {tab === 'props' && <Props ws={ws} act={act} />}
