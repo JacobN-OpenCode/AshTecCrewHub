@@ -1,17 +1,8 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
-import { zite, db } from '#db';
+import { zite } from '#db';
 import { actingMember, findMemberByEmail, adminCount, mapMember } from '../lib/server';
 import { resolvedNotificationPrefs } from '../lib/notificationKinds';
-
-/** Unread direct messages for the caller (Batch 7), for the Messages badge. */
-async function unreadMessages(memberId: string): Promise<number> {
-  const { rows } = await db().query(
-    `SELECT COUNT(*)::int AS n FROM "DirectMessages" WHERE "to" = $1 AND "readAt" IS NULL`,
-    [memberId]
-  );
-  return Number(rows[0]?.n ?? 0);
-}
 
 /**
  * A warm little note that glows around the name of people who have really
@@ -44,7 +35,6 @@ export default createEndpoint({
         liveShowActive: hasOpenLiveShow,
         specialNote,
         notificationPrefs: resolvedNotificationPrefs(prefs),
-        unreadMessages: 0,
       };
     }
     let m = await findMemberByEmail(context.user.email);
@@ -85,7 +75,6 @@ export default createEndpoint({
       liveShowActive: hasOpenLiveShow,
       specialNote,
       notificationPrefs: resolvedNotificationPrefs(prefs),
-      unreadMessages: m ? await unreadMessages(m.id) : 0,
     };
   },
 });

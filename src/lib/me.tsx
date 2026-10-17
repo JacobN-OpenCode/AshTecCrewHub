@@ -12,7 +12,5 @@ export const MeContext = createContext<{
   specialNote: string | null;
   /** Batch 6 push tuning: the member's per-kind switches, already resolved. */
   notificationPrefs: Record<string, boolean>;
-  /** Batch 7: unread direct messages, for the Messages badge. */
-  unreadMessages: number;
 } | null>(null);
 export const useMe = () => useContext(MeContext)!;

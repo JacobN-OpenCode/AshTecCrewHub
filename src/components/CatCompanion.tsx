@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cat, X } from 'lucide-react';
+import { Cat } from 'lucide-react';
 import { MASCOT } from '../lib/mascot';
 import { useCatHidden } from '../lib/uiPrefs';
 import { playSfx } from '../lib/sfx';
@@ -10,11 +10,11 @@ import { playSfx } from '../lib/sfx';
  * The crew cat, out of the feedback forms and onto every page (Batch 8).
  *
  * It sits quietly in the corner and now and then says something, which is the
- * whole of "more of the cat". It can be hidden for good (per device) and stays
- * out of the way of the mobile tab bar. Clicking it opens the mascot page.
+ * whole of "more of the cat". Feedback round 2: it is desktop-only now (it got
+ * in the way on phones) and the Hide button is gone.
  */
 export default function CatCompanion() {
-  const [hidden, setHidden] = useCatHidden();
+  const [hidden] = useCatHidden();
   const [line, setLine] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -34,7 +34,7 @@ export default function CatCompanion() {
   // Ticket 608099ef: on desktop the help button sits bottom-right too, so the
   // cat parks just to its left rather than underneath it (they used to overlap).
   return (
-    <div className="fixed bottom-20 right-4 z-40 flex items-end gap-2 lg:bottom-5 lg:right-20">
+    <div className="fixed bottom-5 right-20 z-40 hidden items-end gap-2 lg:flex">
       <AnimatePresence>
         {line && (
           <motion.div
@@ -51,34 +51,24 @@ export default function CatCompanion() {
         )}
       </AnimatePresence>
 
-      <div className="group flex flex-col items-center gap-1">
-        <button
-          type="button"
-          onClick={() => { playSfx('pop'); navigate('/mascot'); }}
-          title={`${MASCOT.name}, the crew cat`}
-          aria-label={`Open the ${MASCOT.name} page`}
-          className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <motion.img
-            src={MASCOT.image}
-            alt=""
-            width={56}
-            height={58}
-            draggable={false}
-            animate={{ y: [0, -4, 0] }}
-            transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
-            className="h-14 w-14 drop-shadow-lg transition-transform group-hover:scale-105"
-          />
-        </button>
-        <button
-          type="button"
-          onClick={() => setHidden(true)}
-          className="flex items-center gap-1 rounded-full border bg-card/80 px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 backdrop-blur transition-opacity hover:text-foreground group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100 lg:opacity-100"
-          title="Hide the cat on this device"
-        >
-          <X className="h-3 w-3" />Hide
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => { playSfx('pop'); navigate('/mascot'); }}
+        title={`${MASCOT.name}, the crew cat`}
+        aria-label={`Open the ${MASCOT.name} page`}
+        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <motion.img
+          src={MASCOT.image}
+          alt=""
+          width={56}
+          height={58}
+          draggable={false}
+          animate={{ y: [0, -4, 0] }}
+          transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
+          className="h-14 w-14 drop-shadow-lg transition-transform hover:scale-105"
+        />
+      </button>
     </div>
   );
 }

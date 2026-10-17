@@ -217,8 +217,9 @@ export async function notifyServerError(info: { source: string; message: string;
   recentServerAlerts.set(key, now);
 
   // Ticket 2373d49e: error alerts go to the maintainers and to the person whose
-  // session hit the error - nobody else. It used to also email every (non-staff)
-  // admin, which put every bug in front of people who could not act on it.
+  // session hit the error - nobody else. Feedback round 2: the EMAIL goes to
+  // maintainers only; the person affected still gets a push (they should know it
+  // was us, not them) but never an email, and no other admin is emailed.
   const all = await crew();
   const actor = info.actorEmail
     ? all.find((m) => (m.schoolEmail ?? '').toLowerCase() === info.actorEmail!.toLowerCase())
@@ -226,7 +227,7 @@ export async function notifyServerError(info: { source: string; message: string;
   const byId = new Map<string, (typeof all)[number]>();
   for (const m of all) if (mayReceiveAdmin(m) && m.isMaintainer) byId.set(m.id, m);
   // The affected person is told even if they are not a maintainer; it is their
-  // error and a push/email is how they know it was us, not them.
+  // error and a push is how they know it was us, not them.
   if (actor) byId.set(actor.id, actor);
   const people = [...byId.values()];
   if (!people.length) return;
@@ -244,8 +245,9 @@ export async function notifyServerError(info: { source: string; message: string;
     { type: 'text' as const, content: `**An error occurred in the crew hub.**\n\nWhere: \`${info.source}\`\n\nWhat: ${message}${actorLine}${detail}` },
     { type: 'button' as const, label: 'Open the support tab', href: `${process.env.APP_URL ?? ''}/admin/support` },
   ];
+  // Maintainers only, and only those who can actually be emailed.
   await Promise.all(
-    people.filter((m) => isEmailable(m as never)).map(async (m) => {
+    people.filter((m) => m.isMaintainer && isEmailable(m as never)).map(async (m) => {
       try {
         await Email.send({ to: m.schoolEmail!, subject: `Crew hub error: ${info.source}`, body });
       } catch {
@@ -421,20 +423,4 @@ export async function notifyAnnouncement(info: { id: string; title: string; body
       tag: dedupe,
     });
   }
-}
-
-/**
- * A direct message (Batch 7). Only the recipient is told, and only if they have
- * not muted the messages kind. Never tells the sender about their own message.
- */
-export async function notifyDirectMessage(info: { id: string; toId: string; fromId: string; fromName: string; body: string }): Promise<void> {
-  if (info.toId === info.fromId) return;
-  if (!(await allowsKindFor(info.toId, 'dm'))) return;
-  if (!(await claimNotification(info.toId, 'dm', `dm-${info.id}`))) return;
-  await sendToMember(info.toId, {
-    title: `Message from ${info.fromName}`,
-    body: info.body.slice(0, 140),
-    url: `/messages?to=${info.fromId}`,
-    tag: `dm-${info.id}`,
-  });
 }

@@ -10,7 +10,7 @@ import { pendingForms } from '../lib/reminders';
 import MyBadges from '../components/MyBadges';
 import {
   Award, Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
-  MessageSquare, Radio, Rocket, Sparkles, Ticket, Users, Wrench,
+  Radio, Rocket, Sparkles, Ticket, Users, Wrench,
 } from 'lucide-react';
 
 interface HomeSub {
@@ -73,7 +73,7 @@ const relTime = (iso: string) => {
  * reads an existing endpoint so the numbers match the dedicated pages.
  */
 export default function Home() {
-  const { me, specialNote, liveShowActive, supportAwaiting, unreadMessages } = useMe();
+  const { me, specialNote, liveShowActive, supportAwaiting } = useMe();
   const [upcoming, setUpcoming] = useState<HomeSub[] | null>(null);
   const [pending, setPending] = useState<PendingForm[] | null>(null);
   const [news, setNews] = useState<Announcement[] | null>(null);
@@ -123,7 +123,6 @@ export default function Home() {
   const baseActions: { to: string; label: string; icon: typeof Calendar; badge?: number }[] = [
     { to: '/calendar', label: 'Calendar', icon: CalendarDays },
     { to: '/schedule', label: 'My schedule', icon: Clock },
-    { to: '/messages', label: 'Messages', icon: MessageSquare, badge: unreadMessages },
     { to: '/leaderboard', label: 'Leaderboard', icon: Award },
   ];
   const actions: { to: string; label: string; icon: typeof Calendar; badge?: number }[] = [];

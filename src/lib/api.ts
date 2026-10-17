@@ -339,20 +339,6 @@ export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inpu
 export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
 export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
 
-import type { default as _GetContactsEp } from '../api/getContacts';
-
-type _GetContactsCfg = typeof _GetContactsEp;
-export type GetContactsInputType = NonNullable<_GetContactsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetContactsCfg['execute']>[0]['input'];
-export type GetContactsOutputType = Awaited<ReturnType<_GetContactsCfg['execute']>>;
-export const getContacts = createCaller<GetContactsInputType, GetContactsOutputType>('getContacts');
-
-import type { default as _GetConversationsEp } from '../api/getConversations';
-
-type _GetConversationsCfg = typeof _GetConversationsEp;
-export type GetConversationsInputType = NonNullable<_GetConversationsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetConversationsCfg['execute']>[0]['input'];
-export type GetConversationsOutputType = Awaited<ReturnType<_GetConversationsCfg['execute']>>;
-export const getConversations = createCaller<GetConversationsInputType, GetConversationsOutputType>('getConversations');
-
 import type { default as _GetCountdownEp } from '../api/getCountdown';
 
 type _GetCountdownCfg = typeof _GetCountdownEp;
@@ -401,13 +387,6 @@ type _GetMemoriesCfg = typeof _GetMemoriesEp;
 export type GetMemoriesInputType = NonNullable<_GetMemoriesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMemoriesCfg['execute']>[0]['input'];
 export type GetMemoriesOutputType = Awaited<ReturnType<_GetMemoriesCfg['execute']>>;
 export const getMemories = createCaller<GetMemoriesInputType, GetMemoriesOutputType>('getMemories');
-
-import type { default as _GetMessageDirectoryEp } from '../api/getMessageDirectory';
-
-type _GetMessageDirectoryCfg = typeof _GetMessageDirectoryEp;
-export type GetMessageDirectoryInputType = NonNullable<_GetMessageDirectoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMessageDirectoryCfg['execute']>[0]['input'];
-export type GetMessageDirectoryOutputType = Awaited<ReturnType<_GetMessageDirectoryCfg['execute']>>;
-export const getMessageDirectory = createCaller<GetMessageDirectoryInputType, GetMessageDirectoryOutputType>('getMessageDirectory');
 
 import type { default as _GetMyCatLoginStatusEp } from '../api/getMyCatLoginStatus';
 
@@ -513,13 +492,6 @@ type _GetStageLayoutCfg = typeof _GetStageLayoutEp;
 export type GetStageLayoutInputType = NonNullable<_GetStageLayoutCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetStageLayoutCfg['execute']>[0]['input'];
 export type GetStageLayoutOutputType = Awaited<ReturnType<_GetStageLayoutCfg['execute']>>;
 export const getStageLayout = createCaller<GetStageLayoutInputType, GetStageLayoutOutputType>('getStageLayout');
-
-import type { default as _GetThreadEp } from '../api/getThread';
-
-type _GetThreadCfg = typeof _GetThreadEp;
-export type GetThreadInputType = NonNullable<_GetThreadCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetThreadCfg['execute']>[0]['input'];
-export type GetThreadOutputType = Awaited<ReturnType<_GetThreadCfg['execute']>>;
-export const getThread = createCaller<GetThreadInputType, GetThreadOutputType>('getThread');
 
 import type { default as _GlobalSearchEp } from '../api/globalSearch';
 
@@ -773,13 +745,6 @@ export type SendCueCallInputType = NonNullable<_SendCueCallCfg['inputSchema']> e
 export type SendCueCallOutputType = Awaited<ReturnType<_SendCueCallCfg['execute']>>;
 export const sendCueCall = createCaller<SendCueCallInputType, SendCueCallOutputType>('sendCueCall');
 
-import type { default as _SendMessageEp } from '../api/sendMessage';
-
-type _SendMessageCfg = typeof _SendMessageEp;
-export type SendMessageInputType = NonNullable<_SendMessageCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SendMessageCfg['execute']>[0]['input'];
-export type SendMessageOutputType = Awaited<ReturnType<_SendMessageCfg['execute']>>;
-export const sendMessage = createCaller<SendMessageInputType, SendMessageOutputType>('sendMessage');
-
 import type { default as _SendTestNotificationEp } from '../api/sendTestNotification';
 
 type _SendTestNotificationCfg = typeof _SendTestNotificationEp;
@@ -924,8 +889,6 @@ export const api = {
   getCalendarFeed,
   getCallSheet,
   getCatLoginAdmins,
-  getContacts,
-  getConversations,
   getCountdown,
   getFamilyFeed,
   getLeaderboard,
@@ -933,7 +896,6 @@ export const api = {
   getLiveShowState,
   getMe,
   getMemories,
-  getMessageDirectory,
   getMyCatLoginStatus,
   getMyEvents,
   getMyFeedback,
@@ -949,7 +911,6 @@ export const api = {
   getSkillsDirectory,
   getStaffHome,
   getStageLayout,
-  getThread,
   globalSearch,
   liveShowAnnouncement,
   liveShowChat,
@@ -986,7 +947,6 @@ export const api = {
   saveShowPhoto,
   saveShowScene,
   sendCueCall,
-  sendMessage,
   sendTestNotification,
   setAdminNotifications,
   setAttendance,

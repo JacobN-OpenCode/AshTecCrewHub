@@ -82,8 +82,16 @@ export async function actingMember(email: string, previewAs?: string) {
   return m;
 }
 
-/** Real people who can receive email (no preview accounts). */
-export const isEmailable = (m: CrewMembersRecordType) => !!m.schoolEmail && !m.isPreviewAccount;
+/**
+ * Real people who can receive email (no preview accounts).
+ *
+ * Feedback round 2: staff are never emailed unless they are a maintainer. This
+ * is a student-led department, and staff should only ever hear from us when
+ * they sign in. Login mail does not go through here (see server/auth.ts), so a
+ * teacher can still sign in normally.
+ */
+export const isEmailable = (m: CrewMembersRecordType) =>
+  !!m.schoolEmail && !m.isPreviewAccount && (!isStaff(m) || !!m.isMaintainer);
 // Contractors are external (ticket 00c0715c): they get the platform and their
 // own attendance, nothing else. A contractor must never be treated as staff even
 // if the record still carries year "Staff" (e.g. an existing staff member

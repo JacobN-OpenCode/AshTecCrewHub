@@ -4,7 +4,7 @@ import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake, Home as HomeIcon, Images,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MessagesSquare, MoreHorizontal, BookUser, Palette, PanelLeftClose,
+  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -103,7 +103,7 @@ export default function AppShell() {
 }
 
 function Shell() {
-  const { me, supportAwaiting, liveShowActive, specialNote, unreadMessages } = useMe();
+  const { me, supportAwaiting, liveShowActive, specialNote } = useMe();
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
@@ -160,13 +160,15 @@ function Shell() {
     main.push(isStaffUser ? { to: '/team', label: 'The team', icon: Users } : { to: '/my-events', label: 'My Events', icon: CalendarCheck });
     // Ticket f455bb8c: non-staff admins asked for the roster too.
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
-    main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
+    // Ticket c4d1e0f2: check-in only appears to normal crew while a session is
+    // actually open. Admins and staff keep it so they can run one.
+    if (session !== null || me.isAdmin || me.isStaff) {
+      main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
+    }
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
     main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
-    main.push({ to: '/contacts', label: 'Contacts', icon: BookUser });
-    // Batch 7: crew comms. Messages carries the unread badge.
+    // Batch 7: crew announcements.
     main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
-    main.push({ to: '/messages', label: 'Messages', icon: MessagesSquare, badge: unreadMessages || undefined });
     main.push({ to: '/skills', label: 'Skills', icon: GraduationCap });
     main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
   } else {
@@ -279,7 +281,7 @@ function Shell() {
   const shortcuts: Shortcut[] = useMemo(() => {
     const KEY_FOR: Record<string, string> = {
       '/': 'h', '/calendar': 'c', '/schedule': 's', '/attendance': 'a', '/profile': 'p', '/roster': 'r',
-      '/contacts': 'n', '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o', '/team': 'e', '/my-events': 'v',
+      '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o', '/team': 'e', '/my-events': 'v',
     };
     const seen = new Set<string>();
     const out: Shortcut[] = [];

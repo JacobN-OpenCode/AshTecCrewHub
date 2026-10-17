@@ -363,8 +363,6 @@ if (!admin) {
       check('profile extras read back', bm.statusText === 'On lighting desk' && bm.statusEmoji === '🎧' && bm.birthday === '03-14' && bm.contactShare === true, JSON.stringify(bm).slice(0, 200));
       const badBd = await call('updateMyProfile', { birthday: '13-45' });
       check('birthday must be MM-DD', badBd.status !== 200);
-      const contacts = await call('getContacts', {});
-      check('getContacts lists the opt-in', contacts.status === 200 && (contacts.body?.contacts ?? []).some((c: { id: string }) => c.id === memberId), JSON.stringify(contacts.body).slice(0, 160));
       const bdays = await call('getBirthdays', { days: 30 });
       check('getBirthdays is members-only and shaped', bdays.status === 200 && Array.isArray(bdays.body?.birthdays));
       // Leaderboard: every member gets a row, ranks are 1-based, badges catalog
@@ -537,8 +535,12 @@ if (!admin) {
       if (ticketId) await db().query('DELETE FROM "SupportReplies" WHERE "ticket" = $1', [ticketId]);
       if (ticketId) await db().query('DELETE FROM "SupportTickets" WHERE "id" = $1', [ticketId]);
 
-      // adminSendMessage -> bulkCreate over EmailLog.
-      const msg = await call('adminSendMessage', { memberIds: [memberId], subject: 'Smoke test message', message: 'Automated smoke test, safe to ignore.' });
+      // adminSendMessage -> bulkCreate over EmailLog. Feedback round 2: staff
+      // are never emailed, so the target is the normal crew member, not the
+      // (Teacher) admin.
+      const { rows: crewMailRows } = await db().query(`SELECT "id" FROM "CrewMembers" WHERE "schoolEmail" = $1`, [CREW_EMAIL]);
+      const mailTo = crewMailRows[0]?.id ?? memberId;
+      const msg = await call('adminSendMessage', { memberIds: [mailTo], subject: 'Smoke test message', message: 'Automated smoke test, safe to ignore.' });
       check('adminSendMessage sends and logs', msg.status === 200 && msg.body?.sent === 1, JSON.stringify(msg.body));
       const { rows: el } = await db().query(`SELECT count(*)::int AS n FROM "EmailLog" WHERE "subject" LIKE 'Smoke test message%'`);
       check('email log row written by bulkCreate', el[0].n >= 1, `n=${el[0].n}`);
@@ -858,43 +860,6 @@ if (!admin) {
       if (posted.body?.id) {
         const del = await call('saveAnnouncement', { id: posted.body.id, remove: true });
         check('admin deletes the announcement', del.status === 200, JSON.stringify(del.body).slice(0, 120));
-      }
-
-      // Direct messages: crew to admin.
-      const adminMe = await call('getMe', {});
-      const adminId = adminMe.body?.member?.id;
-      const dir = await callAs(crewJar, 'getMessageDirectory', {});
-      check('getMessageDirectory lists the crew',
-        dir.status === 200 && Array.isArray(dir.body?.people) && dir.body.people.length > 0,
-        JSON.stringify(dir.body).slice(0, 120));
-
-      const noSelf = await callAs(crewJar, 'sendMessage', { toId: crew.id, body: 'hello me' });
-      check('sending a message to yourself is refused', noSelf.status >= 400, `status=${noSelf.status}`);
-
-      if (adminId && adminId !== crew.id) {
-        const sent = await callAs(crewJar, 'sendMessage', { toId: adminId, body: 'Smoke test DM' });
-        check('crew sends a direct message', sent.status === 200, JSON.stringify(sent.body).slice(0, 120));
-
-        const thread = await callAs(crewJar, 'getThread', { memberId: adminId });
-        check('getThread shows the message',
-          thread.status === 200 && thread.body?.messages?.some?.((m: any) => m.body === 'Smoke test DM'),
-          JSON.stringify(thread.body).slice(0, 160));
-
-        const convs = await callAs(crewJar, 'getConversations', {});
-        check('getConversations lists the thread',
-          convs.status === 200 && convs.body?.conversations?.some?.((c: any) => c.memberId === adminId),
-          JSON.stringify(convs.body).slice(0, 160));
-
-        const reply = await call('sendMessage', { toId: crew.id, body: 'Smoke reply' });
-        check('admin replies', reply.status === 200, JSON.stringify(reply.body).slice(0, 120));
-        const crewUnread = await callAs(crewJar, 'getMe', {});
-        check('getMe reports unread messages', (crewUnread.body?.unreadMessages ?? 0) >= 1,
-          String(crewUnread.body?.unreadMessages));
-
-        await db().query(
-          'DELETE FROM "DirectMessages" WHERE ("from" = $1 AND "to" = $2) OR ("from" = $2 AND "to" = $1)',
-          [crew.id, adminId]
-        );
       }
 
       // Skills directory: save, de-duplicate, list, then reset.

@@ -20,95 +20,108 @@ export const OPENCODE_STATUS = {
   updated: '2026-10-17',
   /** One line on the assistant's current focus. */
   headline:
-    'The eight-batch feedback roadmap is shipped; this round works through the ten open support tickets the crew raised.',
+    'Working through the big /feedback/2 response: take out what should not be here, lock down the show workspaces, and make the whole hub feel like one system.',
   /** What is being touched right now. */
-  now: 'The ten open Bug Report and Feature Request tickets: a home dashboard for every role, pinned tickets, manual badge grants, the maintainer self-toggle and mentor-null save fixes, clearer profile-picture errors, deadline-proof bulk attendance buttons, a team-wide daily-summary label, and error alerts that reach only the maintainers and the person affected.',
+  now: 'Batch 1 is shipped (the removals, the hidden-when-idle tabs and the email discipline). Next: people profiles, so clicking a crew member shows their info and Skills moves onto them.',
   /** The roadmap being worked through. */
   tracks: [
     {
       state: 'done',
-      title: 'Reword repo README, fix public URLs, repo metadata',
+      title: 'One dashboard per show',
       detail:
-        'Production URL corrected to https://ashtec.dino.icu, repository linked, SmartSparkCoding invited as a collaborator.',
+        'Live Show Setup and the per-show part of Manage Events now live inside the show dashboard (/show/:id) as admin tabs, so a show has one page instead of three. The standalone admin pages stay as cross-show overviews and link in.',
     },
     {
       state: 'done',
-      title: '/github and /gh redirect + GitHub button in the landing footer',
-      detail: 'Both routes bounce to the repository; footer link is live in production.',
-    },
-    {
-      state: 'done',
-      title: '/opencode status page',
-      detail: 'This board. Reads the file you are looking at now.',
-    },
-    {
-      state: 'done',
-      title: 'Admin attendance CSV export tool',
+      title: 'High School Musical filled in',
       detail:
-        'Tools tab: pick a show, get a crew x event grid with Yes/Maybe/No, downloadable as CSV. Deployed and verified.',
+        'The 17-scene running order, a 31-cue sound sheet, props and principal costumes, a pre-show checklist, both casts and the term’s rehearsals are all seeded into the HSM show from the live running order and the production paperwork.',
     },
     {
       state: 'done',
-      title: 'Feedback roadmap — Batch 1: member profile extras',
+      title: 'Multi-page public website',
       detail:
-        'Custom status + emoji on the rosters, birthday (month/day only) with a birthdays strip, contact-sheet opt-in with phone, and mentor pairing shown in Settings. Live in production.',
+        'The signed-out side is a real site now: Home, Productions, Calendar, Parents, About, Join and a Sign in page, sharing one header and footer. Live at https://ashtec.dino.icu.',
     },
     {
       state: 'done',
-      title: 'Feedback roadmap — Batch 2: gamification',
-      detail: 'Badges derived from crew stats, and a members-only hours leaderboard at /leaderboard, live in production.',
-    },
-    {
-      state: 'done',
-      title: 'Feedback roadmap — Batch 3: rehearsal & show ops',
+      title: 'Remove Contacts, direct messages and the cat’s hide button',
       detail:
-        'A per-show Workspace at /show/:id: checklists, cue sheets, props and costumes, scenes, rehearsal notes, scene timings, plus a Show-day tab with roll call, pre-show sign-off, cue calls and sick cover. Locked for Tech Week by admins. Live in production.',
+        'The Contacts page and the whole direct-message feature are gone (page, nav, routes and endpoints). The cat no longer has a Hide button and no longer appears on phones.',
     },
     {
       state: 'done',
-      title: 'Feedback roadmap — Batch 4: show-day extras',
+      title: 'Hide nav tabs when there is nothing to show',
       detail:
-        'Backstage photo albums (by link), a shared post-show debrief, a green-room noticeboard with pinning, a lost property log, nightly box-office headcounts with a run total, and an opening-night countdown on the home screen. Live in production.',
+        'Check-in only appears to normal crew while a session is actually open; admins and staff still see it to run one.',
     },
     {
       state: 'done',
-      title: 'Feedback roadmap — Batch 5: scheduling',
+      title: 'Email discipline',
       detail:
-        'A clash detector, term-at-a-glance with exam blackout dates, "when am I not free" availability, self sign-up rotas, travel-time padding, per-event reminder tuning, and a shareable calendar feed for parents. Live in production.',
+        'Error alerts now email maintainers only. Staff are never emailed unless they are a maintainer — signing in is the only mail a teacher gets. This is a student-led department.',
     },
     {
-      state: 'done',
-      title: 'Feedback roadmap — Batch 6: app polish',
+      state: 'active',
+      title: 'People, not tabs',
       detail:
-        'Per-kind push tuning and a notification history, keyboard shortcuts, a one-click data export, accessibility settings (text size and high contrast), a next-call widget and a watch companion, printable call sheets, and offline reads for the pages a show day depends on. Live in production.',
-    },
-    {
-      state: 'done',
-      title: 'Feedback roadmap — Batch 7: the crew',
-      detail:
-        'A crew-wide announcements feed admins post to (and push), private direct messages between members with an unread badge, and a searchable skills directory of who can teach what. Live in production.',
-    },
-    {
-      state: 'done',
-      title: 'Feedback roadmap — Batch 8: the fun ones',
-      detail:
-        'The cat, out of the feedback forms and onto every page as a companion you can hide; silly synthesised sound effects with a mute switch; a named mascot (Tabby) with a backstory; and a show memories wall gathering each run’s photos and debrief lines. Live in production.',
-    },
-    {
-      state: 'done',
-      title: 'Support ticket round (the ten open tickets)',
-      detail:
-        'A home dashboard at / for every role; pinned support tickets; manual badge grants for work the app cannot see; the maintainer self-toggle fix; saving a member with no mentor; clearer profile-picture URL errors and a client-side check; "attending all" buttons that respect the deadline; the daily-summary switch relabelled as team-wide; the desktop help button no longer covering the cat; and error alerts now going only to the maintainers and the person who hit the error. Nine of the ten are closed with a reply. The tenth (the GitHub repo homepage still pointing at the old URL) can only be fixed by the repo owner, so it is left open and flagged for Jacob.',
+        'Click a crew member anywhere to see their profile. Skills become a controlled dropdown an admin curates, not a free-text comma list, and the Skills tab goes.',
     },
     {
       state: 'queued',
-      title: 'Whatever the crew asks for next',
+      title: 'Show Workspace read-only for normal crew',
       detail:
-        'The roadmap is fully shipped. New feedback forms feed straight back in here.',
+        'Normal members can look but not edit the show workspaces. Admins can grant extra permissions per person, or take the normal ones away.',
+    },
+    {
+      state: 'queued',
+      title: 'Privacy controls',
+      detail:
+        'Members can hide their picture, email or skills from normal members, or from named people. Admins are never hidden from.',
+    },
+    {
+      state: 'queued',
+      title: 'Signed-in devices',
+      detail:
+        'Settings lists the devices you are signed in on, with sign out everywhere and sign out all but this one.',
+    },
+    {
+      state: 'queued',
+      title: 'Profile fixes',
+      detail:
+        'Picture, initials, surname and year all editable again, including moving up more than one year or down.',
+    },
+    {
+      state: 'queued',
+      title: 'ATCMS settings',
+      detail:
+        'The admin area becomes a real settings hub: cat name, feedback form creation, and the rest of the knobs in one place.',
+    },
+    {
+      state: 'queued',
+      title: 'Cards or lists',
+      detail:
+        'Admins can choose whether admin pages show cards or lists, as a personal setting.',
+    },
+    {
+      state: 'queued',
+      title: 'Smart scene timings',
+      detail:
+        'Average how long each scene actually ran, learned from rehearsals and shows, with show timings taking priority.',
+    },
+    {
+      state: 'queued',
+      title: 'Streamline',
+      detail:
+        'One show all together, settings all together, and the live show reading its data from the show itself rather than a separate copy.',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Feedback round 2, batch 1: Contacts and direct messages removed, idle tabs hidden, email discipline',
+    'Multi-page public website (Home, Productions, About, Join, Sign in)',
+    'One dashboard per show, and High School Musical filled in',
+    'Add /feedback/2, the freeform tidy-up form',
     'Support tickets: a home dashboard, pinned tickets, manual badges, and the ten-ticket tidy-up',
     'Batch 8: the fun ones (the cat everywhere, sound effects, a named mascot, show memories)',
     'Batch 7: the crew (announcements, direct messages, skills directory)',
@@ -116,12 +129,6 @@ export const OPENCODE_STATUS = {
     'Batch 5: scheduling (clash detector, term view, availability, rotas, travel time, parents feed)',
     'Batch 4: show-day extras (photos, debrief, green room, lost property, box office)',
     'Batch 3: per-show workspace (checklists, cues, props, roll call, sign-off, cover)',
-    'Batch 2: badges and an hours leaderboard',
-    'Batch 1: birthdays strip, mentor display, status on rosters',
-    'Add /opencode status page; batch 1 member profile extras',
-    'Add /github and /gh redirects and small GitHub link in landing footer',
-    'Docs: reword README and correct the public URLs',
-    'Tools: admin attendance CSV export',
   ],
   /** How to read the board. */
   legend: 'done = shipped to production · active = being written now · queued = next up',
