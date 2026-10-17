@@ -788,6 +788,83 @@ if (!admin) {
         const badSheet = await call('getCallSheet', { showId: '00000000-0000-0000-0000-000000000000' });
         check('getCallSheet refuses an unknown show', badSheet.status >= 400, `status=${badSheet.status}`);
       }
+
+      // ---------------------------------------------- crew comms (Batch 7)
+      // Announcements, direct messages and the skills directory.
+      const anons = await callAs(crewJar, 'getAnnouncements', {});
+      check('getAnnouncements returns a list', anons.status === 200 && Array.isArray(anons.body?.items),
+        JSON.stringify(anons.body).slice(0, 120));
+
+      const deniedAnon = await callAs(crewJar, 'saveAnnouncement', { title: 'Nope', body: 'Not allowed' });
+      check('ordinary crew cannot post an announcement (403)', deniedAnon.status === 403, `status=${deniedAnon.status}`);
+
+      const posted = await call('saveAnnouncement', { title: 'Smoke test', body: 'Automated announcement', pinned: true });
+      check('admin posts an announcement', posted.status === 200 && typeof posted.body?.id === 'string',
+        JSON.stringify(posted.body).slice(0, 160));
+
+      const pinned = await callAs(crewJar, 'getAnnouncements', {});
+      check('the announcement appears pinned first',
+        pinned.status === 200 && pinned.body?.items?.[0]?.title === 'Smoke test',
+        JSON.stringify(pinned.body?.items?.map?.((a: any) => a.title)).slice(0, 160));
+
+      if (posted.body?.id) {
+        const del = await call('saveAnnouncement', { id: posted.body.id, remove: true });
+        check('admin deletes the announcement', del.status === 200, JSON.stringify(del.body).slice(0, 120));
+      }
+
+      // Direct messages: crew to admin.
+      const adminMe = await call('getMe', {});
+      const adminId = adminMe.body?.member?.id;
+      const dir = await callAs(crewJar, 'getMessageDirectory', {});
+      check('getMessageDirectory lists the crew',
+        dir.status === 200 && Array.isArray(dir.body?.people) && dir.body.people.length > 0,
+        JSON.stringify(dir.body).slice(0, 120));
+
+      const noSelf = await callAs(crewJar, 'sendMessage', { toId: crew.id, body: 'hello me' });
+      check('sending a message to yourself is refused', noSelf.status >= 400, `status=${noSelf.status}`);
+
+      if (adminId && adminId !== crew.id) {
+        const sent = await callAs(crewJar, 'sendMessage', { toId: adminId, body: 'Smoke test DM' });
+        check('crew sends a direct message', sent.status === 200, JSON.stringify(sent.body).slice(0, 120));
+
+        const thread = await callAs(crewJar, 'getThread', { memberId: adminId });
+        check('getThread shows the message',
+          thread.status === 200 && thread.body?.messages?.some?.((m: any) => m.body === 'Smoke test DM'),
+          JSON.stringify(thread.body).slice(0, 160));
+
+        const convs = await callAs(crewJar, 'getConversations', {});
+        check('getConversations lists the thread',
+          convs.status === 200 && convs.body?.conversations?.some?.((c: any) => c.memberId === adminId),
+          JSON.stringify(convs.body).slice(0, 160));
+
+        const reply = await call('sendMessage', { toId: crew.id, body: 'Smoke reply' });
+        check('admin replies', reply.status === 200, JSON.stringify(reply.body).slice(0, 120));
+        const crewUnread = await callAs(crewJar, 'getMe', {});
+        check('getMe reports unread messages', (crewUnread.body?.unreadMessages ?? 0) >= 1,
+          String(crewUnread.body?.unreadMessages));
+
+        await db().query(
+          'DELETE FROM "DirectMessages" WHERE ("from" = $1 AND "to" = $2) OR ("from" = $2 AND "to" = $1)',
+          [crew.id, adminId]
+        );
+      }
+
+      // Skills directory: save, de-duplicate, list, then reset.
+      const skills = await callAs(crewJar, 'getSkillsDirectory', {});
+      check('getSkillsDirectory returns people and tags',
+        skills.status === 200 && Array.isArray(skills.body?.people) && Array.isArray(skills.body?.tags),
+        JSON.stringify(skills.body).slice(0, 120));
+
+      const savedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: 'Lighting, Sound , Lighting', skillsLearn: 'Rigging' });
+      check('crew saves skills', savedSkills.status === 200, JSON.stringify(savedSkills.body).slice(0, 120));
+
+      const skillsAfter = await callAs(crewJar, 'getSkillsDirectory', {});
+      const meRow = skillsAfter.body?.people?.find?.((p: any) => p.id === crew.id);
+      check('the skills directory lists the crew member with de-duplicated tags',
+        !!meRow && Array.isArray(meRow.teach) && meRow.teach.length === 2 && meRow.teach.includes('Lighting') && meRow.teach.includes('Sound'),
+        JSON.stringify(meRow));
+
+      await callAs(crewJar, 'updateMyProfile', { skillsTeach: '', skillsLearn: '' });
     }
 
       // ------------------------------------------------------------- logout

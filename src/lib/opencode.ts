@@ -17,12 +17,12 @@ export type Track = {
 
 export const OPENCODE_STATUS = {
   /** When this board was last written by the assistant. */
-  updated: '2026-10-16',
+  updated: '2026-10-17',
   /** One line on the assistant's current focus. */
   headline:
     'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
   /** What is being touched right now. */
-  now: 'Batch 6 of the feedback roadmap: app polish (push tuning, keyboard shortcuts, data export, accessibility, notification history, a next-call widget and watch companion, printable call sheets, offline reads).',
+  now: 'Batch 7 of the feedback roadmap: the crew (a crew-wide announcements feed, private direct messages with an unread badge, and a searchable skills directory).',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -77,20 +77,27 @@ export const OPENCODE_STATUS = {
         'A clash detector, term-at-a-glance with exam blackout dates, "when am I not free" availability, self sign-up rotas, travel-time padding, per-event reminder tuning, and a shareable calendar feed for parents. Live in production.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 6: app polish',
       detail:
-        'Per-kind push tuning and a notification history, keyboard shortcuts, a one-click data export, accessibility settings (text size and high contrast), a next-call widget and a watch companion, printable call sheets, and offline reads for the pages a show day depends on.',
+        'Per-kind push tuning and a notification history, keyboard shortcuts, a one-click data export, accessibility settings (text size and high contrast), a next-call widget and a watch companion, printable call sheets, and offline reads for the pages a show day depends on. Live in production.',
+    },
+    {
+      state: 'active',
+      title: 'Feedback roadmap — Batch 7: the crew',
+      detail:
+        'A crew-wide announcements feed admins post to (and push), private direct messages between members with an unread badge, and a searchable skills directory of who can teach what.',
     },
     {
       state: 'queued',
-      title: 'Feedback roadmap — Batches 7–8',
+      title: 'Feedback roadmap — Batch 8: the fun ones',
       detail:
-        'Announcements + DMs, then the fun ones (more cat, mascot, sound effects, show memories).',
+        'More cat, a mascot, sound effects and show memories.',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Batch 6: app polish (push tuning, keyboard shortcuts, data export, accessibility, widgets, call sheets, offline)',
     'Batch 5: scheduling (clash detector, term view, availability, rotas, travel time, parents feed)',
     'Batch 4: show-day extras (photos, debrief, green room, lost property, box office)',
     'Batch 3: per-show workspace (checklists, cues, props, roll call, sign-off, cover)',

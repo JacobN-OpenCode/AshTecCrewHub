@@ -383,3 +383,40 @@ export async function notifyCoverRequest(info: {
     });
   }
 }
+
+/**
+ * A new crew announcement (Batch 7). Fanned out to every member who has not
+ * muted the announcements kind; deduped per announcement so editing one does
+ * not re-ping the crew. Preview accounts never receive it.
+ */
+export async function notifyAnnouncement(info: { id: string; title: string; body: string; authorName: string }): Promise<void> {
+  const who = (await crew())
+    .filter((m) => !m.isPreviewAccount && allowsKind(m, 'announcement'))
+    .map((m) => m.id);
+  const dedupe = `announcement-${info.id}`;
+  for (const id of who) {
+    if (!(await claimNotification(id, 'announcement', dedupe))) continue;
+    await sendToMember(id, {
+      title: `Announcement: ${info.title}`,
+      body: info.authorName ? `${info.authorName}: ${info.body}` : info.body,
+      url: '/announcements',
+      tag: dedupe,
+    });
+  }
+}
+
+/**
+ * A direct message (Batch 7). Only the recipient is told, and only if they have
+ * not muted the messages kind. Never tells the sender about their own message.
+ */
+export async function notifyDirectMessage(info: { id: string; toId: string; fromId: string; fromName: string; body: string }): Promise<void> {
+  if (info.toId === info.fromId) return;
+  if (!(await allowsKindFor(info.toId, 'dm'))) return;
+  if (!(await claimNotification(info.toId, 'dm', `dm-${info.id}`))) return;
+  await sendToMember(info.toId, {
+    title: `Message from ${info.fromName}`,
+    body: info.body.slice(0, 140),
+    url: `/messages?to=${info.fromId}`,
+    tag: `dm-${info.id}`,
+  });
+}

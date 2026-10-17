@@ -881,4 +881,43 @@ CREATE TABLE IF NOT EXISTS "NotificationHistory" (
 );
 CREATE INDEX IF NOT EXISTS "NotificationHistory_member_idx" ON "NotificationHistory" ("member", "sentAt" DESC);
 
+-- ---------------------------------------------------------------------------
+-- Batch 7: the crew. A crew-wide announcements feed, direct messages between
+-- members, and a skills directory ("who can teach me this?").
+-- ---------------------------------------------------------------------------
+-- Announcements: admin-authored notices every member can read. Pinned ones
+-- float to the top. authorName is denormalised so the feed renders without a
+-- join and survives the author leaving.
+CREATE TABLE IF NOT EXISTS "Announcements" (
+  "id"         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "title"      text NOT NULL DEFAULT '',
+  "body"       text NOT NULL DEFAULT '',
+  "author"     uuid,
+  "authorName" text NOT NULL DEFAULT '',
+  "pinned"     boolean NOT NULL DEFAULT false,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "Announcements_createdAt_idx" ON "Announcements" ("createdAt" DESC);
+
+-- Direct messages: one row per message. `from`/`to` are member ids; a thread is
+-- every row where either side is you and the other is the same person. readAt
+-- is set the first time the recipient opens the thread.
+CREATE TABLE IF NOT EXISTS "DirectMessages" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "from"      uuid NOT NULL,
+  "to"        uuid NOT NULL,
+  "body"      text NOT NULL DEFAULT '',
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "readAt"    timestamptz
+);
+CREATE INDEX IF NOT EXISTS "DirectMessages_to_idx" ON "DirectMessages" ("to", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "DirectMessages_pair_idx" ON "DirectMessages" ("from", "to", "createdAt");
+
+-- Skills directory: two comma-separated tag lists the member edits in Settings.
+-- Free text on purpose (there is no maintained taxonomy), sanitised on the way
+-- in and matched case-insensitively on the way out.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsTeach" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsLearn" text NOT NULL DEFAULT '';
+
 COMMIT;

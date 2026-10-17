@@ -159,6 +159,9 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   // Profile picture, a URL the member sets in Settings. Lives outside the
   // generated record type until the schema is regenerated, so read it by cast.
   avatarUrl: (m as unknown as { avatarUrl?: string | null }).avatarUrl ?? '',
+  // Skills directory tags (Batch 7): free-text lists the member edits itself.
+  skillsTeach: (m as unknown as { skillsTeach?: string }).skillsTeach ?? '',
+  skillsLearn: (m as unknown as { skillsLearn?: string }).skillsLearn ?? '',
   statusText: (m as unknown as { statusText?: string }).statusText ?? '',
   statusEmoji: (m as unknown as { statusEmoji?: string }).statusEmoji ?? '',
   birthday: (m as unknown as { birthday?: string }).birthday ?? '',

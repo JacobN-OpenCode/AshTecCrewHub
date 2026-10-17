@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, ChartColumn, DoorOpen, Eye, HeartHandshake,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Menu, MessageSquareHeart, MoreHorizontal, BookUser, Palette, PanelLeftClose,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake,
+  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MessagesSquare, MoreHorizontal, BookUser, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -102,7 +102,7 @@ export default function AppShell() {
 }
 
 function Shell() {
-  const { me, supportAwaiting, liveShowActive, specialNote } = useMe();
+  const { me, supportAwaiting, liveShowActive, specialNote, unreadMessages } = useMe();
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
@@ -161,6 +161,10 @@ function Shell() {
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });
     main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
     main.push({ to: '/contacts', label: 'Contacts', icon: BookUser });
+    // Batch 7: crew comms. Messages carries the unread badge.
+    main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
+    main.push({ to: '/messages', label: 'Messages', icon: MessagesSquare, badge: unreadMessages || undefined });
+    main.push({ to: '/skills', label: 'Skills', icon: GraduationCap });
     main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
   }
   groups.push({ label: 'Main', items: main });

@@ -31,6 +31,9 @@ import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
 import Contacts from './pages/Contacts';
 import Leaderboard from './pages/Leaderboard';
+import Announcements from './pages/Announcements';
+import Messages from './pages/Messages';
+import Skills from './pages/Skills';
 import OpenCode from './pages/OpenCode';
 import ShowWorkspace from './pages/ShowWorkspace';
 import LoginCat from './components/LoginCat';
@@ -62,6 +65,7 @@ function SignedIn() {
   const [liveShowActive, setLiveShowActive] = useState(false);
   const [specialNote, setSpecialNote] = useState<string | null>(null);
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const refreshMe = useCallback(async () => {
     const r = await getMe(pv());
     setMe(r.member);
@@ -70,6 +74,7 @@ function SignedIn() {
     setLiveShowActive(!!r.liveShowActive);
     setSpecialNote(r.specialNote ?? null);
     setNotificationPrefs(r.notificationPrefs ?? {});
+    setUnreadMessages(r.unreadMessages ?? 0);
   }, []);
   useEffect(() => { refreshMe(); }, [refreshMe]);
 
@@ -84,7 +89,7 @@ function SignedIn() {
     );
 
   return (
-    <MeContext.Provider value={{ me, mentor, refreshMe, supportAwaiting, liveShowActive, specialNote, notificationPrefs }}>
+    <MeContext.Provider value={{ me, mentor, refreshMe, supportAwaiting, liveShowActive, specialNote, notificationPrefs, unreadMessages }}>
       <Routes>
         {/* QR approval links must survive sign-in, so every signed-in crew member can land here. */}
         <Route path="/a/:token" element={<ApprovePresence />} />
@@ -113,6 +118,10 @@ function SignedIn() {
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          {/* Batch 7: crew announcements, direct messages and the skills directory. */}
+          <Route path="/announcements" element={<Announcements />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/skills" element={<Skills />} />
           <Route path="/show/:showId" element={<ShowWorkspace />} />
           {/* Batch 6: printable call sheet (rendered in the shell so nav works
               on screen; @media print hides the chrome). */}

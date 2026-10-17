@@ -10,6 +10,19 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const parseAlternates = (raw: string | null | undefined) =>
   (raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
+/**
+ * Skills directory (Batch 7): the member's own teach/learn tags, held as a
+ * comma-separated string. Normalised to a tidy, de-duplicated, length-capped
+ * list so the directory search stays predictable.
+ */
+const parseTags = (raw: string) =>
+  [...new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim().replace(/\s+/g, ' ').slice(0, 40))
+      .filter(Boolean),
+  )].slice(0, 20).join(', ');
+
 export default createEndpoint({
   description: 'Lets a member edit their own name, year, school email and preferred roles. Nothing else.',
   authenticated: true,
@@ -30,6 +43,9 @@ export default createEndpoint({
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
     contactPhone: z.string().max(20).optional(),
+    // Skills directory: what I can teach, and what I want to learn.
+    skillsTeach: z.string().max(1000).optional(),
+    skillsLearn: z.string().max(1000).optional(),
   }),
   outputSchema: z.object({ success: z.boolean(), emailChanged: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -79,6 +95,8 @@ export default createEndpoint({
     }
     if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
     if (input.contactPhone !== undefined) record.contactPhone = input.contactPhone.trim().slice(0, 20);
+    if (input.skillsTeach !== undefined) record.skillsTeach = parseTags(input.skillsTeach);
+    if (input.skillsLearn !== undefined) record.skillsLearn = parseTags(input.skillsLearn);
 
     let emailChanged = false;
     if (input.schoolEmail !== undefined) {

@@ -12,7 +12,7 @@ import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
 import MemberAvatar from '../MemberAvatar';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', mentorId: null, isMentor: false };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);

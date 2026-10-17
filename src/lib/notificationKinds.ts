@@ -23,6 +23,8 @@ export const NOTIFICATION_KINDS: NotificationKind[] = [
   { id: 'event-updated', label: 'Event changes', hint: 'A date, time or place changed on something you are in.' },
   { id: 'cue-call', label: 'Cue calls', hint: 'Someone is calling you to the stage.' },
   { id: 'cover-request', label: 'Cover requests', hint: 'Someone cannot make it and is asking for cover.' },
+  { id: 'announcement', label: 'Crew announcements', hint: 'A new notice posted for the whole crew.' },
+  { id: 'dm', label: 'Direct messages', hint: 'Someone has sent you a message.' },
 ];
 
 export const NOTIFICATION_KIND_IDS = NOTIFICATION_KINDS.map((k) => k.id);
