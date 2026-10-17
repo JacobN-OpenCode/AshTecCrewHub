@@ -22,20 +22,32 @@ export const OPENCODE_STATUS = {
   headline:
     'The big /feedback/2 response is shipped, and round two of the settings work is going out: cards-or-lists everywhere, far more control in ATCMS settings, and the leaderboard removed.',
   /** What is being touched right now. */
-  now: 'The cat is now every icon and the app icon; and a no-signup watch path is in: subscribe to the calendar feed, or point an Apple Shortcut / a sideloaded Wear app at the new /next-call.json.',
+  now: 'The Mac and Wear OS apps are shipped and downloadable from /apps (invite code JN202610), and the in-app icons are back to normal.',
   /** The roadmap being worked through. */
   tracks: [
     {
       state: 'done',
-      title: 'The cat is every icon',
+      title: 'The cat is the app icon',
       detail:
-        'One rule paints the cat into every lucide icon (they keep their size and layout), and the favicon, home-screen icon and Apple touch icon are the cat too.',
+        'The favicon, the home-screen/PWA icons and the Apple touch icon are the cat. (The in-app UI icons were briefly the cat too — that was a misread and is reverted; the real icons are back.)',
     },
     {
       state: 'done',
-      title: 'Watch without signing up for anything',
+      title: 'A real Mac app',
       detail:
-        'The zero-account path is the calendar feed (Apple/Google calendar on the watch shows every call). For a proper "next call" face, there is a new /next-call.json secured by the same per-member token, ready for an Apple Shortcut or a sideloaded Wear OS app.',
+        'The whole crew hub in a native window (WKWebView, AppKit, no Xcode needed), with a Dock icon, a toolbar, a menu-bar extra showing a live countdown to your next call, notifications before a call, and sign-in that finishes in-app from the emailed link.',
+    },
+    {
+      state: 'done',
+      title: 'A Wear OS app',
+      detail:
+        'A watch face for the next call: the next call, a live countdown and the next few, read from /next-call.json. Built and signed as a plain APK (no Gradle, no Play Store).',
+    },
+    {
+      state: 'done',
+      title: 'The /apps download page',
+      detail:
+        'Behind an invite code: pick Wear OS or macOS and get the download plus sideload / install instructions. Linked from the homepage footer. No stores involved.',
     },
     {
       state: 'done',
@@ -124,7 +136,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
-    'The cat is every icon; watch path (calendar feed + /next-call.json)',
+    'Mac app, Wear OS app, and the /apps download page',
     'Badges removed (with the leaderboard), settings expanded',
     'Round 2: cards/lists everywhere, ATCMS settings expanded, leaderboard removed',
     'Feedback round 2, batch 4: ATCMS settings hub, signed-in devices, smart timings, profile fixes',
