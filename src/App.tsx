@@ -6,7 +6,11 @@ import { getMe } from '#api';
 import { Toaster } from '@project/components/ui/sonner';
 import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import Landing from './pages/Landing';
+import PublicHome from './pages/public/Home';
+import PublicProductions from './pages/public/Productions';
+import PublicAbout from './pages/public/About';
+import PublicJoin from './pages/public/Join';
+import PublicSignIn from './pages/public/SignIn';
 import Home from './pages/Home';
 import PublicCalendar from './pages/PublicCalendar';
 import PublicParents from './pages/PublicParents';
@@ -167,10 +171,15 @@ export default function App() {
   );
 }
 
-/** Signed-out routes. /calendar and /parents are public on purpose; everything else is the marketing home. */
+/** Signed-out routes. The marketing site is public; /calendar and /parents are public on purpose. */
 function SignedOut() {
   return (
     <Routes>
+      <Route path="/" element={<PublicHome />} />
+      <Route path="/productions" element={<PublicProductions />} />
+      <Route path="/about" element={<PublicAbout />} />
+      <Route path="/join" element={<PublicJoin />} />
+      <Route path="/signin" element={<PublicSignIn />} />
       <Route path="/calendar" element={<PublicCalendar />} />
       <Route path="/parents" element={<PublicParents />} />
       {/* A phone camera can open an approval link before the admin is signed in. */}
@@ -182,7 +191,7 @@ function SignedOut() {
       <Route path="/opencode" element={<OpenCode />} />
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
-      <Route path="*" element={<Landing />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
