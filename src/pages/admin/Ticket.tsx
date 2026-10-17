@@ -8,7 +8,7 @@ import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
-import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
+import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, Pin, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
 import { useMe } from '../../lib/me';
 
@@ -71,6 +71,11 @@ export default function Ticket() {
           )}
           <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
           <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+          {t.pinned && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+              <Pin className="h-3 w-3 mr-1" />Pinned
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -144,6 +149,18 @@ export default function Ticket() {
               <p className="text-xs text-muted-foreground">Emails whoever is assigned here, or every maintainer if nobody is.</p>
             </div>
           )}
+
+          <div className="rounded-2xl border bg-card p-4 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={t.pinned}
+                disabled={busy === 'pin'}
+                onCheckedChange={(c) => run('pin', () => adminUpdateTicket({ id: t.id, pinned: !!c }), () => toast.success(c ? 'Ticket pinned' : 'Ticket unpinned'))}
+              />
+              Pin to the top of the ticket list
+            </label>
+            <p className="text-xs text-muted-foreground">Pinned tickets sit above everything else, whatever the sort.</p>
+          </div>
 
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <label className="text-sm">Status</label>

@@ -16,6 +16,7 @@ export default createEndpoint({
     adminNotes: z.string().optional(),
     assignedMaintainerIds: z.array(z.string()).optional(),
     referToOpencode: z.boolean().optional(),
+    pinned: z.boolean().optional(),
     delete: z.boolean().optional(),
   }),
   outputSchema: z.object({ success: z.boolean() }),
@@ -25,6 +26,8 @@ export default createEndpoint({
     const record: Record<string, unknown> = {};
     if (input.status) record.status = input.status;
     if (input.severity !== undefined) record.severity = input.severity;
+    // Ticket 636bde75: pin a ticket so it floats to the top of the list.
+    if (input.pinned !== undefined) record.pinned = input.pinned;
     if (input.adminNotes !== undefined) record.adminNotes = input.adminNotes;
     if (input.referToOpencode !== undefined) {
       // A label for humans only, so only the types that describe a real piece

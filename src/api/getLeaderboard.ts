@@ -23,6 +23,17 @@ export default createEndpoint({
       zite.subEvents.findAll({ limit: 2000 }),
       zite.attendance.findAll({ limit: 20000 }),
     ]);
+    // Ticket 3ead37f8: badges can also be granted by hand (work from before the
+    // app existed). They are additive - unioned with the computed ones so a
+    // manual grant shows on the board, the profile and My Badges alike.
+    const { records: manualRows } = await zite.memberBadges.findAll({ limit: 20000 });
+    const manualByMember = new Map<string, string[]>();
+    for (const r of manualRows) {
+      const mid = ids(r.member)[0];
+      if (!mid || !r.badgeId) continue;
+      const list = manualByMember.get(mid);
+      if (list) list.push(r.badgeId); else manualByMember.set(mid, [r.badgeId]);
+    }
 
     const memberRecords = members.records.filter((m) => !m.isPreviewAccount);
     const events: StatEvent[] = subs.records.map((e) => ({
@@ -66,6 +77,8 @@ export default createEndpoint({
           hasBirthday: !!mm.birthday,
           isAdmin: mm.isAdmin,
         }).map((b) => b.id);
+        // Dedupe against the manual grants so a badge is never listed twice.
+        const merged = [...new Set([...badges, ...(manualByMember.get(m.id) ?? [])])];
         return {
           id: m.id,
           firstName: mm.firstName,
@@ -76,7 +89,7 @@ export default createEndpoint({
           avatarUrl: mm.avatarUrl,
           hours: stat.hours,
           events: stat.events,
-          badgeIds: badges,
+          badgeIds: merged,
         };
       })
       .sort((a, b) => b.hours - a.hours || b.events - a.events || (a.firstName + a.lastName).localeCompare(b.firstName + b.lastName))

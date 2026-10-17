@@ -18,6 +18,7 @@ export default createEndpoint({
       assignedMaintainerIds: z.array(z.string()), replyCount: z.number(), awaitingReply: z.boolean(),
       maintainerTurn: z.boolean(),
       referToOpencode: z.boolean(),
+      pinned: z.boolean(),
       lastReplyAt: z.string(), lastReplyFrom: z.string(), escalatedAt: z.string(),
     })),
   }),
@@ -46,6 +47,7 @@ export default createEndpoint({
           assignedMaintainerIds: ids(t.assignedMaintainers),
           replyCount: replies.length,
           referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,
+          pinned: !!(t as { pinned?: boolean }).pinned,
           // Nobody has answered since the ticket was raised or last replied.
           // Finished tickets can keep an unanswered last word, so they must not
           // count - this has to agree with the badge count in getMe.

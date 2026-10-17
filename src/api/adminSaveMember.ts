@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createEndpoint } from '#backend';
+import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, findMemberByEmail } from '../lib/server';
 
@@ -29,7 +29,10 @@ export default createEndpoint({
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
     contactPhone: z.string().max(20).optional(),
-    mentorId: z.string().optional(),
+    // Ticket 456e6083: selecting "No mentor yet" sends an explicit null. The
+    // column is nullable, so null has to be accepted here or saving a member
+    // with no mentor was rejected before it reached the database.
+    mentorId: z.string().nullable().optional(),
     isMentor: z.boolean().optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
@@ -47,8 +50,11 @@ export default createEndpoint({
     if (clash && clash.id !== input.id) throw new Error('Another member already uses that email.');
     if (input.id === me.id && input.isAdmin === false) throw new Error('You can’t remove your own admin access.');
     const avatarUrl = (input.avatarUrl ?? '').trim();
+    // Ticket 76cf803c: a bad picture link is the person's typo, not a server
+    // fault. Throwing a plain Error made this a 500 and emailed the maintainers;
+    // a BAD_REQUEST says exactly what is wrong and stays out of the error feed.
     if (avatarUrl && (!/^https?:\/\//i.test(avatarUrl) || /\s/.test(avatarUrl))) {
-      throw new Error('Profile picture URL must start with http:// or https://.');
+      throw new ZiteError({ code: 'BAD_REQUEST', message: 'Profile picture URL must start with http:// or https://.' });
     }
     const record = {
       firstName: input.firstName,

@@ -78,10 +78,22 @@ export default function Profile() {
   }, [me]);
 
   const save = async () => {
+    // Ticket 76cf803c: check the picture link here so a typo is caught before the
+    // save, with the same wording the server uses. It used to surface as a failed
+    // API call, which read as "the crew hub broke" over a mistyped URL.
+    const pic = avatarUrl.trim();
+    if (pic && !/^https?:\/\//i.test(pic)) {
+      toast.error('The picture must be a link starting with http:// or https://, or upload a file.');
+      return;
+    }
+    if (pic && /\s/.test(pic)) {
+      toast.error('That picture link has a space in it - check it is one clean URL.');
+      return;
+    }
     setBusy(true);
     try {
       const r = await updateMyProfile({
-        avatarUrl, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
+        avatarUrl: pic, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
         statusText, statusEmoji, birthday, contactShare, contactPhone, skillsTeach, skillsLearn,
       });
       await refreshMe();

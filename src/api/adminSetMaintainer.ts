@@ -17,8 +17,11 @@ export default createEndpoint({
     }),
   }),
   execute: async ({ input, context }) => {
-    const me = await requireAdmin(context.user.email);
-    if (input.memberId === me.id) throw new Error('You can’t change your own maintainer status.');
+    await requireAdmin(context.user.email);
+    // Ticket 7f2f3e26: an admin toggling their own maintainer status from the
+    // Support page used to throw "You can't change your own maintainer status",
+    // even though the crew page allows exactly that. An admin may change anyone,
+    // including themselves - the action is reversible from the same checkbox.
     const member = await zite.crewMembers.findOne({ id: input.memberId });
     if (!member) throw new Error('That crew member no longer exists.');
     // Maintainers are emailed about tickets and then need to open the Support

@@ -146,8 +146,11 @@ console.log(`[server] loaded ${endpoints.length} endpoints`);
 
 for (const ep of endpoints) {
   app.post(`/api/${ep.name}`, async (req: Request, res: Response) => {
+    // Hoisted so the error handler can name who hit a 5xx (ticket 2373d49e).
+    let actorEmail: string | undefined;
     try {
       const user = await getSessionUser(req);
+      actorEmail = user?.email;
       if (ep.authenticated && !user) {
         return res.status(401).json({ statusCode: 401, code: 'UNAUTHORIZED', message: 'Not signed in' });
       }
@@ -176,7 +179,7 @@ for (const ep of endpoints) {
       if (!isZite || status >= 500) console.error(`[server] ${ep.name} failed:`, e);
       // Ticket 20c8af90: a real 5xx is a bug a member hit, so alert the maintainers.
       if (status >= 500) {
-        void notifyServerError({ source: ep.name, message: e?.message ?? 'Unexpected error', detail: e?.stack }).catch(() => {});
+        void notifyServerError({ source: ep.name, message: e?.message ?? 'Unexpected error', detail: e?.stack, actorEmail }).catch(() => {});
       }
       res.status(status).json({
         statusCode: status,

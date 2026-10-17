@@ -7,6 +7,7 @@ import { Toaster } from '@project/components/ui/sonner';
 import { Button } from '@project/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import Landing from './pages/Landing';
+import Home from './pages/Home';
 import PublicCalendar from './pages/PublicCalendar';
 import PublicParents from './pages/PublicParents';
 import AppShell from './components/AppShell';
@@ -107,8 +108,14 @@ function SignedIn() {
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
         <Route element={<AppShell />}>
-          <Route path="/" element={me.memberType === 'Actor' ? <StageLayout /> : me.isStaff ? <StaffHub /> : <MyEvents />} />
-          {/* Ticket f455bb8c: non-staff admins asked for the roster too. */}
+          {/* One home for everyone (ticket 601e9c1d): the dashboard is the
+              landing page for every signed-in member, and its contents broaden
+              with the role rather than the route changing. */}
+          <Route path="/" element={<Home />} />
+          <Route path="/my-events" element={<MyEvents />} />
+          {/* The team roster: staff see it, admins asked for it too. `/roster`
+              is kept as an alias so old links keep working. */}
+          {(me.isStaff || me.isAdmin) && <Route path="/team" element={<StaffHub />} />}
           {me.isAdmin && <Route path="/roster" element={<StaffHub />} />}
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/profile" element={<Profile />} />

@@ -503,6 +503,32 @@ if (!admin) {
       const ticket = await call('submitSupport', { type: 'General Support', subject: 'Smoke test ticket', message: 'Automated smoke test, safe to ignore.' });
       check('submitSupport creates a ticket', ticket.status === 200 && typeof ticket.body?.id === 'string', JSON.stringify(ticket.body));
       const ticketId = ticket.body?.id;
+
+      // Ticket 636bde75: pinning floats a ticket to the top of the admin queue.
+      if (ticketId) {
+        const pin = await call('adminUpdateTicket', { id: ticketId, pinned: true });
+        check('adminUpdateTicket pins a ticket', pin.status === 200, JSON.stringify(pin.body).slice(0, 160));
+        const sup = await call('adminGetSupport', {});
+        const row = (sup.body?.tickets ?? []).find((t: { id: string }) => t.id === ticketId);
+        check('adminGetSupport reports the ticket as pinned', !!row && row.pinned === true, JSON.stringify(row).slice(0, 160));
+        const unpin = await call('adminUpdateTicket', { id: ticketId, pinned: false });
+        check('adminUpdateTicket unpins a ticket', unpin.status === 200, JSON.stringify(unpin.body).slice(0, 160));
+      }
+
+      // Ticket 3ead37f8: a badge granted by hand shows on the member's board and
+      // can be revoked cleanly, leaving no rows behind.
+      const grant = await call('adminSetBadge', { memberId, badgeId: 'first-event', value: true });
+      check('adminSetBadge grants a manual badge', grant.status === 200 && grant.body?.success === true, JSON.stringify(grant.body));
+      const mb = await call('adminGetMemberBadges', { memberId });
+      check('adminGetMemberBadges lists the grant', (mb.body?.granted ?? []).includes('first-event'), JSON.stringify(mb.body));
+      const lbGrant = await call('getLeaderboard', {});
+      const grantRow = (lbGrant.body?.rows ?? []).find((r: { id: string }) => r.id === memberId);
+      check('getLeaderboard includes the manual badge', (grantRow?.badgeIds ?? []).includes('first-event'), JSON.stringify(grantRow?.badgeIds));
+      const revoke = await call('adminSetBadge', { memberId, badgeId: 'first-event', value: false });
+      check('adminSetBadge revokes the manual badge', revoke.status === 200, JSON.stringify(revoke.body));
+      const { rows: mbLeft } = await db().query(`SELECT count(*)::int AS n FROM "MemberBadges" WHERE "member" = $1`, [memberId]);
+      check('manual badge left no rows behind', mbLeft[0].n === 0, `n=${mbLeft[0].n}`);
+
       if (ticketId) await db().query('DELETE FROM "SupportReplies" WHERE "ticket" = $1', [ticketId]);
       if (ticketId) await db().query('DELETE FROM "SupportTickets" WHERE "id" = $1', [ticketId]);
 
@@ -610,6 +636,10 @@ if (!admin) {
       const crewRoster = await callAs(crewJar, 'adminGetPresence', {});
       check('ordinary crew is refused the roster (adminGetPresence)', crewRoster.status >= 400,
         `status=${crewRoster.status}`);
+
+      // Ticket 3ead37f8: granting a badge is admin-only, like every other admin write.
+      const crewGrant = await callAs(crewJar, 'adminSetBadge', { memberId, badgeId: 'first-event', value: true });
+      check('ordinary crew cannot grant a badge (adminSetBadge)', crewGrant.status === 403, `status=${crewGrant.status}`);
 
       // Staff-but-not-admin must also be allowed to read the roster. The real
       // data has no such account (the one staff member is an admin), so mint a

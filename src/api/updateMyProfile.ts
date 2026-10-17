@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createEndpoint } from '#backend';
+import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireMember } from '../lib/server';
 import { YEARS, ROLES } from '../lib/constants';
@@ -81,9 +81,11 @@ export default createEndpoint({
 
     if (input.avatarUrl !== undefined) {
       const url = input.avatarUrl.trim();
+      // Ticket 76cf803c: a mistyped picture link is a 400, not a 500. It used to
+      // read as "the crew hub broke" and paged the maintainers over a typo.
       if (!url) record.avatarUrl = '';
-      else if (!/^https?:\/\//i.test(url)) throw new Error('The picture must be a link starting with http:// or https://.');
-      else if (/\s/.test(url)) throw new Error('That picture link has a space in it - check it is one clean URL.');
+      else if (!/^https?:\/\//i.test(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: 'The picture must be a link starting with http:// or https://.' });
+      else if (/\s/.test(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: 'That picture link has a space in it - check it is one clean URL.' });
       else record.avatarUrl = url;
     }
     if (input.statusText !== undefined) record.statusText = input.statusText.trim().slice(0, 120);

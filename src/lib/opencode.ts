@@ -20,9 +20,9 @@ export const OPENCODE_STATUS = {
   updated: '2026-10-17',
   /** One line on the assistant's current focus. */
   headline:
-    'All eight batches of the feedback roadmap are shipped; now tidying up and watching for new feedback.',
+    'The eight-batch feedback roadmap is shipped; this round works through the nine open support tickets the crew raised.',
   /** What is being touched right now. */
-  now: 'Batch 8 of the feedback roadmap: the fun ones (the cat out of the feedback forms and onto every page, silly sound effects with a mute, a named mascot with a backstory, and a show memories wall). That is the whole roadmap done.',
+  now: 'The nine open Bug Report and Feature Request tickets: a home dashboard for every role, pinned tickets, manual badge grants, the maintainer self-toggle and mentor-null save fixes, clearer profile-picture errors, deadline-proof bulk attendance buttons, a team-wide daily-summary label, and error alerts that reach only the maintainers and the person affected.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -95,6 +95,12 @@ export const OPENCODE_STATUS = {
         'The cat, out of the feedback forms and onto every page as a companion you can hide; silly synthesised sound effects with a mute switch; a named mascot (Tabby) with a backstory; and a show memories wall gathering each run’s photos and debrief lines. Live in production.',
     },
     {
+      state: 'done',
+      title: 'Support ticket round (the nine open tickets)',
+      detail:
+        'A home dashboard at / for every role; pinned support tickets; manual badge grants for work the app cannot see; the maintainer self-toggle fix; saving a member with no mentor; clearer profile-picture URL errors and a client-side check; "attending all" buttons that respect the deadline; the daily-summary switch relabelled as team-wide; and error alerts now going only to the maintainers and the person who hit the error. Live in production.',
+    },
+    {
       state: 'queued',
       title: 'Whatever the crew asks for next',
       detail:
@@ -103,6 +109,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Support tickets: a home dashboard, pinned tickets, manual badges, and the nine-ticket tidy-up',
     'Batch 8: the fun ones (the cat everywhere, sound effects, a named mascot, show memories)',
     'Batch 7: the crew (announcements, direct messages, skills directory)',
     'Batch 6: app polish (push tuning, keyboard shortcuts, data export, accessibility, widgets, call sheets, offline)',

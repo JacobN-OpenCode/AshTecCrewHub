@@ -218,6 +218,7 @@ CREATE TABLE IF NOT EXISTS "SupportTickets" (
   "message"              text NOT NULL DEFAULT '',
   "submittedBy"          uuid,
   "status"               text NOT NULL DEFAULT 'Open',
+  "pinned"               boolean NOT NULL DEFAULT false,
   "adminNotes"           text NOT NULL DEFAULT '',
   "page"                 text NOT NULL DEFAULT '',
   "submittedAt"          timestamptz,
@@ -919,5 +920,32 @@ CREATE INDEX IF NOT EXISTS "DirectMessages_pair_idx" ON "DirectMessages" ("from"
 -- in and matched case-insensitively on the way out.
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsTeach" text NOT NULL DEFAULT '';
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsLearn" text NOT NULL DEFAULT '';
+
+-- ---------------------------------------------------------------------------
+-- Support-ticket pinning (ticket 636bde75). A pinned ticket floats to the top of
+-- the Support list whatever the chosen sort, so the team can keep the few that
+-- matter in view. Existing databases get the column added below.
+-- ---------------------------------------------------------------------------
+ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "pinned" boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS "SupportTickets_pinned_idx" ON "SupportTickets" ("pinned") WHERE "pinned";
+
+-- ---------------------------------------------------------------------------
+-- Manual badge grants (ticket 3ead37f8). Most badges are still derived from the
+-- member's stats by a predicate (src/lib/badges.ts), but a few crews want to
+-- recognise work that predates the app ("for previous events before ATCMS
+-- existed"). A row here grants one badge to one member regardless of the
+-- predicate; the id is the badge id from BADGES, validated in the endpoint.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "MemberBadges" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "member"    uuid NOT NULL,
+  "badgeId"   text NOT NULL,
+  "note"      text NOT NULL DEFAULT '',
+  "awardedBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "MemberBadges_member_idx" ON "MemberBadges" ("member");
+CREATE UNIQUE INDEX IF NOT EXISTS "MemberBadges_member_badge_idx" ON "MemberBadges" ("member", "badgeId");
 
 COMMIT;

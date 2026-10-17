@@ -62,8 +62,8 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm uppercase tracking-wider text-muted-foreground font-semibold">{title} ({list.length})</h3>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => pick(list.map((e) => e.id), 'Expected Arrival')}>Attending all</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => pick(list.map((e) => e.id), 'Not Attending')}>Not attending all</Button>
+            <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => pick(list.map((e) => e.id), 'Expected Arrival')}>Attending all</Button>
+            <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => pick(list.map((e) => e.id), 'Not Attending')}>Not attending all</Button>
           </div>
         </div>
         {list.map((e) => <SubEventRow key={e.id} ev={e} disabled={busy} onPick={(s) => pick([e.id], s)} />)}

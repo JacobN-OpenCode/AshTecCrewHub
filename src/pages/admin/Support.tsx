@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, type AdminGetSupportOutputType } from '#api';
+import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, adminUpdateTicket, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
@@ -9,8 +9,9 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Sparkles, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
+import { useMe } from '../../lib/me';
 import { useSupportSameTab } from '../../lib/uiPrefs';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
 
@@ -20,6 +21,7 @@ const STATUS_ORDER = ['Open', 'In Progress', 'Resolved', 'Closed'];
 
 export default function Support() {
   const { data, patchMember } = useAdminData();
+  const { me } = useMe();
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
@@ -34,6 +36,7 @@ export default function Support() {
   const [onlyMaintainerTurn, setOnlyMaintainerTurn] = useState(false);
   const [onlyReferred, setOnlyReferred] = useState(false);
   const [busyMaint, setBusyMaint] = useState('');
+  const [pinning, setPinning] = useState('');
   const [reminding, setReminding] = useState(false);
   const [remindingId, setRemindingId] = useState('');
   const [sameTab] = useSupportSameTab();
@@ -78,9 +81,13 @@ export default function Support() {
     (!onlyMaintainerTurn || t.maintainerTurn) &&
     (!onlyReferred || t.referToOpencode) &&
     `${t.subject} ${t.message}`.toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => sort === 'oldest'
-      ? (a.submittedAt ?? '').localeCompare(b.submittedAt ?? '')
-      : (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '')),
+    // Ticket 636bde75: pinned tickets always sit at the top of the list,
+    // whatever the chosen sort, so the few that matter stay in view.
+    .sort((a, b) =>
+      (Number(b.pinned) - Number(a.pinned)) ||
+      (sort === 'oldest'
+        ? (a.submittedAt ?? '').localeCompare(b.submittedAt ?? '')
+        : (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))),
     [tickets, type, severity, status, onlyMaintainerTurn, onlyReferred, q, sort]);
 
   if (!tickets || !data) return <Skeleton className="h-96 rounded-2xl" />;
@@ -93,6 +100,19 @@ export default function Support() {
     try { await adminSetMaintainer({ memberId: id, value }); }
     catch (e) { patchMember(id, { isMaintainer: !value }); toast.error((e as Error).message); }
     finally { setBusyMaint(''); }
+  };
+  // Ticket 636bde75: pin/unpin one ticket. The list re-sorts with the pinned
+  // row moving to the top, so we update local state instead of refetching.
+  const togglePin = async (t: Ticket) => {
+    if (pinning) return;
+    setPinning(t.id);
+    const next = !t.pinned;
+    setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, pinned: next } : x)));
+    try { await adminUpdateTicket({ id: t.id, pinned: next }); }
+    catch (e) {
+      setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, pinned: !next } : x)));
+      toast.error((e as Error).message);
+    } finally { setPinning(''); }
   };
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
@@ -146,6 +166,7 @@ export default function Support() {
       className="w-full p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40">
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate flex items-center gap-1.5">
+          {t.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
           {t.subject}
           <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </p>
@@ -183,6 +204,19 @@ export default function Support() {
         )}
         <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
         <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+        {t.pinned && (
+          <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+            <Pin className="h-3 w-3 mr-1" />Pinned
+          </Badge>
+        )}
+        <Button
+          variant="ghost" size="sm" className="h-7 px-2 text-xs"
+          disabled={pinning === t.id}
+          title={t.pinned ? 'Unpin this ticket' : 'Pin this ticket to the top'}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(t); }}
+        >
+          {pinning === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+        </Button>
         {t.maintainerTurn && (
           <Button
             variant="ghost" size="sm" className="h-7 px-2 text-xs"
@@ -267,6 +301,7 @@ export default function Support() {
             <span>
               <span className="block text-sm font-medium">Daily summary instead of per-ticket email</span>
               <span className="block text-xs text-muted-foreground mt-0.5">
+                A team-wide setting, not just yours: it changes what every maintainer receives.
                 Off: every new ticket emails each maintainer. On: one email a day listing the last day&apos;s tickets.
               </span>
             </span>
@@ -283,7 +318,7 @@ export default function Support() {
                 disabled={busyMaint === m.id}
                 onCheckedChange={(c) => toggleMaint(m.id, !!c)}
               />
-              <span className={busyMaint === m.id ? 'opacity-60' : undefined}>{m.firstName} {m.lastName}</span>
+              <span className={busyMaint === m.id ? 'opacity-60' : undefined}>{m.firstName} {m.lastName}{me?.id === m.id && <span className="text-muted-foreground"> (you)</span>}</span>
               {busyMaint === m.id && <Loader2 className="h-3.5 w-3.5 animate-spin ml-auto text-muted-foreground" />}
             </label>
           ))}

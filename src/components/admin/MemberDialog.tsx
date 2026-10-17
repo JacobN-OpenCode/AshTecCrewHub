@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveMember, setShowResponse } from '#api';
+import { adminSaveMember, setShowResponse, adminGetMemberBadges, adminSetBadge } from '#api';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
@@ -9,6 +9,7 @@ import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
+import { BADGES } from '../../lib/badges';
 import MemberAvatar from '../MemberAvatar';
 
 type F = Omit<AdminMember, 'id'>;
@@ -17,14 +18,41 @@ const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', ema
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
   const [busy, setBusy] = useState(false);
+  // Ticket 3ead37f8: the badges granted by hand (as opposed to the ones the
+  // predicates compute). Loaded lazily for an existing member.
+  const [manualBadges, setManualBadges] = useState<string[]>([]);
+  const [badgeBusy, setBadgeBusy] = useState('');
+  useEffect(() => {
+    if (!open || !member) { setManualBadges([]); return; }
+    let live = true;
+    adminGetMemberBadges({ memberId: member.id })
+      .then((r) => { if (live) setManualBadges(r.granted); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [open, member]);
+  const toggleBadge = async (badgeId: string, value: boolean) => {
+    if (!member || badgeBusy) return;
+    setBadgeBusy(badgeId);
+    setManualBadges((prev) => (value ? [...prev, badgeId] : prev.filter((b) => b !== badgeId)));
+    try { await adminSetBadge({ memberId: member.id, badgeId, value }); }
+    catch (e) {
+      setManualBadges((prev) => (value ? prev.filter((b) => b !== badgeId) : [...prev, badgeId]));
+      toast.error((e as Error).message);
+    } finally { setBadgeBusy(''); }
+  };
   useEffect(() => { if (open) setF(member ? { ...member } : { ...blank, isPreview: !!preview }); }, [open, member, preview]);
   const set = (p: Partial<F>) => setF((x) => ({ ...x, ...p }));
   const toggle = (k: 'roles' | 'headOf', r: string) => set({ [k]: f[k].includes(r) ? f[k].filter((x) => x !== r) : [...f[k], r] });
   const valid = f.firstName.trim() && (f.isPreview ? !f.email || /^\S+@\S+\.\S+$/.test(f.email) : /^\S+@\S+\.\S+$/.test(f.email));
 
   const save = async () => {
+    // Ticket 76cf803c: catch a mistyped picture link before the save, with the
+    // same wording the server uses, rather than surfacing it as a failed call.
+    const pic = f.avatarUrl.trim();
+    if (pic && !/^https?:\/\//i.test(pic)) { toast.error('The picture must be a link starting with http:// or https://.'); return; }
+    if (pic && /\s/.test(pic)) { toast.error('That picture link has a space in it - check it is one clean URL.'); return; }
     setBusy(true);
-    try { await adminSaveMember({ id: member?.id, ...f }); toast.success('Member saved'); onSaved(); onClose(); }
+    try { await adminSaveMember({ id: member?.id, ...f, avatarUrl: pic }); toast.success('Member saved'); onSaved(); onClose(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -102,6 +130,27 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
                 </div>
               ))}
               <p className="text-xs text-muted-foreground">Individual rehearsal/performance attendance can be set from Manage Events → Attendance.</p>
+            </div>
+          )}
+          {member && (
+            <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+              <p className="text-sm font-medium">Manually granted badges</p>
+              <p className="text-xs text-muted-foreground">
+                Tick a badge to award it by hand, for work the app cannot see (e.g. before the crew hub existed).
+                Badges a member has earned from their record are not shown here and cannot be removed this way.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-1.5">
+                {BADGES.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2 text-sm" title={b.description}>
+                    <Checkbox
+                      checked={manualBadges.includes(b.id)}
+                      disabled={badgeBusy === b.id}
+                      onCheckedChange={(c) => toggleBadge(b.id, !!c)}
+                    />
+                    <span>{b.emoji} {b.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
         </div>

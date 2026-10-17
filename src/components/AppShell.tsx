@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake, Images,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MessagesSquare, MoreHorizontal, BookUser, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
@@ -152,10 +152,12 @@ function Shell() {
   }, [palette, search]);
 
   const groups: NavGroup[] = [];
-  const main: NavItem[] = nonActor
-    ? [{ to: '/', label: isStaffUser ? 'Roster' : 'My Events', icon: isStaffUser ? Users : CalendarCheck }]
-    : [{ to: '/', label: 'Who to Contact', icon: LayoutGrid }];
+  // Ticket 601e9c1d: `/` is the dashboard for everyone. The old per-role landing
+  // pages moved to their own routes: /my-events for students, /team for staff
+  // (and admins), while actors keep the stage board one tap away.
+  const main: NavItem[] = [{ to: '/', label: 'Home', icon: HomeIcon }];
   if (nonActor) {
+    main.push(isStaffUser ? { to: '/team', label: 'The team', icon: Users } : { to: '/my-events', label: 'My Events', icon: CalendarCheck });
     // Ticket f455bb8c: non-staff admins asked for the roster too.
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
     main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
@@ -167,6 +169,10 @@ function Shell() {
     main.push({ to: '/messages', label: 'Messages', icon: MessagesSquare, badge: unreadMessages || undefined });
     main.push({ to: '/skills', label: 'Skills', icon: GraduationCap });
     main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
+  } else {
+    // Actors have a deliberately small world; the dashboard plus the stage board
+    // (their "who to contact") is all they need.
+    main.push({ to: '/stage', label: 'Stage & contacts', icon: LayoutGrid });
   }
   groups.push({ label: 'Main', items: main });
 
@@ -251,7 +257,7 @@ function Shell() {
           avatarUrl: m.avatarUrl || undefined,
           keywords: `${m.username ?? ''} ${m.year ?? ''} ${m.memberType}`,
           hint: m.year ?? undefined,
-          to: me.isAdmin ? `/admin/members?member=${encodeURIComponent(m.id)}` : '/',
+          to: me.isAdmin ? `/admin/members?member=${encodeURIComponent(m.id)}` : '/team',
         });
       }
     }
@@ -273,7 +279,7 @@ function Shell() {
   const shortcuts: Shortcut[] = useMemo(() => {
     const KEY_FOR: Record<string, string> = {
       '/': 'h', '/calendar': 'c', '/schedule': 's', '/attendance': 'a', '/profile': 'p', '/roster': 'r',
-      '/contacts': 'n', '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o',
+      '/contacts': 'n', '/leaderboard': 'l', '/tools': 't', '/stage': 'g', '/admin': 'o', '/team': 'e', '/my-events': 'v',
     };
     const seen = new Set<string>();
     const out: Shortcut[] = [];

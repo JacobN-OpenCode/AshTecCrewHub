@@ -66,6 +66,13 @@ export type AdminGetLogsInputType = NonNullable<_AdminGetLogsCfg['inputSchema']>
 export type AdminGetLogsOutputType = Awaited<ReturnType<_AdminGetLogsCfg['execute']>>;
 export const adminGetLogs = createCaller<AdminGetLogsInputType, AdminGetLogsOutputType>('adminGetLogs');
 
+import type { default as _AdminGetMemberBadgesEp } from '../api/adminGetMemberBadges';
+
+type _AdminGetMemberBadgesCfg = typeof _AdminGetMemberBadgesEp;
+export type AdminGetMemberBadgesInputType = NonNullable<_AdminGetMemberBadgesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetMemberBadgesCfg['execute']>[0]['input'];
+export type AdminGetMemberBadgesOutputType = Awaited<ReturnType<_AdminGetMemberBadgesCfg['execute']>>;
+export const adminGetMemberBadges = createCaller<AdminGetMemberBadgesInputType, AdminGetMemberBadgesOutputType>('adminGetMemberBadges');
+
 import type { default as _AdminGetMemberDetailEp } from '../api/adminGetMemberDetail';
 
 type _AdminGetMemberDetailCfg = typeof _AdminGetMemberDetailEp;
@@ -226,6 +233,13 @@ type _AdminSendReminderCfg = typeof _AdminSendReminderEp;
 export type AdminSendReminderInputType = NonNullable<_AdminSendReminderCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSendReminderCfg['execute']>[0]['input'];
 export type AdminSendReminderOutputType = Awaited<ReturnType<_AdminSendReminderCfg['execute']>>;
 export const adminSendReminder = createCaller<AdminSendReminderInputType, AdminSendReminderOutputType>('adminSendReminder');
+
+import type { default as _AdminSetBadgeEp } from '../api/adminSetBadge';
+
+type _AdminSetBadgeCfg = typeof _AdminSetBadgeEp;
+export type AdminSetBadgeInputType = NonNullable<_AdminSetBadgeCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSetBadgeCfg['execute']>[0]['input'];
+export type AdminSetBadgeOutputType = Awaited<ReturnType<_AdminSetBadgeCfg['execute']>>;
+export const adminSetBadge = createCaller<AdminSetBadgeInputType, AdminSetBadgeOutputType>('adminSetBadge');
 
 import type { default as _AdminSetMaintainerEp } from '../api/adminSetMaintainer';
 
@@ -871,6 +885,7 @@ export const api = {
   adminGetFeedback,
   adminGetLiveShow,
   adminGetLogs,
+  adminGetMemberBadges,
   adminGetMemberDetail,
   adminGetPresence,
   adminGetPresenceHistory,
@@ -894,6 +909,7 @@ export const api = {
   adminSaveSubEvent,
   adminSendMessage,
   adminSendReminder,
+  adminSetBadge,
   adminSetMaintainer,
   adminSetSupportSettings,
   adminUpdateTicket,

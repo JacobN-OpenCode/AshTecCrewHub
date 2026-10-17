@@ -203,7 +203,7 @@ export async function notifyPresenceWaiting(memberName: string, action: string):
 const SERVER_ALERT_WINDOW_MS = 15 * 60 * 1000;
 const recentServerAlerts = new Map<string, number>();
 
-export async function notifyServerError(info: { source: string; message: string; detail?: string }): Promise<void> {
+export async function notifyServerError(info: { source: string; message: string; detail?: string; actorEmail?: string }): Promise<void> {
   const message = String(info.message ?? 'Unknown error').replace(/\s+/g, ' ').trim().slice(0, 200);
   const key = `${info.source}|${message}`.slice(0, 300);
   const now = Date.now();
@@ -211,7 +211,19 @@ export async function notifyServerError(info: { source: string; message: string;
   if (recentServerAlerts.has(key)) return;
   recentServerAlerts.set(key, now);
 
-  const people = (await crew()).filter((m) => mayReceiveAdmin(m) && (m.isMaintainer || m.isAdmin));
+  // Ticket 2373d49e: error alerts go to the maintainers and to the person whose
+  // session hit the error - nobody else. It used to also email every (non-staff)
+  // admin, which put every bug in front of people who could not act on it.
+  const all = await crew();
+  const actor = info.actorEmail
+    ? all.find((m) => (m.schoolEmail ?? '').toLowerCase() === info.actorEmail!.toLowerCase())
+    : undefined;
+  const byId = new Map<string, (typeof all)[number]>();
+  for (const m of all) if (mayReceiveAdmin(m) && m.isMaintainer) byId.set(m.id, m);
+  // The affected person is told even if they are not a maintainer; it is their
+  // error and a push/email is how they know it was us, not them.
+  if (actor) byId.set(actor.id, actor);
+  const people = [...byId.values()];
   if (!people.length) return;
 
   await sendToMembers(people.map((m) => m.id), {
@@ -222,8 +234,9 @@ export async function notifyServerError(info: { source: string; message: string;
   }).catch(() => 0);
 
   const detail = info.detail ? `\n\n> ${String(info.detail).slice(0, 500).split('\n').join('\n> ')}` : '';
+  const actorLine = actor ? `\n\nThis was hit by ${actor.firstName ?? 'a crew member'}${actor.firstName ? ` (${actor.schoolEmail ?? 'no email'})` : ''}.` : '';
   const body = [
-    { type: 'text' as const, content: `**An error occurred in the crew hub.**\n\nWhere: \`${info.source}\`\n\nWhat: ${message}${detail}` },
+    { type: 'text' as const, content: `**An error occurred in the crew hub.**\n\nWhere: \`${info.source}\`\n\nWhat: ${message}${actorLine}${detail}` },
     { type: 'button' as const, label: 'Open the support tab', href: `${process.env.APP_URL ?? ''}/admin/support` },
   ];
   await Promise.all(
