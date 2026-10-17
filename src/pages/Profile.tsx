@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket,
-  saveNotificationPrefs, getNotificationHistory, exportMyData, type GetNotificationHistoryOutputType,
+  saveNotificationPrefs, getNotificationHistory, exportMyData, getSettings, type GetNotificationHistoryOutputType,
 } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
@@ -19,6 +19,7 @@ import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
 import MyBadges from '../components/MyBadges';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
+import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, ACCENTS } from '../lib/uiPrefs';
 import { useSfxMuted, playSfx } from '../lib/sfx';
@@ -43,8 +44,11 @@ export default function Profile() {
   const [birthday, setBirthday] = useState(me.birthday ?? '');
   const [contactShare, setContactShare] = useState(!!me.contactShare);
   const [contactPhone, setContactPhone] = useState(me.contactPhone ?? '');
-  const [skillsTeach, setSkillsTeach] = useState(me.skillsTeach ?? '');
-  const [skillsLearn, setSkillsLearn] = useState(me.skillsLearn ?? '');
+  const [skillsTeach, setSkillsTeach] = useState<string[]>(parseList(me.skillsTeach));
+  const [skillsLearn, setSkillsLearn] = useState<string[]>(parseList(me.skillsLearn));
+  const [privacy, setPrivacy] = useState<Privacy>(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
+  const [skillOptions, setSkillOptions] = useState<string[]>([]);
+  const [skillsEditable, setSkillsEditable] = useState(true);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   // Ticket 171e29fa: upload our own copy instead of requiring a public URL.
@@ -74,8 +78,18 @@ export default function Profile() {
     setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
     setStatusText(me.statusText ?? ''); setStatusEmoji(me.statusEmoji ?? ''); setBirthday(me.birthday ?? '');
     setContactShare(!!me.contactShare); setContactPhone(me.contactPhone ?? '');
-    setSkillsTeach(me.skillsTeach ?? ''); setSkillsLearn(me.skillsLearn ?? '');
+    setSkillsTeach(parseList(me.skillsTeach)); setSkillsLearn(parseList(me.skillsLearn));
+    setPrivacy(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
   }, [me]);
+
+  // The admin-curated skill options, and whether members may edit their own.
+  useEffect(() => {
+    let live = true;
+    getSettings({})
+      .then((s) => { if (live) { setSkillOptions(s.skillOptions ?? []); setSkillsEditable(s.skillsEditable !== false); } })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   const save = async () => {
     // Ticket 76cf803c: check the picture link here so a typo is caught before the
@@ -94,7 +108,7 @@ export default function Profile() {
     try {
       const r = await updateMyProfile({
         avatarUrl: pic, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
-        statusText, statusEmoji, birthday, contactShare, contactPhone, skillsTeach, skillsLearn,
+        statusText, statusEmoji, birthday, contactShare, contactPhone, skillsTeach, skillsLearn, privacy,
       });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
@@ -289,21 +303,48 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Batch 7: the skills directory. Comma-separated free text, tidied up
-            on save; searchable by the rest of the crew. */}
+        {/* Feedback round 2: skills are chosen from the list an admin curates,
+            not typed as free text. */}
         <div className="border-t pt-5 space-y-4">
           <div>
             <h3 className="font-semibold">Skills</h3>
-            <p className="text-sm text-muted-foreground">Comma-separated tags. They show up in the crew <span className="font-medium">Skills</span> directory.</p>
+            <p className="text-sm text-muted-foreground">
+              {skillsEditable || me.isAdmin
+                ? 'Pick from the list. They show on your profile when someone taps your name.'
+                : 'Skills are managed by a crew admin.'}
+            </p>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="skills-teach">Things I can teach</Label>
-            <Input id="skills-teach" value={skillsTeach} onChange={(e) => setSkillsTeach(e.target.value)} placeholder="Lighting desk, Sound mixing, Sewing" />
+          {skillOptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No skills have been set up yet.</p>
+          ) : (
+            <>
+              <SkillPicker label="Things I can teach" options={skillOptions} value={skillsTeach} onChange={setSkillsTeach} disabled={!skillsEditable && !me.isAdmin} />
+              <SkillPicker label="Things I want to learn" options={skillOptions} value={skillsLearn} onChange={setSkillsLearn} disabled={!skillsEditable && !me.isAdmin} />
+            </>
+          )}
+        </div>
+
+        {/* Feedback round 2: privacy. Hide your picture, email or skills from
+            the whole crew, or from admins only. Admins always see everything. */}
+        <div className="border-t pt-5 space-y-4">
+          <div>
+            <h3 className="font-semibold">Privacy</h3>
+            <p className="text-sm text-muted-foreground">Choose who can see each part of your profile. Admins can always see everything.</p>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="skills-learn">Things I want to learn</Label>
-            <Input id="skills-learn" value={skillsLearn} onChange={(e) => setSkillsLearn(e.target.value)} placeholder="Stage management, Rigging" />
-          </div>
+          {(['avatar', 'email', 'skills'] as const).map((field) => (
+            <div key={field} className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor={`privacy-${field}`}>{field === 'avatar' ? 'Profile picture' : field === 'email' ? 'Email address' : 'Skills'}</Label>
+              <Select value={privacy[field]} onValueChange={(v) => setPrivacy((p) => ({ ...p, [field]: v as PrivacyLevel }))}>
+                <SelectTrigger id={`privacy-${field}`} className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['crew', 'admins', 'none'] as PrivacyLevel[]).map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>{PRIVACY_LABEL[lvl]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">Hiding your email never stops you signing in or receiving important mail.</p>
         </div>
 
         {/* Ticket 2ffb3a6d: admins assign their own roles, so they never see the
@@ -1322,6 +1363,51 @@ function YourTickets() {
           {expanded ? 'Show fewer' : `Show all ${shown.length} tickets`}
         </Button>
       )}
+    </div>
+  );
+}
+
+/**
+ * A chip picker for a controlled list (feedback round 2). Clicking a chip
+ * toggles it; the chosen ones are sent as an array and the server keeps only
+ * real options.
+ */
+function SkillPicker({ label, options, value, onChange, disabled }: {
+  label: string;
+  options: string[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  const chosen = new Set(value.map((v) => v.toLowerCase()));
+  const toggle = (opt: string) => {
+    const has = chosen.has(opt.toLowerCase());
+    onChange(has ? value.filter((v) => v.toLowerCase() !== opt.toLowerCase()) : [...value, opt]);
+  };
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const on = chosen.has(opt.toLowerCase());
+          return (
+            <button
+              key={opt}
+              type="button"
+              disabled={disabled}
+              onClick={() => toggle(opt)}
+              aria-pressed={on}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                on ? 'border-primary bg-primary/15 text-primary' : 'bg-card hover:bg-muted/60',
+              )}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {disabled && <p className="text-xs text-muted-foreground">An admin manages these.</p>}
     </div>
   );
 }

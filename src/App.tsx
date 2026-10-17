@@ -36,7 +36,6 @@ import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
 import Leaderboard from './pages/Leaderboard';
 import Announcements from './pages/Announcements';
-import Skills from './pages/Skills';
 import Mascot from './pages/Mascot';
 import Memories from './pages/Memories';
 import OpenCode from './pages/OpenCode';
@@ -126,9 +125,8 @@ function SignedIn() {
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
-          {/* Batch 7: crew announcements and the skills directory. */}
+          {/* Batch 7: crew announcements. */}
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/skills" element={<Skills />} />
           {/* Batch 8: the mascot and the show memories wall. */}
           <Route path="/mascot" element={<Mascot />} />
           <Route path="/memories" element={<Memories />} />

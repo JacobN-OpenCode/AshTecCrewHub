@@ -3,6 +3,8 @@ import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireMember } from '../lib/server';
 import { YEARS, ROLES } from '../lib/constants';
+import { parsePrivacy, onlyKnownSkills } from '../lib/settings';
+import { readAppSettings } from './getSettings';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,17 +13,15 @@ const parseAlternates = (raw: string | null | undefined) =>
   (raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
 /**
- * Skills directory (Batch 7): the member's own teach/learn tags, held as a
- * comma-separated string. Normalised to a tidy, de-duplicated, length-capped
- * list so the directory search stays predictable.
+ * Skills are a controlled list now (feedback round 2): the member picks from the
+ * options an admin curates, so we keep only the values that are still real
+ * options, tidied and de-duplicated.
  */
-const parseTags = (raw: string) =>
-  [...new Set(
-    raw
-      .split(',')
-      .map((s) => s.trim().replace(/\s+/g, ' ').slice(0, 40))
-      .filter(Boolean),
-  )].slice(0, 20).join(', ');
+const parseTags = (raw: string[], options: string[]) =>
+  onlyKnownSkills(
+    [...new Set(raw.map((s) => s.trim().replace(/\s+/g, ' ')).filter(Boolean))],
+    options,
+  ).slice(0, 20).join(', ');
 
 export default createEndpoint({
   description: 'Lets a member edit their own name, year, school email and preferred roles. Nothing else.',
@@ -43,9 +43,17 @@ export default createEndpoint({
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
     contactPhone: z.string().max(20).optional(),
-    // Skills directory: what I can teach, and what I want to learn.
-    skillsTeach: z.string().max(1000).optional(),
-    skillsLearn: z.string().max(1000).optional(),
+    // Skills: the member picks from the admin-curated options, so these are
+    // lists of chosen labels, not free text.
+    skillsTeach: z.array(z.string()).max(40).optional(),
+    skillsLearn: z.array(z.string()).max(40).optional(),
+    // Privacy (feedback round 2): what this member hides, and from whom.
+    privacy: z.object({
+      avatar: z.enum(['crew', 'admins', 'none']).optional(),
+      email: z.enum(['crew', 'admins', 'none']).optional(),
+      skills: z.enum(['crew', 'admins', 'none']).optional(),
+      blocked: z.array(z.string()).max(200).optional(),
+    }).optional(),
   }),
   outputSchema: z.object({ success: z.boolean(), emailChanged: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -97,8 +105,32 @@ export default createEndpoint({
     }
     if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
     if (input.contactPhone !== undefined) record.contactPhone = input.contactPhone.trim().slice(0, 20);
-    if (input.skillsTeach !== undefined) record.skillsTeach = parseTags(input.skillsTeach);
-    if (input.skillsLearn !== undefined) record.skillsLearn = parseTags(input.skillsLearn);
+
+    // Skills are admin-curated now. If an admin has turned member editing off,
+    // only an admin may change them; otherwise keep the chosen labels that are
+    // still real options.
+    if (input.skillsTeach !== undefined || input.skillsLearn !== undefined) {
+      const settings = await readAppSettings();
+      if (!settings.skillsEditable && !me.isAdmin) {
+        throw new ZiteError({ code: 'FORBIDDEN', message: 'Skills are managed by a crew admin.' });
+      }
+      if (input.skillsTeach !== undefined) record.skillsTeach = parseTags(input.skillsTeach, settings.skillOptions);
+      if (input.skillsLearn !== undefined) record.skillsLearn = parseTags(input.skillsLearn, settings.skillOptions);
+    }
+
+    if (input.privacy !== undefined) {
+      // Merge over the stored blob so a partial update never wipes the rest.
+      const current = parsePrivacy((me as unknown as { privacy?: unknown }).privacy);
+      const next = parsePrivacy({
+        avatar: input.privacy.avatar ?? current.avatar,
+        email: input.privacy.email ?? current.email,
+        skills: input.privacy.skills ?? current.skills,
+        blocked: input.privacy.blocked ?? current.blocked,
+      });
+      // Nobody can hide from themselves; drop the caller's own id from the list.
+      next.blocked = next.blocked.filter((id) => id !== me.id);
+      record.privacy = JSON.stringify(next);
+    }
 
     let emailChanged = false;
     if (input.schoolEmail !== undefined) {

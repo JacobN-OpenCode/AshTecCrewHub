@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getLeaderboard, type GetLeaderboardOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import MemberAvatar from '../components/MemberAvatar';
+import MemberProfileCard from '../components/MemberProfileCard';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { Trophy } from 'lucide-react';
@@ -15,6 +16,7 @@ export default function Leaderboard() {
   const { me } = useMe();
   const [data, setData] = useState<GetLeaderboardOutputType | null>(null);
   const [tab, setTab] = useState<'hours' | 'badges'>('hours');
+  const [personId, setPersonId] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -58,11 +60,11 @@ export default function Leaderboard() {
               {top.map((r, i) => (
                 <div key={r.id} className={cn('rounded-2xl border bg-card p-5 text-center', i === 0 && 'border-amber-400/40')}>
                   <div className="text-3xl">{MEDALS[i]}</div>
-                  <div className="mt-2 flex flex-col items-center gap-1.5">
+                  <button type="button" onClick={() => setPersonId(r.id)} className="mt-2 flex w-full flex-col items-center gap-1.5 rounded-xl p-1 hover:bg-muted/50" title="View profile">
                     <MemberAvatar url={r.avatarUrl} firstName={r.firstName} lastName={r.lastName} size="lg" />
                     <span className="font-semibold">{r.firstName}{r.lastName ? ' ' + r.lastName : ''}</span>
                     <span className="text-sm text-muted-foreground">{r.year}</span>
-                  </div>
+                  </button>
                   <div className="mt-3 text-2xl font-bold">{r.hours}h</div>
                   <div className="text-xs text-muted-foreground">{r.events} event{r.events === 1 ? '' : 's'}</div>
                 </div>
@@ -86,12 +88,17 @@ export default function Leaderboard() {
                     <tr key={r.id} className={cn('border-b last:border-0', r.id === me.id && 'bg-primary/5')}>
                       <td className="px-3 py-2 text-muted-foreground">{r.rank <= 3 ? MEDALS[r.rank - 1] : r.rank}</td>
                       <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPersonId(r.id)}
+                          className="flex items-center gap-2 rounded-lg px-1 -mx-1 text-left hover:bg-muted/60"
+                          title="View profile"
+                        >
                           <MemberAvatar url={r.avatarUrl} firstName={r.firstName} lastName={r.lastName} size="sm" />
                           <span className="font-medium">{r.firstName}{r.lastName ? ' ' + r.lastName : ''}</span>
                           {r.id === me.id && <span className="text-xs text-primary">you</span>}
                           {r.year && <span className="text-xs text-muted-foreground">{r.year}</span>}
-                        </div>
+                        </button>
                       </td>
                       <td className="px-3 py-2 text-right font-semibold">{r.hours}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">{r.events}</td>
@@ -141,6 +148,8 @@ export default function Leaderboard() {
           </div>
         </>
       )}
+
+      <MemberProfileCard memberId={personId} onClose={() => setPersonId(null)} />
     </div>
   );
 }

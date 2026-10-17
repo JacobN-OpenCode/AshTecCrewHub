@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Working through the big /feedback/2 response: take out what should not be here, lock down the show workspaces, and make the whole hub feel like one system.',
   /** What is being touched right now. */
-  now: 'Batch 1 is shipped (the removals, the hidden-when-idle tabs and the email discipline). Next: people profiles, so clicking a crew member shows their info and Skills moves onto them.',
+  now: 'Batch 2 is shipped (click-a-person profiles, controlled skills and privacy). Next: the admin settings hub, per-person permissions, and the show workspace lockdown.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -62,22 +62,28 @@ export const OPENCODE_STATUS = {
         'Error alerts now email maintainers only. Staff are never emailed unless they are a maintainer — signing in is the only mail a teacher gets. This is a student-led department.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'People, not tabs',
       detail:
-        'Click a crew member anywhere to see their profile. Skills become a controlled dropdown an admin curates, not a free-text comma list, and the Skills tab goes.',
+        'Click a crew member on the team roster or the leaderboard to see their card. Skills are now a controlled list an admin curates, not free text, and the Skills tab is gone — skills live on the person.',
     },
     {
-      state: 'queued',
+      state: 'done',
+      title: 'Privacy controls',
+      detail:
+        'In Settings, a member chooses who sees their picture, email and skills: everyone, admins only, or only me. Admins are never restricted and a member always sees their own record.',
+    },
+    {
+      state: 'active',
       title: 'Show Workspace read-only for normal crew',
       detail:
         'Normal members can look but not edit the show workspaces. Admins can grant extra permissions per person, or take the normal ones away.',
     },
     {
       state: 'queued',
-      title: 'Privacy controls',
+      title: 'ATCMS settings hub',
       detail:
-        'Members can hide their picture, email or skills from normal members, or from named people. Admins are never hidden from.',
+        'The admin area becomes a real settings hub: cat name, feedback form creation, the skill list, and the rest of the knobs in one place.',
     },
     {
       state: 'queued',
@@ -90,12 +96,6 @@ export const OPENCODE_STATUS = {
       title: 'Profile fixes',
       detail:
         'Picture, initials, surname and year all editable again, including moving up more than one year or down.',
-    },
-    {
-      state: 'queued',
-      title: 'ATCMS settings',
-      detail:
-        'The admin area becomes a real settings hub: cat name, feedback form creation, and the rest of the knobs in one place.',
     },
     {
       state: 'queued',
@@ -118,6 +118,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Feedback round 2, batch 2: click-a-person profiles, controlled skills, privacy controls',
     'Feedback round 2, batch 1: Contacts and direct messages removed, idle tabs hidden, email discipline',
     'Multi-page public website (Home, Productions, About, Join, Sign in)',
     'One dashboard per show, and High School Musical filled in',

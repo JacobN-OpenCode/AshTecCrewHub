@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake, Home as HomeIcon, Images,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
@@ -169,7 +169,6 @@ function Shell() {
     main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
     // Batch 7: crew announcements.
     main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
-    main.push({ to: '/skills', label: 'Skills', icon: GraduationCap });
     main.push({ to: '/leaderboard', label: 'Leaderboard', icon: Trophy });
   } else {
     // Actors have a deliberately small world; the dashboard plus the stage board

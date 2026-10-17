@@ -206,6 +206,13 @@ export type AdminSaveMemberInputType = NonNullable<_AdminSaveMemberCfg['inputSch
 export type AdminSaveMemberOutputType = Awaited<ReturnType<_AdminSaveMemberCfg['execute']>>;
 export const adminSaveMember = createCaller<AdminSaveMemberInputType, AdminSaveMemberOutputType>('adminSaveMember');
 
+import type { default as _AdminSaveSettingsEp } from '../api/adminSaveSettings';
+
+type _AdminSaveSettingsCfg = typeof _AdminSaveSettingsEp;
+export type AdminSaveSettingsInputType = NonNullable<_AdminSaveSettingsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSaveSettingsCfg['execute']>[0]['input'];
+export type AdminSaveSettingsOutputType = Awaited<ReturnType<_AdminSaveSettingsCfg['execute']>>;
+export const adminSaveSettings = createCaller<AdminSaveSettingsInputType, AdminSaveSettingsOutputType>('adminSaveSettings');
+
 import type { default as _AdminSaveShowEp } from '../api/adminSaveShow';
 
 type _AdminSaveShowCfg = typeof _AdminSaveShowEp;
@@ -381,6 +388,13 @@ export type GetMeInputType = NonNullable<_GetMeCfg['inputSchema']> extends { _in
 export type GetMeOutputType = Awaited<ReturnType<_GetMeCfg['execute']>>;
 export const getMe = createCaller<GetMeInputType, GetMeOutputType>('getMe');
 
+import type { default as _GetMemberProfileEp } from '../api/getMemberProfile';
+
+type _GetMemberProfileCfg = typeof _GetMemberProfileEp;
+export type GetMemberProfileInputType = NonNullable<_GetMemberProfileCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMemberProfileCfg['execute']>[0]['input'];
+export type GetMemberProfileOutputType = Awaited<ReturnType<_GetMemberProfileCfg['execute']>>;
+export const getMemberProfile = createCaller<GetMemberProfileInputType, GetMemberProfileOutputType>('getMemberProfile');
+
 import type { default as _GetMemoriesEp } from '../api/getMemories';
 
 type _GetMemoriesCfg = typeof _GetMemoriesEp;
@@ -458,6 +472,13 @@ export type GetScheduleInputType = NonNullable<_GetScheduleCfg['inputSchema']> e
 export type GetScheduleOutputType = Awaited<ReturnType<_GetScheduleCfg['execute']>>;
 export const getSchedule = createCaller<GetScheduleInputType, GetScheduleOutputType>('getSchedule');
 
+import type { default as _GetSettingsEp } from '../api/getSettings';
+
+type _GetSettingsCfg = typeof _GetSettingsEp;
+export type GetSettingsInputType = NonNullable<_GetSettingsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetSettingsCfg['execute']>[0]['input'];
+export type GetSettingsOutputType = Awaited<ReturnType<_GetSettingsCfg['execute']>>;
+export const getSettings = createCaller<GetSettingsInputType, GetSettingsOutputType>('getSettings');
+
 import type { default as _GetShowMediaEp } from '../api/getShowMedia';
 
 type _GetShowMediaCfg = typeof _GetShowMediaEp;
@@ -471,13 +492,6 @@ type _GetShowWorkspaceCfg = typeof _GetShowWorkspaceEp;
 export type GetShowWorkspaceInputType = NonNullable<_GetShowWorkspaceCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetShowWorkspaceCfg['execute']>[0]['input'];
 export type GetShowWorkspaceOutputType = Awaited<ReturnType<_GetShowWorkspaceCfg['execute']>>;
 export const getShowWorkspace = createCaller<GetShowWorkspaceInputType, GetShowWorkspaceOutputType>('getShowWorkspace');
-
-import type { default as _GetSkillsDirectoryEp } from '../api/getSkillsDirectory';
-
-type _GetSkillsDirectoryCfg = typeof _GetSkillsDirectoryEp;
-export type GetSkillsDirectoryInputType = NonNullable<_GetSkillsDirectoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetSkillsDirectoryCfg['execute']>[0]['input'];
-export type GetSkillsDirectoryOutputType = Awaited<ReturnType<_GetSkillsDirectoryCfg['execute']>>;
-export const getSkillsDirectory = createCaller<GetSkillsDirectoryInputType, GetSkillsDirectoryOutputType>('getSkillsDirectory');
 
 import type { default as _GetStaffHomeEp } from '../api/getStaffHome';
 
@@ -870,6 +884,7 @@ export const api = {
   adminSaveLiveShow,
   adminSaveLiveShowScenes,
   adminSaveMember,
+  adminSaveSettings,
   adminSaveShow,
   adminSaveSubEvent,
   adminSendMessage,
@@ -895,6 +910,7 @@ export const api = {
   getLiveShowAdmins,
   getLiveShowState,
   getMe,
+  getMemberProfile,
   getMemories,
   getMyCatLoginStatus,
   getMyEvents,
@@ -906,9 +922,9 @@ export const api = {
   getPushConfig,
   getRehearsalOrder,
   getSchedule,
+  getSettings,
   getShowMedia,
   getShowWorkspace,
-  getSkillsDirectory,
   getStaffHome,
   getStageLayout,
   globalSearch,

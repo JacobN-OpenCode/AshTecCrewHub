@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
+import MemberProfileCard from '../components/MemberProfileCard';
 import UpcomingBirthdays from '../components/UpcomingBirthdays';
 import { pv } from '../lib/preview';
 import { fmtDate } from '../lib/constants';
@@ -70,6 +71,9 @@ export default function StaffHub() {
   }, [data, q]);
 
   const events = data?.upcoming ?? [];
+
+  // Feedback round 2: click a crew member to see their profile card.
+  const [personId, setPersonId] = useState<string | null>(null);
 
   // Ticket 38991edd: student id -> name for the register history chips.
   const nameOf = useMemo(
@@ -163,12 +167,17 @@ export default function StaffHub() {
               {rows.map(({ student, byEvent }) => (
                 <tr key={student.id} className="border-b last:border-0">
                   <td className="sticky left-0 bg-background px-3 py-1.5 whitespace-nowrap z-10">
-                    <span className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPersonId(student.id)}
+                      className="flex items-center gap-2 rounded-lg px-1 -mx-1 text-left hover:bg-muted/60"
+                      title="View profile"
+                    >
                       <MemberAvatar url={student.avatarUrl} firstName={student.firstName} lastName={student.lastName} size="sm" />
                       <span className="font-medium">{student.firstName}{student.lastName ? ' ' + student.lastName : ''}</span>
                       {student.statusEmoji && <span title={student.statusText || undefined}>{student.statusEmoji}</span>}
                       {student.year && <span className="text-xs text-muted-foreground">{student.year}</span>}
-                    </span>
+                    </button>
                   </td>
                   {events.slice(0, 12).map((e) => {
                     const cell = byEvent.get(e.id);
@@ -215,6 +224,8 @@ export default function StaffHub() {
       </div>
       </>
       )}
+
+      <MemberProfileCard memberId={personId} onClose={() => setPersonId(null)} />
     </div>
   );
 }

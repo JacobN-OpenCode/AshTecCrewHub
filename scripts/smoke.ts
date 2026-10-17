@@ -862,22 +862,32 @@ if (!admin) {
         check('admin deletes the announcement', del.status === 200, JSON.stringify(del.body).slice(0, 120));
       }
 
-      // Skills directory: save, de-duplicate, list, then reset.
-      const skills = await callAs(crewJar, 'getSkillsDirectory', {});
-      check('getSkillsDirectory returns people and tags',
-        skills.status === 200 && Array.isArray(skills.body?.people) && Array.isArray(skills.body?.tags),
-        JSON.stringify(skills.body).slice(0, 120));
+      // Skills are a controlled list now (feedback round 2), and the profile
+      // card is how you see someone's.
+      const settings0 = await call('getSettings', {});
+      check('getSettings returns the skill options',
+        settings0.status === 200 && Array.isArray(settings0.body?.skillOptions) && settings0.body.skillOptions.length > 0,
+        JSON.stringify(settings0.body).slice(0, 120));
 
-      const savedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: 'Lighting, Sound , Lighting', skillsLearn: 'Rigging' });
-      check('crew saves skills', savedSkills.status === 200, JSON.stringify(savedSkills.body).slice(0, 120));
+      const savedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: ['Lighting', 'Sound', 'Not A Real Skill'], skillsLearn: ['Rigging'] });
+      check('crew saves skills from the curated list', savedSkills.status === 200, JSON.stringify(savedSkills.body).slice(0, 120));
 
-      const skillsAfter = await callAs(crewJar, 'getSkillsDirectory', {});
-      const meRow = skillsAfter.body?.people?.find?.((p: any) => p.id === crew.id);
-      check('the skills directory lists the crew member with de-duplicated tags',
-        !!meRow && Array.isArray(meRow.teach) && meRow.teach.length === 2 && meRow.teach.includes('Lighting') && meRow.teach.includes('Sound'),
-        JSON.stringify(meRow));
+      const meCard = await call('getMemberProfile', { memberId: crew.id });
+      check('getMemberProfile shows the crew member', meCard.status === 200 && meCard.body?.member?.id === crew.id, JSON.stringify(meCard.body).slice(0, 120));
+      check('skills keep only real options',
+        Array.isArray(meCard.body?.member?.skillsTeach) && meCard.body.member.skillsTeach.length === 2
+          && meCard.body.member.skillsTeach.includes('Lighting') && !meCard.body.member.skillsTeach.includes('Not A Real Skill'),
+        JSON.stringify(meCard.body?.member?.skillsTeach));
 
-      await callAs(crewJar, 'updateMyProfile', { skillsTeach: '', skillsLearn: '' });
+      // Privacy: hide the crew member's email from the crew, then confirm the
+      // admin still sees it and the member still sees their own.
+      await callAs(crewJar, 'updateMyProfile', { privacy: { email: 'admins' } });
+      const selfCard = await callAs(crewJar, 'getMemberProfile', { memberId: crew.id });
+      check('a member always sees their own record', (selfCard.body?.member?.email ?? '') !== '', JSON.stringify(selfCard.body?.hidden));
+      const adminSeesHidden = await call('getMemberProfile', { memberId: crew.id });
+      check('an admin always sees a hidden email', (adminSeesHidden.body?.member?.email ?? '') !== '', JSON.stringify(adminSeesHidden.body?.hidden));
+
+      await callAs(crewJar, 'updateMyProfile', { skillsTeach: [], skillsLearn: [], privacy: { email: 'crew' } });
 
       // ---------------------------------------------- the fun ones (Batch 8)
       // Show memories gathers photos and debrief lines per show.
