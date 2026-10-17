@@ -87,7 +87,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <main>{children}</main>
 
       <footer className="mt-24 border-t px-4 py-12">
-        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-3 sm:col-span-2">
             <PublicBrand />
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -116,6 +116,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link to="/calendar" className="block text-muted-foreground hover:text-foreground">Public calendar</Link>
             <Link to="/join" className="block text-muted-foreground hover:text-foreground">How to join</Link>
             <Link to="/signin" className="block text-muted-foreground hover:text-foreground">Crew sign in</Link>
+          </div>
+          <div className="space-y-2 text-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Apps</h3>
+            <Link to="/apps" className="block text-muted-foreground hover:text-foreground">Get the crew apps</Link>
+            <Link to="/apps" className="block text-muted-foreground hover:text-foreground">Wear OS</Link>
+            <Link to="/apps" className="block text-muted-foreground hover:text-foreground">macOS</Link>
           </div>
         </div>
         <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t pt-6 text-sm text-muted-foreground">

@@ -11,6 +11,7 @@ import PublicProductions from './pages/public/Productions';
 import PublicAbout from './pages/public/About';
 import PublicJoin from './pages/public/Join';
 import PublicSignIn from './pages/public/SignIn';
+import PublicApps from './pages/public/Apps';
 import Home from './pages/Home';
 import PublicCalendar from './pages/PublicCalendar';
 import PublicParents from './pages/PublicParents';
@@ -104,6 +105,7 @@ function SignedIn() {
         {/* Feedback invitations are their own full-screen page, reachable whether or not you are signed in. */}
         <Route path="/feedback/:formId" element={<Feedback />} />
       <Route path="/opencode" element={<OpenCode />} />
+      <Route path="/apps" element={<PublicApps />} />
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
         <Route element={<AppShell />}>
@@ -171,6 +173,7 @@ function SignedOut() {
       <Route path="/about" element={<PublicAbout />} />
       <Route path="/join" element={<PublicJoin />} />
       <Route path="/signin" element={<PublicSignIn />} />
+      <Route path="/apps" element={<PublicApps />} />
       <Route path="/calendar" element={<PublicCalendar />} />
       <Route path="/parents" element={<PublicParents />} />
       {/* A phone camera can open an approval link before the admin is signed in. */}

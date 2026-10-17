@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Builds AshTec.app from the Swift package and drops a downloadable zip into
-# public/apps/. Needs only the Command Line Tools (no Xcode, no paid account).
+# public/downloads/. Needs only the Command Line Tools (no Xcode, no paid account).
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
-out="$root/public/apps"
+out="$root/public/downloads"
 app="$here/dist/AshTec.app"
 bin="$here/.build/release/AshTec"
 
@@ -64,5 +64,5 @@ mkdir -p "$out"
 rm -f "$out/AshTec-macOS.zip"
 ( cd "$here/dist" && zip -qry "$out/AshTec-macOS.zip" "AshTec.app" )
 
-echo "==> Done: public/apps/AshTec-macOS.zip"
+echo "==> Done: public/downloads/AshTec-macOS.zip"
 ls -lh "$out/AshTec-macOS.zip"
