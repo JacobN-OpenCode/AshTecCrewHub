@@ -39,9 +39,9 @@ export const OPENCODE_STATUS = {
     },
     {
       state: 'done',
-      title: 'Leaderboard removed',
+      title: 'Leaderboard and badges removed',
       detail:
-        'The crew hours leaderboard is gone: page, nav, route and endpoint. Badges stay, served by a new getMyBadges endpoint without any ranking.',
+        'The crew hours leaderboard is gone (page, nav, route, endpoint), and so are badges — the catalogue, the badge wall, the manual grants in the member editor and the Badges feature switch. Nothing ranks crew against each other any more.',
     },
     {
       state: 'done',
@@ -112,6 +112,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Badges removed (with the leaderboard), settings expanded',
     'Round 2: cards/lists everywhere, ATCMS settings expanded, leaderboard removed',
     'Feedback round 2, batch 4: ATCMS settings hub, signed-in devices, smart timings, profile fixes',
     'Feedback round 2, batch 3: show workspaces locked down, per-person permissions',

@@ -57,7 +57,7 @@ export type AppSettings = {
 
 /** The switches that turn whole parts of the app on or off. */
 export const FEATURE_KEYS = [
-  'schedule', 'announcements', 'memories', 'mascot', 'tools', 'parents', 'liveShow', 'badges', 'checkIn',
+  'schedule', 'announcements', 'memories', 'mascot', 'tools', 'parents', 'liveShow', 'checkIn',
 ] as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 
@@ -69,7 +69,6 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   tools: 'Tools',
   parents: 'For parents',
   liveShow: 'Live show',
-  badges: 'Badges',
   checkIn: 'Check-in',
 };
 
@@ -83,7 +82,6 @@ export const DEFAULT_FEATURES: Features = {
   tools: true,
   parents: true,
   liveShow: true,
-  badges: true,
   checkIn: true,
 };
 

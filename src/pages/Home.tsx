@@ -7,7 +7,6 @@ import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { pv } from '../lib/preview';
 import { pendingForms } from '../lib/reminders';
-import MyBadges from '../components/MyBadges';
 import {
   Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
   Radio, Rocket, Sparkles, Ticket, Users, Wrench,
@@ -318,8 +317,6 @@ export default function Home() {
           </section>
         )}
       </div>
-
-      <MyBadges />
 
       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
         <Rocket className="h-3.5 w-3.5" />The crew hub is looked after by the crew. See something wrong? Use the “?” button.

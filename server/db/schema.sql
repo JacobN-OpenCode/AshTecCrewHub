@@ -934,23 +934,9 @@ ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "pinned" boolean NOT NULL 
 CREATE INDEX IF NOT EXISTS "SupportTickets_pinned_idx" ON "SupportTickets" ("pinned") WHERE "pinned";
 
 -- ---------------------------------------------------------------------------
--- Manual badge grants (ticket 3ead37f8). Most badges are still derived from the
--- member's stats by a predicate (src/lib/badges.ts), but a few crews want to
--- recognise work that predates the app ("for previous events before ATCMS
--- existed"). A row here grants one badge to one member regardless of the
--- predicate; the id is the badge id from BADGES, validated in the endpoint.
+-- Badges were removed in feedback round 2. The "MemberBadges" table is no
+-- longer created; on a database that already has it, it is simply left unused.
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS "MemberBadges" (
-  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "member"    uuid NOT NULL,
-  "badgeId"   text NOT NULL,
-  "note"      text NOT NULL DEFAULT '',
-  "awardedBy" uuid,
-  "createdAt" timestamptz NOT NULL DEFAULT now(),
-  "updatedAt" timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS "MemberBadges_member_idx" ON "MemberBadges" ("member");
-CREATE UNIQUE INDEX IF NOT EXISTS "MemberBadges_member_badge_idx" ON "MemberBadges" ("member", "badgeId");
 
 -- ---------------------------------------------------------------------------
 -- Feedback round 2: privacy controls, skill options and app settings.

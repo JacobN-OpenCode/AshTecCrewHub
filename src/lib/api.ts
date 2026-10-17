@@ -66,13 +66,6 @@ export type AdminGetLogsInputType = NonNullable<_AdminGetLogsCfg['inputSchema']>
 export type AdminGetLogsOutputType = Awaited<ReturnType<_AdminGetLogsCfg['execute']>>;
 export const adminGetLogs = createCaller<AdminGetLogsInputType, AdminGetLogsOutputType>('adminGetLogs');
 
-import type { default as _AdminGetMemberBadgesEp } from '../api/adminGetMemberBadges';
-
-type _AdminGetMemberBadgesCfg = typeof _AdminGetMemberBadgesEp;
-export type AdminGetMemberBadgesInputType = NonNullable<_AdminGetMemberBadgesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetMemberBadgesCfg['execute']>[0]['input'];
-export type AdminGetMemberBadgesOutputType = Awaited<ReturnType<_AdminGetMemberBadgesCfg['execute']>>;
-export const adminGetMemberBadges = createCaller<AdminGetMemberBadgesInputType, AdminGetMemberBadgesOutputType>('adminGetMemberBadges');
-
 import type { default as _AdminGetMemberDetailEp } from '../api/adminGetMemberDetail';
 
 type _AdminGetMemberDetailCfg = typeof _AdminGetMemberDetailEp;
@@ -248,13 +241,6 @@ export type AdminSendReminderInputType = NonNullable<_AdminSendReminderCfg['inpu
 export type AdminSendReminderOutputType = Awaited<ReturnType<_AdminSendReminderCfg['execute']>>;
 export const adminSendReminder = createCaller<AdminSendReminderInputType, AdminSendReminderOutputType>('adminSendReminder');
 
-import type { default as _AdminSetBadgeEp } from '../api/adminSetBadge';
-
-type _AdminSetBadgeCfg = typeof _AdminSetBadgeEp;
-export type AdminSetBadgeInputType = NonNullable<_AdminSetBadgeCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminSetBadgeCfg['execute']>[0]['input'];
-export type AdminSetBadgeOutputType = Awaited<ReturnType<_AdminSetBadgeCfg['execute']>>;
-export const adminSetBadge = createCaller<AdminSetBadgeInputType, AdminSetBadgeOutputType>('adminSetBadge');
-
 import type { default as _AdminSetMaintainerEp } from '../api/adminSetMaintainer';
 
 type _AdminSetMaintainerCfg = typeof _AdminSetMaintainerEp;
@@ -401,13 +387,6 @@ type _GetMemoriesCfg = typeof _GetMemoriesEp;
 export type GetMemoriesInputType = NonNullable<_GetMemoriesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMemoriesCfg['execute']>[0]['input'];
 export type GetMemoriesOutputType = Awaited<ReturnType<_GetMemoriesCfg['execute']>>;
 export const getMemories = createCaller<GetMemoriesInputType, GetMemoriesOutputType>('getMemories');
-
-import type { default as _GetMyBadgesEp } from '../api/getMyBadges';
-
-type _GetMyBadgesCfg = typeof _GetMyBadgesEp;
-export type GetMyBadgesInputType = NonNullable<_GetMyBadgesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMyBadgesCfg['execute']>[0]['input'];
-export type GetMyBadgesOutputType = Awaited<ReturnType<_GetMyBadgesCfg['execute']>>;
-export const getMyBadges = createCaller<GetMyBadgesInputType, GetMyBadgesOutputType>('getMyBadges');
 
 import type { default as _GetMyCatLoginStatusEp } from '../api/getMyCatLoginStatus';
 
@@ -885,7 +864,6 @@ export const api = {
   adminGetFeedback,
   adminGetLiveShow,
   adminGetLogs,
-  adminGetMemberBadges,
   adminGetMemberDetail,
   adminGetPresence,
   adminGetPresenceHistory,
@@ -911,7 +889,6 @@ export const api = {
   adminSaveSubEvent,
   adminSendMessage,
   adminSendReminder,
-  adminSetBadge,
   adminSetMaintainer,
   adminSetSupportSettings,
   adminUpdateTicket,
@@ -933,7 +910,6 @@ export const api = {
   getMe,
   getMemberProfile,
   getMemories,
-  getMyBadges,
   getMyCatLoginStatus,
   getMyEvents,
   getMyFeedback,

@@ -19,7 +19,6 @@ import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
-import MyBadges from '../components/MyBadges';
 import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
@@ -421,8 +420,6 @@ export default function Profile() {
         </div>
 
         <div className="min-w-0 space-y-6">
-          <MyBadges />
-
           <Preferences />
 
           <AccessibilitySettings />
