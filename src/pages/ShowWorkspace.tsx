@@ -101,6 +101,11 @@ export default function ShowWorkspace() {
             {ws.techLocked && <Badge className="bg-amber-500 text-black gap-1"><Lock className="h-3 w-3" />Tech locked</Badge>}
           </h1>
           {ws.show.description && <p className="text-muted-foreground mt-1 max-w-2xl">{ws.show.description}</p>}
+          {!ws.canEdit && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" /> Read-only. Ask an admin if you need to edit this show.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
             {done}/{ws.checklist.length} checklist · {ws.cues.length} cues · {ws.props.length} props · {ws.scenes.length} scenes
             {openCovers > 0 && <> · <span className="text-amber-500">{openCovers} cover needed</span></>}
@@ -178,18 +183,20 @@ function Checklist({ ws, act }: { ws: Ws; act: ActFn }) {
 
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add an item (e.g. charge radio mics)" className="max-w-sm" />
-        <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-32" />
-        <Button disabled={!label.trim()} onClick={() => act(async () => { await saveChecklistItem({ showId: ws.show.id, label, category }); setLabel(''); }, 'Added')}><Plus className="h-4 w-4 mr-1" />Add</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Add an item (e.g. charge radio mics)" className="max-w-sm" />
+          <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="w-32" />
+          <Button disabled={!label.trim()} onClick={() => act(async () => { await saveChecklistItem({ showId: ws.show.id, label, category }); setLabel(''); }, 'Added')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+        </div>
+      )}
       {!ws.checklist.length && <Empty>Nothing on the list yet. Add the first thing that must not be forgotten.</Empty>}
       {groups.map(([cat, items]) => (
         <div key={cat} className="space-y-1.5">
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{cat}</h3>
           {items.map((c) => (
             <div key={c.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
-              <input type="checkbox" checked={c.done} className="h-4 w-4 accent-primary" onChange={(e) => act(() => saveChecklistItem({ showId: ws.show.id, id: c.id, done: e.target.checked }))} />
+              <input type="checkbox" checked={c.done} disabled={!ws.canEdit} className="h-4 w-4 accent-primary disabled:opacity-60" onChange={(e) => act(() => saveChecklistItem({ showId: ws.show.id, id: c.id, done: e.target.checked }))} />
               <span className={cn('flex-1 text-sm', c.done && 'line-through text-muted-foreground')}>{c.label}{c.notes && <span className="text-muted-foreground"> · {c.notes}</span>}</span>
               {c.done && c.doneByName && <span className="text-xs text-muted-foreground">{c.doneByName}</span>}
               {ws.canDelete && <button onClick={() => act(() => saveChecklistItem({ showId: ws.show.id, id: c.id, remove: true }))} className="text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>}
@@ -207,14 +214,16 @@ function Cues({ ws, act }: { ws: Ws; act: ActFn }) {
   const [department, setDepartment] = useState<'Lighting' | 'Sound' | 'AV' | 'Stage' | 'Other'>('Lighting');
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Cue #" className="w-24" />
-        <select value={department} onChange={(e) => setDepartment(e.target.value as typeof department)} className="rounded-md border bg-background px-3 text-sm">
-          {['Lighting', 'Sound', 'AV', 'Stage', 'Other'].map((d) => <option key={d}>{d}</option>)}
-        </select>
-        <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What happens" className="max-w-sm" />
-        <Button disabled={!number.trim() && !description.trim()} onClick={() => act(async () => { await saveCue({ showId: ws.show.id, number, description, department }); setNumber(''); setDescription(''); }, 'Cue added')}><Plus className="h-4 w-4 mr-1" />Add cue</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Cue #" className="w-24" />
+          <select value={department} onChange={(e) => setDepartment(e.target.value as typeof department)} className="rounded-md border bg-background px-3 text-sm">
+            {['Lighting', 'Sound', 'AV', 'Stage', 'Other'].map((d) => <option key={d}>{d}</option>)}
+          </select>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What happens" className="max-w-sm" />
+          <Button disabled={!number.trim() && !description.trim()} onClick={() => act(async () => { await saveCue({ showId: ws.show.id, number, description, department }); setNumber(''); setDescription(''); }, 'Cue added')}><Plus className="h-4 w-4 mr-1" />Add cue</Button>
+        </div>
+      )}
       {!ws.cues.length && <Empty>No cues yet. Add the lighting and sound cues as you build them.</Empty>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -245,13 +254,15 @@ function Props({ ws, act }: { ws: Ws; act: ActFn }) {
   const [category, setCategory] = useState<'Prop' | 'Costume' | 'Set' | 'Kit' | 'Other'>('Prop');
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="max-w-xs" />
-        <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)} className="rounded-md border bg-background px-3 text-sm">
-          {['Prop', 'Costume', 'Set', 'Kit', 'Other'].map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <Button disabled={!name.trim()} onClick={() => act(async () => { await saveProp({ showId: ws.show.id, name, category }); setName(''); }, 'Added to inventory')}><Plus className="h-4 w-4 mr-1" />Add</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" className="max-w-xs" />
+          <select value={category} onChange={(e) => setCategory(e.target.value as typeof category)} className="rounded-md border bg-background px-3 text-sm">
+            {['Prop', 'Costume', 'Set', 'Kit', 'Other'].map((c) => <option key={c}>{c}</option>)}
+          </select>
+          <Button disabled={!name.trim()} onClick={() => act(async () => { await saveProp({ showId: ws.show.id, name, category }); setName(''); }, 'Added to inventory')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+        </div>
+      )}
       {!ws.props.length && <Empty>No props or costumes tracked yet.</Empty>}
       <div className="grid gap-2 sm:grid-cols-2">
         {ws.props.map((p) => (
@@ -262,10 +273,10 @@ function Props({ ws, act }: { ws: Ws; act: ActFn }) {
             </div>
             <div className="text-xs text-muted-foreground mt-1">{p.category}{p.location && ` · ${p.location}`}{p.holderName && ` · with ${p.holderName}`}</div>
             <div className="flex flex-wrap gap-2 mt-2">
-              <select value={p.status} onChange={(e) => act(() => saveProp({ showId: ws.show.id, id: p.id, status: e.target.value as typeof p.status }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+              <select value={p.status} disabled={!ws.canEdit} onChange={(e) => act(() => saveProp({ showId: ws.show.id, id: p.id, status: e.target.value as typeof p.status }))} className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-60">
                 {['Available', 'In use', 'Missing', 'Broken', 'Returned'].map((s) => <option key={s}>{s}</option>)}
               </select>
-              <select value={p.holder ?? ''} onChange={(e) => act(() => saveProp({ showId: ws.show.id, id: p.id, holder: e.target.value }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+              <select value={p.holder ?? ''} disabled={!ws.canEdit} onChange={(e) => act(() => saveProp({ showId: ws.show.id, id: p.id, holder: e.target.value }))} className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-60">
                 <option value="">No holder</option>
                 {ws.members.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
               </select>
@@ -285,16 +296,18 @@ function Scenes({ ws, act }: { ws: Ws; act: ActFn }) {
   const [blocks, setBlocks] = useState(0);
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Scene no. (S1)" className="w-32" />
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Scene title" className="max-w-xs" />
-        <Button disabled={!label.trim() && !title.trim()} onClick={() => act(async () => { await saveShowScene({ showId: ws.show.id, label, title }); setLabel(''); setTitle(''); }, 'Scene added')}><Plus className="h-4 w-4 mr-1" />Add scene</Button>
-        <Button variant="outline" disabled={!ws.scenes.length} onClick={() => act(async () => {
-          const r = await getRehearsalOrder({ showId: ws.show.id });
-          setOrder(r.order.map((s) => ({ label: s.label, title: s.title, cast: s.cast, minutes: s.minutes, block: s.block })));
-          setBlocks(r.blocks);
-        })}>Suggest rehearsal order</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Scene no. (S1)" className="w-32" />
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Scene title" className="max-w-xs" />
+          <Button disabled={!label.trim() && !title.trim()} onClick={() => act(async () => { await saveShowScene({ showId: ws.show.id, label, title }); setLabel(''); setTitle(''); }, 'Scene added')}><Plus className="h-4 w-4 mr-1" />Add scene</Button>
+          <Button variant="outline" disabled={!ws.scenes.length} onClick={() => act(async () => {
+            const r = await getRehearsalOrder({ showId: ws.show.id });
+            setOrder(r.order.map((s) => ({ label: s.label, title: s.title, cast: s.cast, minutes: s.minutes, block: s.block })));
+            setBlocks(r.blocks);
+          })}>Suggest rehearsal order</Button>
+        </div>
+      )}
       {!ws.scenes.length && <Empty>No scenes yet. Add scenes and who is in them to get a rehearsal order.</Empty>}
       <div className="space-y-2">
         {ws.scenes.map((s) => (
@@ -327,11 +340,13 @@ function Notes({ ws, act }: { ws: Ws; act: ActFn }) {
   const [scene, setScene] = useState('');
   return (
     <Section>
-      <div className="space-y-2">
-        <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene (optional)" className="max-w-xs" />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Notes and blocking…" rows={3} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        <Button disabled={!body.trim()} onClick={() => act(async () => { await saveRehearsalNote({ showId: ws.show.id, scene, body }); setBody(''); setScene(''); }, 'Note saved')}><Plus className="h-4 w-4 mr-1" />Add note</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="space-y-2">
+          <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene (optional)" className="max-w-xs" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Notes and blocking…" rows={3} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          <Button disabled={!body.trim()} onClick={() => act(async () => { await saveRehearsalNote({ showId: ws.show.id, scene, body }); setBody(''); setScene(''); }, 'Note saved')}><Plus className="h-4 w-4 mr-1" />Add note</Button>
+        </div>
+      )}
       {!ws.notes.length && <Empty>No rehearsal notes yet.</Empty>}
       <div className="space-y-2">
         {ws.notes.map((n) => (
@@ -341,7 +356,7 @@ function Notes({ ws, act }: { ws: Ws; act: ActFn }) {
               <span>{n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-GB') : ''}</span>
             </div>
             <p className="text-sm mt-1 whitespace-pre-wrap">{n.body}</p>
-            <button onClick={() => act(() => saveRehearsalNote({ showId: ws.show.id, id: n.id, remove: true }))} className="text-xs text-muted-foreground hover:text-red-500 mt-1">Delete</button>
+            {ws.canEdit && <button onClick={() => act(() => saveRehearsalNote({ showId: ws.show.id, id: n.id, remove: true }))} className="text-xs text-muted-foreground hover:text-red-500 mt-1">Delete</button>}
           </div>
         ))}
       </div>
@@ -364,11 +379,13 @@ function Timings({ ws, act }: { ws: Ws; act: ActFn }) {
   const avg = (a: number[]) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-32" />
-        <Input value={minutes} onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Minutes" className="w-24" inputMode="numeric" />
-        <Button disabled={!scene.trim() || !minutes} onClick={() => act(async () => { await saveSceneTiming({ showId: ws.show.id, scene, minutes: Number(minutes) }); setMinutes(''); }, 'Timing recorded')}><Plus className="h-4 w-4 mr-1" />Record run-time</Button>
-      </div>
+      {ws.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-32" />
+          <Input value={minutes} onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Minutes" className="w-24" inputMode="numeric" />
+          <Button disabled={!scene.trim() || !minutes} onClick={() => act(async () => { await saveSceneTiming({ showId: ws.show.id, scene, minutes: Number(minutes) }); setMinutes(''); }, 'Timing recorded')}><Plus className="h-4 w-4 mr-1" />Record run-time</Button>
+        </div>
+      )}
       {!byScene.length && <Empty>No run-times yet. Record how long each scene actually ran and the average builds itself.</Empty>}
       <div className="space-y-2">
         {byScene.map(([s, v]) => {
@@ -482,12 +499,14 @@ function Photos({ media, act }: { media: Media; act: ActFn }) {
   const [scene, setScene] = useState('');
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a photo link (https://…)" className="max-w-sm" />
-        <Input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption" className="max-w-xs" />
-        <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-28" />
-        <Button disabled={!url.trim()} onClick={() => act(async () => { await saveShowPhoto({ showId: media.showId, url, caption, scene }); setUrl(''); setCaption(''); setScene(''); }, 'Photo added')}><Plus className="h-4 w-4 mr-1" />Add</Button>
-      </div>
+      {media.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a photo link (https://…)" className="max-w-sm" />
+          <Input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Caption" className="max-w-xs" />
+          <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-28" />
+          <Button disabled={!url.trim()} onClick={() => act(async () => { await saveShowPhoto({ showId: media.showId, url, caption, scene }); setUrl(''); setCaption(''); setScene(''); }, 'Photo added')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+        </div>
+      )}
       {!media.photos.length && <Empty>No photos yet. Paste a link to a shot from the wings and it will gallery here.</Empty>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {media.photos.map((p) => (
@@ -512,14 +531,16 @@ function Debrief({ media, act }: { media: Media; act: ActFn }) {
   const [subEventId, setSubEventId] = useState('');
   return (
     <Section>
-      <div className="space-y-2">
-        <select value={subEventId} onChange={(e) => setSubEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm max-w-md">
-          <option value="">Whole run</option>
-          {media.events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-        </select>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="How did it go? What should we change next time?" rows={3} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        <Button disabled={!body.trim()} onClick={() => act(async () => { await saveDebrief({ showId: media.showId, subEventId: subEventId || undefined, body }); setBody(''); }, 'Added to debrief')}><Plus className="h-4 w-4 mr-1" />Add</Button>
-      </div>
+      {media.canEdit && (
+        <div className="space-y-2">
+          <select value={subEventId} onChange={(e) => setSubEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm max-w-md">
+            <option value="">Whole run</option>
+            {media.events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+          </select>
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="How did it go? What should we change next time?" rows={3} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          <Button disabled={!body.trim()} onClick={() => act(async () => { await saveDebrief({ showId: media.showId, subEventId: subEventId || undefined, body }); setBody(''); }, 'Added to debrief')}><Plus className="h-4 w-4 mr-1" />Add</Button>
+        </div>
+      )}
       {!media.debriefs.length && <Empty>No debrief notes yet. Add the first after the run.</Empty>}
       <div className="space-y-2">
         {media.debriefs.map((d) => (
@@ -543,14 +564,16 @@ function GreenRoom({ media, act }: { media: Media; act: ActFn }) {
   const [pinned, setPinned] = useState(false);
   return (
     <Section>
-      <div className="space-y-2">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Call time tonight is 5:30pm)" className="max-w-lg" />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message for the cast…" rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="h-4 w-4 accent-primary" />Pin to top</label>
-          <Button disabled={!body.trim()} onClick={() => act(async () => { await saveGreenRoomNote({ showId: media.showId, title, body, pinned }); setTitle(''); setBody(''); setPinned(false); }, 'Posted')}><Plus className="h-4 w-4 mr-1" />Post</Button>
+      {media.canEdit && (
+        <div className="space-y-2">
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Call time tonight is 5:30pm)" className="max-w-lg" />
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message for the cast…" rows={2} className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} className="h-4 w-4 accent-primary" />Pin to top</label>
+            <Button disabled={!body.trim()} onClick={() => act(async () => { await saveGreenRoomNote({ showId: media.showId, title, body, pinned }); setTitle(''); setBody(''); setPinned(false); }, 'Posted')}><Plus className="h-4 w-4 mr-1" />Post</Button>
+          </div>
         </div>
-      </div>
+      )}
       {!media.greenRoom.length && <Empty>The noticeboard is empty. Pin the call time so everyone sees it.</Empty>}
       <div className="space-y-2">
         {media.greenRoom.map((g) => (
@@ -562,7 +585,7 @@ function GreenRoom({ media, act }: { media: Media; act: ActFn }) {
                 <div className="mt-1 text-xs text-muted-foreground">{g.byName} · {g.createdAt ? new Date(g.createdAt).toLocaleDateString('en-GB') : ''}</div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <button onClick={() => act(() => saveGreenRoomNote({ showId: media.showId, id: g.id, pinned: !g.pinned }))} title={g.pinned ? 'Unpin' : 'Pin'} className={cn('rounded p-1 hover:bg-muted', g.pinned ? 'text-primary' : 'text-muted-foreground')}><Pin className="h-3.5 w-3.5" /></button>
+                {media.canEdit && <button onClick={() => act(() => saveGreenRoomNote({ showId: media.showId, id: g.id, pinned: !g.pinned }))} title={g.pinned ? 'Unpin' : 'Pin'} className={cn('rounded p-1 hover:bg-muted', g.pinned ? 'text-primary' : 'text-muted-foreground')}><Pin className="h-3.5 w-3.5" /></button>}
                 {(media.canDelete || g.createdBy === media.meId) && <button onClick={() => act(() => saveGreenRoomNote({ showId: media.showId, id: g.id, remove: true }))} className="rounded p-1 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>}
               </div>
             </div>
@@ -578,11 +601,13 @@ function LostProperty({ media, act }: { media: Media; act: ActFn }) {
   const [location, setLocation] = useState('');
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <Input value={item} onChange={(e) => setItem(e.target.value)} placeholder="What is missing?" className="max-w-xs" />
-        <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Last seen" className="w-40" />
-        <Button disabled={!item.trim()} onClick={() => act(async () => { await saveLostItem({ showId: media.showId, item, location, status: 'Lost' }); setItem(''); setLocation(''); }, 'Logged')}><Plus className="h-4 w-4 mr-1" />Log item</Button>
-      </div>
+      {media.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Input value={item} onChange={(e) => setItem(e.target.value)} placeholder="What is missing?" className="max-w-xs" />
+          <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Last seen" className="w-40" />
+          <Button disabled={!item.trim()} onClick={() => act(async () => { await saveLostItem({ showId: media.showId, item, location, status: 'Lost' }); setItem(''); setLocation(''); }, 'Logged')}><Plus className="h-4 w-4 mr-1" />Log item</Button>
+        </div>
+      )}
       {!media.lost.length && <Empty>Nothing logged. When the good sword vanishes, it gets logged here.</Empty>}
       <div className="space-y-2">
         {media.lost.map((l) => (
@@ -594,10 +619,10 @@ function LostProperty({ media, act }: { media: Media; act: ActFn }) {
             {l.location && <div className="text-xs text-muted-foreground mt-0.5">Last seen: {l.location}</div>}
             {l.holderName && <div className="text-xs text-muted-foreground">Now with {l.holderName}</div>}
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select value={l.status} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, status: e.target.value as typeof l.status }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+              <select value={l.status} disabled={!media.canEdit} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, status: e.target.value as typeof l.status }))} className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-60">
                 {['Lost', 'Found', 'Returned'].map((s) => <option key={s}>{s}</option>)}
               </select>
-              <select value={l.holder ?? ''} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, holder: e.target.value }))} className="rounded-md border bg-background px-2 py-1 text-xs">
+              <select value={l.holder ?? ''} disabled={!media.canEdit} onChange={(e) => act(() => saveLostItem({ showId: media.showId, id: l.id, holder: e.target.value }))} className="rounded-md border bg-background px-2 py-1 text-xs disabled:opacity-60">
                 <option value="">Nobody yet</option>
                 {media.members.map((m) => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
               </select>
@@ -622,16 +647,18 @@ function Audience({ media, act }: { media: Media; act: ActFn }) {
   const best = recorded.reduce((m, a) => Math.max(m, a.count), 0);
   return (
     <Section>
-      <div className="flex flex-wrap gap-2">
-        <select value={eventId} onChange={(e) => setEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
-          <option value="">Pick a night</option>
-          {list.map((e) => <option key={e.id} value={e.id}>{e.title}{e.date ? ` · ${e.date}` : ''}</option>)}
-        </select>
-        <Input value={count} onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Headcount" inputMode="numeric" className="w-28" />
-        <Input value={capacity} onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Capacity" inputMode="numeric" className="w-28" />
-        <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="max-w-xs" />
-        <Button disabled={!eventId || !count} onClick={() => act(async () => { await saveAudienceCount({ showId: media.showId, subEventId: eventId, count: Number(count), capacity: capacity ? Number(capacity) : 0, notes }); setCount(''); setNotes(''); }, 'Headcount saved')}><Plus className="h-4 w-4 mr-1" />Save</Button>
-      </div>
+      {media.canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <select value={eventId} onChange={(e) => setEventId(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
+            <option value="">Pick a night</option>
+            {list.map((e) => <option key={e.id} value={e.id}>{e.title}{e.date ? ` · ${e.date}` : ''}</option>)}
+          </select>
+          <Input value={count} onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Headcount" inputMode="numeric" className="w-28" />
+          <Input value={capacity} onChange={(e) => setCapacity(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Capacity" inputMode="numeric" className="w-28" />
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="max-w-xs" />
+          <Button disabled={!eventId || !count} onClick={() => act(async () => { await saveAudienceCount({ showId: media.showId, subEventId: eventId, count: Number(count), capacity: capacity ? Number(capacity) : 0, notes }); setCount(''); setNotes(''); }, 'Headcount saved')}><Plus className="h-4 w-4 mr-1" />Save</Button>
+        </div>
+      )}
       {!recorded.length && <Empty>No headcounts yet. Record tonight's audience and the run total builds up.</Empty>}
       {recorded.length > 0 && (
         <div className="flex gap-6 rounded-xl border bg-muted/30 p-4 text-sm">

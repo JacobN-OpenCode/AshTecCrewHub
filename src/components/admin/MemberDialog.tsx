@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { MEMBER_TYPES, ROLES, YEARS } from '../../lib/constants';
 import { BADGES } from '../../lib/badges';
+import { PERMISSIONS, type PermissionState } from '../../lib/permissions';
 import MemberAvatar from '../MemberAvatar';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] } };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
@@ -118,6 +119,37 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           <div className="flex flex-col gap-2 self-end pb-2">
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMentor} onCheckedChange={(c) => set({ isMentor: !!c })} />Willing to mentor someone</label>
           </div>
+          {member && !f.isPreview && (
+            <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+              <p className="text-sm font-medium">Permissions</p>
+              <p className="text-xs text-muted-foreground">
+                Admins hold everything. Grant a normal member extra access, or take away one they would normally have.
+              </p>
+              <div className="space-y-2">
+                {PERMISSIONS.map((p) => {
+                  const state = f.permissions.granted.includes(p.key) ? 'grant' : f.permissions.revoked.includes(p.key) ? 'revoke' : 'default';
+                  return (
+                    <div key={p.key} className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm">{p.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.blurb} <span className="opacity-70">Default: {p.fallback === 'all' ? 'everyone' : 'admins'}.</span>
+                        </p>
+                      </div>
+                      <Select value={state} onValueChange={(v) => set({ permissions: permSet(f.permissions, p.key, v as 'default' | 'grant' | 'revoke') })}>
+                        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">Default</SelectItem>
+                          <SelectItem value="grant">Allow</SelectItem>
+                          <SelectItem value="revoke">Block</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="sm:col-span-2 space-y-1"><label className="text-sm">Admin notes (things said in person, etc.)</label><Textarea value={f.adminNotes} onChange={(e) => set({ adminNotes: e.target.value })} /></div>
           {member && !member.isStaff && (
             <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
@@ -161,4 +193,13 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Set one permission's override to default, grant or revoke. */
+function permSet(p: PermissionState, key: string, v: 'default' | 'grant' | 'revoke'): PermissionState {
+  const granted = p.granted.filter((k) => k !== key);
+  const revoked = p.revoked.filter((k) => k !== key);
+  if (v === 'grant') granted.push(key);
+  if (v === 'revoke') revoked.push(key);
+  return { granted, revoked };
 }

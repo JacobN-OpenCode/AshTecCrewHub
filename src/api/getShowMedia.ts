@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireShowAccess, mapMember, ids } from '../lib/server';
+import { hasPermission } from '../lib/permissions';
 
 /**
  * The show-day extras for one show: backstage photos, the running post-show
@@ -101,7 +102,8 @@ export default createEndpoint({
         }))
         .sort((a, b) => String(a.recordedAt ?? '').localeCompare(String(b.recordedAt ?? ''))),
       events: events.map((e) => ({ id: e.id, title: String(e.title ?? e.type ?? ''), type: String(e.type ?? ''), date: e.date ?? null })),
-      canDelete: me.isAdmin,
+      canDelete: hasPermission(me, 'show.edit'),
+      canEdit: hasPermission(me, 'show.edit'),
       isAdmin: !!me.isAdmin,
       meId: me.id,
       members: members.records

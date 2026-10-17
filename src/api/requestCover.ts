@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember, ids } from '../lib/server';
+import { requireMember, assertPermission, ids } from '../lib/server';
 import { notifyCoverRequest } from '../../server/notify';
 
 /**
@@ -22,6 +22,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean(), id: z.string() }),
   execute: async ({ context, input }) => {
     const me = await requireMember(context.user.email);
+    assertPermission(me, 'show.run');
     const sub = await zite.subEvents.findOne({ id: input.subEventId });
     if (!sub) throw new Error('Event not found.');
 

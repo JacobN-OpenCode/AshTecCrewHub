@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember } from '../lib/server';
+import { requireMember, assertPermission } from '../lib/server';
 
 /**
  * Pre-show sign-off: the caller confirms their bit is ready for a given event.
@@ -19,6 +19,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean(), signed: z.boolean() }),
   execute: async ({ context, input }) => {
     const me = await requireMember(context.user.email);
+    assertPermission(me, 'show.run');
     const sub = await zite.subEvents.findOne({ id: input.subEventId });
     if (!sub) throw new Error('Event not found.');
 

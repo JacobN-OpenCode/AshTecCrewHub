@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireShowAccess, mapMember, mapSubEvent, ids } from '../lib/server';
+import { hasPermission, effectivePermissions } from '../lib/permissions';
 
 /**
  * Everything that hangs off one show, for the show workspace page: the
@@ -176,7 +177,10 @@ export default createEndpoint({
       signoffs: signRows,
       cueCalls: callRows,
       coverRequests: coverRows,
-      canDelete: me.isAdmin,
+      canDelete: hasPermission(me, 'show.edit'),
+      canEdit: hasPermission(me, 'show.edit'),
+      canRun: hasPermission(me, 'show.run'),
+      permissions: [...effectivePermissions(me)],
       isAdmin: !!me.isAdmin,
       meId: me.id,
       members: members.records

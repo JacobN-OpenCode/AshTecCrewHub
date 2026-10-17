@@ -960,6 +960,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "MemberBadges_member_badge_idx" ON "MemberBadg
 -- Admins are never restricted, and a member always sees their own record.
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "privacy" jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+-- Per-member permission overrides: { granted: [], revoked: [] } over the
+-- catalogue in src/lib/permissions.ts. Empty means "just the defaults".
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "permissions" jsonb NOT NULL DEFAULT '{}'::jsonb;
+
 -- A tiny key/value store for app-wide settings the admins curate (the skill
 -- options, the cat's name, and whatever else the settings page grows). Kept
 -- generic so a new setting does not need a schema change.

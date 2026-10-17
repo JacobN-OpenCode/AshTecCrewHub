@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember, ids } from '../lib/server';
+import { requireMember, assertPermission, ids } from '../lib/server';
 
 /**
  * One-tap roll call. Replaces the present-set for an event with exactly the
@@ -18,6 +18,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean(), present: z.number() }),
   execute: async ({ context, input }) => {
     const me = await requireMember(context.user.email);
+    assertPermission(me, 'show.run');
     const sub = await zite.subEvents.findOne({ id: input.subEventId });
     if (!sub) throw new Error('Event not found.');
 

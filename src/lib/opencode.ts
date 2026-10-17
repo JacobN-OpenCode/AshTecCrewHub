@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Working through the big /feedback/2 response: take out what should not be here, lock down the show workspaces, and make the whole hub feel like one system.',
   /** What is being touched right now. */
-  now: 'Batch 2 is shipped (click-a-person profiles, controlled skills and privacy). Next: the admin settings hub, per-person permissions, and the show workspace lockdown.',
+  now: 'Batch 3 is shipped: the show workspaces are read-only for normal crew, and admins grant or revoke permissions per person. Next: the admin settings hub, signed-in devices, and the last polish.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -74,16 +74,16 @@ export const OPENCODE_STATUS = {
         'In Settings, a member chooses who sees their picture, email and skills: everyone, admins only, or only me. Admins are never restricted and a member always sees their own record.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Show Workspace read-only for normal crew',
       detail:
-        'Normal members can look but not edit the show workspaces. Admins can grant extra permissions per person, or take the normal ones away.',
+        'Normal members can look but not edit a show workspace, enforced on the server as well as the page. Admins grant extra permissions per person (Edit show workspaces, Run a show day, Post announcements and more) or take away a default, from the member editor.',
     },
     {
-      state: 'queued',
+      state: 'active',
       title: 'ATCMS settings hub',
       detail:
-        'The admin area becomes a real settings hub: cat name, feedback form creation, the skill list, and the rest of the knobs in one place.',
+        'The admin area becomes a real settings hub: the cat’s name, the skill list, feedback form creation, and the rest of the knobs in one place.',
     },
     {
       state: 'queued',
@@ -118,6 +118,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Feedback round 2, batch 3: show workspaces locked down, per-person permissions',
     'Feedback round 2, batch 2: click-a-person profiles, controlled skills, privacy controls',
     'Feedback round 2, batch 1: Contacts and direct messages removed, idle tabs hidden, email discipline',
     'Multi-page public website (Home, Productions, About, Join, Sign in)',

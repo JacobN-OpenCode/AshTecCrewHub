@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, findMemberByEmail } from '../lib/server';
+import { parsePermissionState } from '../lib/permissions';
 
 export default createEndpoint({
   description: 'Creates, updates or deletes a crew member (admins)',
@@ -34,6 +35,8 @@ export default createEndpoint({
     // with no mentor was rejected before it reached the database.
     mentorId: z.string().nullable().optional(),
     isMentor: z.boolean().optional(),
+    // Feedback round 2: per-member permission overrides.
+    permissions: z.object({ granted: z.array(z.string()), revoked: z.array(z.string()) }).optional(),
   }),
   outputSchema: z.object({ id: z.string() }),
   execute: async ({ input, context }) => {
@@ -56,7 +59,7 @@ export default createEndpoint({
     if (avatarUrl && (!/^https?:\/\//i.test(avatarUrl) || /\s/.test(avatarUrl))) {
       throw new ZiteError({ code: 'BAD_REQUEST', message: 'Profile picture URL must start with http:// or https://.' });
     }
-    const record = {
+    const record: Record<string, unknown> = {
       firstName: input.firstName,
       lastName: input.lastName ?? '',
       // year is NOT NULL DEFAULT '' in the schema, so an unset year must be ''
@@ -84,6 +87,9 @@ export default createEndpoint({
       mentorId: input.mentorId || null,
       isMentor: !!input.isMentor,
     };
+    if (input.permissions !== undefined) {
+      record.permissions = JSON.stringify(parsePermissionState(input.permissions));
+    }
     if (input.id) {
       await zite.crewMembers.update({ id: input.id, record });
       return { id: input.id };

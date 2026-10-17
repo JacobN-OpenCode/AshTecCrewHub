@@ -2,6 +2,7 @@
 import { zite } from '#db';
 import { ZiteError } from '#backend';
 import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from '#db';
+import { hasPermission, parsePermissionState, type PermissionKey, type PermissionSubject } from './permissions';
 
 export const ids = (v?: string | string[] | null): string[] => (v ? (Array.isArray(v) ? v : [v]) : []);
 
@@ -59,6 +60,21 @@ export async function requireShowAccess(email: string, showId: string) {
   const mapped = mapShow(show);
   if (mapped.hidden && !me.isAdmin && !me.isStaff) throw new Error('Show not found.');
   return { me, show, mapped };
+}
+
+/**
+ * Feedback round 2: normal members are read-only in the show workspaces and
+ * admins can grant or revoke permissions per person. Endpoints call this so the
+ * rule holds even if the UI is bypassed.
+ */
+export function assertPermission(m: CrewMembersRecordType, key: PermissionKey): void {
+  if (!hasPermission(m as unknown as PermissionSubject, key)) {
+    throw new ZiteError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to do that.',
+      userFacingMessage: 'You do not have permission to do that.',
+    });
+  }
 }
 
 /** Acting as yourself, or (admins only) on behalf of another member. */
@@ -182,6 +198,8 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   isContractor: m.memberType === 'Contractor',
   // Unset means "follow the default": on for admins, off for everyone else.
   adminNotifications: m.adminNotifications === null || m.adminNotifications === undefined ? !!m.isAdmin : !!m.adminNotifications,
+  // Feedback round 2: per-member permission overrides (granted/revoked).
+  permissions: parsePermissionState((m as unknown as { permissions?: unknown }).permissions),
 });
 
 const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));

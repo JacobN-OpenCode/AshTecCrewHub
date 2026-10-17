@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember, ids } from '../lib/server';
+import { requireMember, assertPermission, ids } from '../lib/server';
 
 /** Acknowledge a cue call you received. Only the recipient can do this. */
 export default createEndpoint({
@@ -11,6 +11,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean() }),
   execute: async ({ context, input }) => {
     const me = await requireMember(context.user.email);
+    assertPermission(me, 'show.run');
     const call = await zite.cueCalls.findOne({ id: input.id });
     if (!call) throw new Error('Cue call not found.');
     if (ids(call.member)[0] !== me.id) throw new Error('That cue call is not yours.');

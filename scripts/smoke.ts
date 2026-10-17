@@ -889,6 +889,20 @@ if (!admin) {
 
       await callAs(crewJar, 'updateMyProfile', { skillsTeach: [], skillsLearn: [], privacy: { email: 'crew' } });
 
+      // Feedback round 2: normal members are read-only in show workspaces, and
+      // an admin can grant show.edit to one person. Use a visible show, because
+      // a hidden one reads as "not found" to a normal member before the
+      // permission is even checked.
+      const { rows: visRows } = await db().query(`SELECT "id" FROM "Shows" WHERE NOT "hidden" ORDER BY "showName" LIMIT 1`);
+      const visShowId = visRows[0]?.id ?? showId;
+      const crewEdit = await callAs(crewJar, 'saveChecklistItem', { showId: visShowId, label: 'Should be blocked' });
+      check('a normal member cannot edit a show workspace', crewEdit.status === 403, `status=${crewEdit.status}`);
+      await call('adminSaveMember', { id: crew.id, firstName: 'S', lastName: 'Crew', email: CREW_EMAIL, permissions: { granted: ['show.edit'], revoked: [] } });
+      const crewEdit2 = await callAs(crewJar, 'saveChecklistItem', { showId: visShowId, label: 'Now allowed' });
+      check('granting show.edit lets the member edit', crewEdit2.status === 200, JSON.stringify(crewEdit2.body).slice(0, 120));
+      if (crewEdit2.body?.id) await call('saveChecklistItem', { showId: visShowId, id: crewEdit2.body.id, remove: true });
+      await call('adminSaveMember', { id: crew.id, firstName: 'S', lastName: 'Crew', email: CREW_EMAIL, permissions: { granted: [], revoked: [] } });
+
       // ---------------------------------------------- the fun ones (Batch 8)
       // Show memories gathers photos and debrief lines per show.
       const memories = await callAs(crewJar, 'getMemories', {});

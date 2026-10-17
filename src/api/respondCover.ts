@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireMember, ids } from '../lib/server';
+import { requireMember, assertPermission, ids } from '../lib/server';
 import { sendToMember } from '../../server/push';
 
 /**
@@ -19,6 +19,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean(), status: z.string() }),
   execute: async ({ context, input }) => {
     const me = await requireMember(context.user.email);
+    assertPermission(me, 'show.run');
     const req = await zite.coverRequests.findOne({ id: input.id });
     if (!req) throw new Error('Request not found.');
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireShowAccess } from '../lib/server';
+import { requireShowAccess, assertPermission } from '../lib/server';
 
 /**
  * Create, edit, tick off or delete a show checklist item. Any crew member can
@@ -23,6 +23,7 @@ export default createEndpoint({
   outputSchema: z.object({ ok: z.boolean(), id: z.string() }),
   execute: async ({ context, input }) => {
     const { me } = await requireShowAccess(context.user.email, input.showId);
+    assertPermission(me, 'show.edit');
 
     if (input.remove) {
       if (!input.id) throw new Error('Nothing to remove.');
