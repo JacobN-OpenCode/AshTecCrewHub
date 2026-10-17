@@ -372,7 +372,7 @@ if (!admin) {
       check('next-call.json requires a token', ncNoToken.status === 404, `status=${ncNoToken.status}`);
       // Security: the public admin pickers must not publish admin emails.
       const pubAdmins = await fetch(`${BASE}/api/getLiveShowAdmins`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-      const pubAdminsBody = await pubAdmins.json().catch(() => ({}));
+      const pubAdminsBody: any = await pubAdmins.json().catch(() => ({}));
       check('getLiveShowAdmins does not leak admin emails',
         pubAdmins.status === 200 && Array.isArray(pubAdminsBody.admins) && pubAdminsBody.admins.every((a: any) => a.email === undefined && typeof a.id === 'string'),
         JSON.stringify(pubAdminsBody).slice(0, 160));
