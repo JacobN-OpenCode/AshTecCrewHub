@@ -31,8 +31,10 @@ export default function CatCompanion() {
 
   if (hidden) return null;
 
+  // Ticket 608099ef: on desktop the help button sits bottom-right too, so the
+  // cat parks just to its left rather than underneath it (they used to overlap).
   return (
-    <div className="fixed bottom-20 right-4 z-40 flex items-end gap-2 lg:bottom-5">
+    <div className="fixed bottom-20 right-4 z-40 flex items-end gap-2 lg:bottom-5 lg:right-20">
       <AnimatePresence>
         {line && (
           <motion.div
