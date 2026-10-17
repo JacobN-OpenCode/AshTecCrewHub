@@ -263,3 +263,21 @@
   /* A call sheet should start each event on the same page, not break mid-row. */
   .print-avoid-break { break-inside: avoid; }
 }
+
+/* ---------------------------------------------------------------------------
+   The Mac app (feedback round 2, round 3). When the hub is loaded with
+   ?shell=mac, it provides its own native sidebar, toolbar and menu bar, so the
+   web chrome is hidden and the content fills the window like a real app.
+   --------------------------------------------------------------------------- */
+html[data-shell='mac'] .app-sidebar,
+html[data-shell='mac'] .app-header,
+html[data-shell='mac'] .app-tabbar {
+  display: none !important;
+}
+html[data-shell='mac'] .app-main {
+  max-width: none !important;
+  padding-top: 1.25rem !important;
+  padding-bottom: 2rem !important;
+}
+/* The help button and corner cat are native-window clutter on the Mac app. */
+html[data-shell='mac'] .app-fab { display: none !important; }
