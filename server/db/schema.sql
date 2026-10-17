@@ -555,6 +555,10 @@ CREATE TABLE IF NOT EXISTS "FeedbackResponses" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS "FeedbackResponses_form_member_idx" ON "FeedbackResponses" ("form", "member");
 CREATE INDEX IF NOT EXISTS "FeedbackResponses_form_idx" ON "FeedbackResponses" ("form");
+-- A freeform form (src/lib/feedback.ts `kind: 'freeform'`) has no tick-boxes, so
+-- its paragraph answers live here: a { promptId: text } map. `selected` stays
+-- empty for those. Additive, so the ideas forms are untouched.
+ALTER TABLE "FeedbackResponses" ADD COLUMN IF NOT EXISTS "answers" jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 
 -- Member profile extras (status, birthday, contact sharing, mentorship)

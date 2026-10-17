@@ -22,7 +22,12 @@ const CAT_LINES = [
   'Do it for the crew.',
 ];
 
-type Answer = { selected: string[]; other: string; submittedAt: string };
+type Answer = {
+  selected: string[];
+  other: string;
+  answers: Record<string, string>;
+  submittedAt: string;
+};
 
 /** Full-viewport backdrop so this feels like an invitation, not another tab. */
 function Frame({ children }: { children: React.ReactNode }) {
@@ -74,7 +79,10 @@ export default function Feedback() {
   const [checking, setChecking] = useState(!!user);
   const [picks, setPicks] = useState<Set<string>>(new Set());
   const [other, setOther] = useState('');
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+
+  const freeform = form?.kind === 'freeform';
 
   const loadAnswer = useCallback(async () => {
     if (!user) {
@@ -85,7 +93,7 @@ export default function Feedback() {
     setChecking(true);
     try {
       const r = await getMyFeedback({ form: formId });
-      setAnswer(r.responded ? { selected: r.selected, other: r.other, submittedAt: r.submittedAt } : null);
+      setAnswer(r.responded ? { selected: r.selected, other: r.other, answers: r.answers, submittedAt: r.submittedAt } : null);
     } catch {
       // A signed-in non-member cannot answer; the form still shows rather than
       // erroring, and the submit call will explain if they are not on the list.
@@ -100,6 +108,7 @@ export default function Feedback() {
   }, [loadAnswer]);
 
   const totalPicked = picks.size;
+  const filled = Object.values(answers).filter((v) => v.trim()).length;
   const catLine = useMemo(() => CAT_LINES[Math.floor(Math.random() * CAT_LINES.length)], []);
 
   if (!form) {
@@ -126,13 +135,18 @@ export default function Feedback() {
     });
 
   const send = async () => {
-    if (!totalPicked && !other.trim()) {
-      toast.error('Pick at least one idea, or write something in the box.');
+    if (freeform ? !filled : !totalPicked && !other.trim()) {
+      toast.error(freeform ? 'Write something in at least one box.' : 'Pick at least one idea, or write something in the box.');
       return;
     }
     setSending(true);
     try {
-      await submitFeedback({ form: form.id, selected: [...picks], other: other.trim() });
+      await submitFeedback({
+        form: form.id,
+        selected: [...picks],
+        other: other.trim(),
+        answers: freeform ? Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v)) : {},
+      });
       toast.success('Sent. Thank you!');
       await loadAnswer();
     } catch (err: any) {
@@ -162,33 +176,51 @@ export default function Feedback() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight">Got it — thank you!</h1>
               <p className="mx-auto max-w-md text-sm text-muted-foreground">
-                This is your answer, and it is final. {form.fromName} has it now and will get building on the popular ones.
+                This is your answer, and it is final. {form.fromName} has it now
+                {freeform ? ' and will get to work on it.' : ' and will get building on the popular ones.'}
               </p>
             </div>
 
             <div className="space-y-4 rounded-2xl border bg-muted/30 p-4">
-              {form.sections.map((section) => {
-                const hits = section.features.filter((f) => chosen.has(f.id));
-                if (!hits.length) return null;
-                return (
-                  <div key={section.title}>
-                    <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {section.emoji} {section.title}
-                    </div>
-                    <ul className="space-y-1 pl-1 text-sm">
-                      {hits.map((f) => <li key={f.id}>• {f.label}</li>)}
-                    </ul>
-                  </div>
-                );
-              })}
-              {answer.other && (
-                <div>
-                  <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">✍️ Your own words</div>
-                  <p className="whitespace-pre-wrap text-sm italic text-foreground/90">{answer.other}</p>
-                </div>
-              )}
-              {!answer.selected.length && !answer.other && (
-                <p className="text-sm text-muted-foreground">You did not pick anything, which is also an answer.</p>
+              {freeform
+                ? (form.prompts ?? []).map((p) => {
+                    const text = (answer.answers[p.id] ?? '').trim();
+                    if (!text) return null;
+                    return (
+                      <div key={p.id}>
+                        <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{p.label}</div>
+                        <p className="whitespace-pre-wrap text-sm text-foreground/90">{text}</p>
+                      </div>
+                    );
+                  })
+                : (
+                  <>
+                    {(form.sections ?? []).map((section) => {
+                      const hits = section.features.filter((f) => chosen.has(f.id));
+                      if (!hits.length) return null;
+                      return (
+                        <div key={section.title}>
+                          <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {section.emoji} {section.title}
+                          </div>
+                          <ul className="space-y-1 pl-1 text-sm">
+                            {hits.map((f) => <li key={f.id}>• {f.label}</li>)}
+                          </ul>
+                        </div>
+                      );
+                    })}
+                    {answer.other && (
+                      <div>
+                        <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">✍️ Your own words</div>
+                        <p className="whitespace-pre-wrap text-sm italic text-foreground/90">{answer.other}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              {(freeform
+                ? !Object.values(answer.answers).some((v) => v.trim())
+                : !answer.selected.length && !answer.other) && (
+                <p className="text-sm text-muted-foreground">You did not write anything, which is also an answer.</p>
               )}
             </div>
 
@@ -277,56 +309,81 @@ export default function Feedback() {
               </div>
               <h1 className="mt-0.5 text-2xl font-bold tracking-tight">{form.title}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Tick everything you want, skip what you don&rsquo;t. There are no wrong answers.
+                {freeform
+                  ? 'Write as much or as little as you like under each heading. There are no wrong answers.'
+                  : 'Tick everything you want, skip what you don\u2019t. There are no wrong answers.'}
               </p>
             </div>
           </div>
 
-          <div className="space-y-5">
-            {form.sections.map((section) => (
-              <div key={section.title} className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {section.emoji} {section.title}
+          {freeform ? (
+            <div className="space-y-5">
+              {(form.prompts ?? []).map((p) => (
+                <div key={p.id} className="space-y-2">
+                  <label htmlFor={`fb-${p.id}`} className="text-sm font-medium">{p.label}</label>
+                  {p.hint && <p className="text-xs text-muted-foreground">{p.hint}</p>}
+                  <Textarea
+                    id={`fb-${p.id}`}
+                    value={answers[p.id] ?? ''}
+                    onChange={(e) => setAnswers((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    placeholder="Write here"
+                    maxLength={4000}
+                    rows={5}
+                  />
                 </div>
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {section.features.map((f) => {
-                    const on = picks.has(f.id);
-                    return (
-                      <label
-                        key={f.id}
-                        className={cn(
-                          'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors',
-                          on ? 'border-primary/50 bg-primary/[0.06]' : 'border-border hover:bg-muted/40',
-                        )}
-                      >
-                        <Checkbox checked={on} onCheckedChange={() => toggle(f.id)} className="mt-0.5" />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium leading-snug">{f.label}</span>
-                          {f.hint && <span className="mt-0.5 block text-xs text-muted-foreground">{f.hint}</span>}
-                        </span>
-                      </label>
-                    );
-                  })}
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {(form.sections ?? []).map((section) => (
+                <div key={section.title} className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {section.emoji} {section.title}
+                  </div>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {section.features.map((f) => {
+                      const on = picks.has(f.id);
+                      return (
+                        <label
+                          key={f.id}
+                          className={cn(
+                            'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors',
+                            on ? 'border-primary/50 bg-primary/[0.06]' : 'border-border hover:bg-muted/40',
+                          )}
+                        >
+                          <Checkbox checked={on} onCheckedChange={() => toggle(f.id)} className="mt-0.5" />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium leading-snug">{f.label}</span>
+                            {f.hint && <span className="mt-0.5 block text-xs text-muted-foreground">{f.hint}</span>}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <label htmlFor="feedback-other" className="text-sm font-medium">{form.otherLabel}</label>
-            <Textarea
-              id="feedback-other"
-              value={other}
-              onChange={(e) => setOther(e.target.value)}
-              placeholder={form.otherHint}
-              maxLength={4000}
-              rows={4}
-            />
-          </div>
+          {!freeform && form.otherLabel && (
+            <div className="space-y-2">
+              <label htmlFor="feedback-other" className="text-sm font-medium">{form.otherLabel}</label>
+              <Textarea
+                id="feedback-other"
+                value={other}
+                onChange={(e) => setOther(e.target.value)}
+                placeholder={form.otherHint}
+                maxLength={4000}
+                rows={4}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="order-2 text-xs text-muted-foreground sm:order-1">
-              {totalPicked ? `${totalPicked} idea${totalPicked === 1 ? '' : 's'} picked` : 'Nothing picked yet'}
+              {freeform
+                ? `${filled} box${filled === 1 ? '' : 'es'} filled`
+                : totalPicked ? `${totalPicked} idea${totalPicked === 1 ? '' : 's'} picked` : 'Nothing picked yet'}
               {' · '}answers are final 🔒
             </p>
             <Button size="lg" className="order-1 rounded-full px-8 sm:order-2" onClick={send} disabled={sending}>
@@ -335,7 +392,8 @@ export default function Feedback() {
             </Button>
           </div>
           <p className="text-center text-xs text-muted-foreground">
-            Once you send this you cannot change it — so tick anything you are even a little keen on.
+            Once you send this you cannot change it
+            {freeform ? ', so say everything you want to say.' : ', so tick anything you are even a little keen on.'}
           </p>
         </CardContent>
       </Card>

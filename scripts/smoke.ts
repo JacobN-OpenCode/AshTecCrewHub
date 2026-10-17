@@ -606,6 +606,19 @@ if (!admin) {
         check('a non-admin cannot read all feedback (403)', forbidden.status === 403, `got ${forbidden.status}`);
         const adminView = await call('adminGetFeedback', { form: '1' });
         check('adminGetFeedback lists the answer', adminView.status === 200 && adminView.body?.responses?.some((r: any) => r.memberId === crew.id), JSON.stringify(adminView.body?.responses?.length));
+
+        // Form 2 is the freeform one: two paragraphs, no tick-boxes. An unknown
+        // prompt id is dropped, so an answers-only submission left empty is 400.
+        const before2 = await callAs(fbJar, 'getMyFeedback', { form: '2' });
+        check('getMyFeedback (freeform) starts as not-responded', before2.status === 200 && before2.body?.responded === false, JSON.stringify(before2.body));
+        const badPrompt = await callAs(fbJar, 'submitFeedback', { form: '2', selected: [], answers: { hack: 'not a real prompt' } });
+        check('an unknown prompt id is dropped, leaving it empty (400)', badPrompt.status === 400, `got ${badPrompt.status}`);
+        const sent2 = await callAs(fbJar, 'submitFeedback', { form: '2', selected: [], answers: { change: 'Home should load faster.', remove: 'The old export button.' } });
+        check('submitFeedback stores a freeform answer', sent2.status === 200 && sent2.body?.ok === true, JSON.stringify(sent2.body));
+        const after2 = await callAs(fbJar, 'getMyFeedback', { form: '2' });
+        check('getMyFeedback (freeform) returns the paragraphs', after2.status === 200 && after2.body?.responded === true && after2.body?.answers?.change === 'Home should load faster.', JSON.stringify(after2.body));
+        const adminView2 = await call('adminGetFeedback', { form: '2' });
+        check('adminGetFeedback (freeform) lists the paragraphs', adminView2.status === 200 && adminView2.body?.responses?.some((r: any) => r.memberId === crew.id && r.answers?.remove === 'The old export button.'), JSON.stringify(adminView2.body?.responses?.length));
       }
     }
     await db().query('DELETE FROM "FeedbackResponses" WHERE "memberEmail" = $1', [CREW_EMAIL]);

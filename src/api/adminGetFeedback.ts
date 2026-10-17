@@ -24,6 +24,7 @@ export default createEndpoint({
         memberId: z.string(),
         selected: z.array(z.string()),
         other: z.string(),
+        answers: z.record(z.string(), z.string()),
         submittedAt: z.string(),
       }),
     ),
@@ -43,6 +44,7 @@ export default createEndpoint({
         memberId: (r.member as string | null) ?? '',
         selected: (r.selected as string[] | null) ?? [],
         other: (r.other as string | null) ?? '',
+        answers: (r.answers as Record<string, string> | null) ?? {},
         submittedAt: (r.submittedAt as string | null) ?? '',
       }))
       .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));

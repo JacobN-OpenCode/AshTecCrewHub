@@ -23,6 +23,16 @@ export interface FeedbackSection {
   features: FeedbackFeature[];
 }
 
+/**
+ * A free-form paragraph prompt, used by "freeform" forms instead of tick-box
+ * sections. The member writes as much or as little as they like under each one.
+ */
+export interface FeedbackPrompt {
+  id: string;
+  label: string;
+  hint?: string;
+}
+
 export interface FeedbackForm {
   id: string;
   /** Who the invitation is from. Signed by hand. */
@@ -30,9 +40,19 @@ export interface FeedbackForm {
   fromRole: string;
   title: string;
   intro: string;
-  otherLabel: string;
-  otherHint: string;
-  sections: FeedbackSection[];
+  /**
+   * 'ideas' (the default) is the tick-box form: `sections` of features plus an
+   * optional free-text box. 'freeform' drops the picker entirely and asks for a
+   * paragraph under each `prompts` entry.
+   */
+  kind?: 'ideas' | 'freeform';
+  /** Tick-box sections. Present on 'ideas' forms. */
+  sections?: FeedbackSection[];
+  /** Paragraph prompts. Present on 'freeform' forms. */
+  prompts?: FeedbackPrompt[];
+  /** The extra free-text box on 'ideas' forms. Optional. */
+  otherLabel?: string;
+  otherHint?: string;
 }
 
 export const FEEDBACK_FORMS: Record<string, FeedbackForm> = {
@@ -131,6 +151,27 @@ export const FEEDBACK_FORMS: Record<string, FeedbackForm> = {
       },
     ],
   },
+  '2': {
+    id: '2',
+    fromName: 'Jacob',
+    fromRole: 'Lead Developer',
+    title: 'Now help me tidy it up',
+    intro:
+      "You told me what to build. This one is the other half: what I got wrong. Two boxes - the things that need to change, and the things that should go. Be as blunt as you like, I would much rather hear it than guess.",
+    kind: 'freeform',
+    prompts: [
+      {
+        id: 'change',
+        label: 'Things that need to change',
+        hint: 'Anything broken, confusing, slow, or just not how you would have done it. Small things absolutely count.',
+      },
+      {
+        id: 'remove',
+        label: 'Things that should go',
+        hint: 'Features, buttons or clutter you would not miss. If it gets in your way, say so.',
+      },
+    ],
+  },
 };
 
 export function getFeedbackForm(id: string): FeedbackForm | undefined {
@@ -139,5 +180,10 @@ export function getFeedbackForm(id: string): FeedbackForm | undefined {
 
 /** Every valid feature id in a form, so a submission can be filtered against it. */
 export function featureIds(form: FeedbackForm): string[] {
-  return form.sections.flatMap((s) => s.features.map((f) => f.id));
+  return (form.sections ?? []).flatMap((s) => s.features.map((f) => f.id));
+}
+
+/** Every valid prompt id in a freeform form, for the same reason. */
+export function promptIds(form: FeedbackForm): string[] {
+  return (form.prompts ?? []).map((p) => p.id);
 }

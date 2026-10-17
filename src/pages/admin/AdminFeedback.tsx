@@ -14,6 +14,7 @@ type Response = {
   memberId: string;
   selected: string[];
   other: string;
+  answers: Record<string, string>;
   submittedAt: string;
 };
 
@@ -45,22 +46,29 @@ export default function AdminFeedback() {
 
   const labelOf = useMemo(() => {
     const map = new Map<string, string>();
-    form?.sections.forEach((s) => s.features.forEach((f) => map.set(f.id, f.label)));
+    (form?.sections ?? []).forEach((s) => s.features.forEach((f) => map.set(f.id, f.label)));
     return map;
   }, [form]);
+
+  const freeform = form?.kind === 'freeform';
 
   // The running tally: every feature, how many people wanted it, most wanted first.
   const tally = useMemo(() => {
     if (!form || !responses) return [];
     const counts = new Map<string, number>();
     for (const r of responses) for (const id of r.selected) counts.set(id, (counts.get(id) ?? 0) + 1);
-    return form.sections.flatMap((s) =>
+    return (form.sections ?? []).flatMap((s) =>
       s.features.map((f) => ({ ...f, section: s.title, emoji: s.emoji, count: counts.get(f.id) ?? 0 })),
     ).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   }, [form, responses]);
 
   const maxCount = tally.length ? Math.max(1, ...tally.map((t) => t.count)) : 1;
   const notes = (responses ?? []).filter((r) => r.other.trim());
+  const promptLabel = useMemo(() => {
+    const map = new Map<string, string>();
+    (form?.prompts ?? []).forEach((p) => map.set(p.id, p.label));
+    return map;
+  }, [form]);
 
   if (!form) {
     return (
@@ -77,7 +85,8 @@ export default function AdminFeedback() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Feedback</h1>
           <p className="mt-1 text-muted-foreground">
-            What the crew wants you to build next. {form.fromName} invited them from{' '}
+            {freeform ? 'What the crew wants changed or removed.' : 'What the crew wants you to build next.'}{' '}
+            {form.fromName} invited them from{' '}
             <Link to={`/feedback/${form.id}`} className="underline">/feedback/{form.id}</Link>.
           </p>
         </div>
@@ -103,7 +112,7 @@ export default function AdminFeedback() {
             <MessageSquareHeart className="mx-auto h-7 w-7 text-muted-foreground" />
             <p className="font-medium">No answers yet</p>
             <p className="text-sm text-muted-foreground">
-              When someone fills in the form, their picks and their own words show up here.
+              When someone fills in the form, their answers show up here.
             </p>
           </CardContent>
         </Card>
@@ -112,35 +121,37 @@ export default function AdminFeedback() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Users className="h-4 w-4" />
             {responses!.length} {responses!.length === 1 ? 'person has' : 'people have'} answered
-            {notes.length > 0 && <> · {notes.length} left a note</>}
+            {!freeform && notes.length > 0 && <> · {notes.length} left a note</>}
           </div>
 
           {/* Most wanted first: the build list, ranked. */}
-          <Card>
-            <CardContent className="space-y-3 py-5">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">The running tally</div>
-              <div className="space-y-1.5">
-                {tally.filter((t) => t.count > 0).map((t) => (
-                  <div key={t.id} className="flex items-center gap-3">
-                    <div className="w-40 shrink-0 truncate text-sm" title={t.label}>{t.label}</div>
-                    <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary/70"
-                        style={{ width: `${Math.max(6, (t.count / maxCount) * 100)}%` }}
-                      />
+          {!freeform && (
+            <Card>
+              <CardContent className="space-y-3 py-5">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">The running tally</div>
+                <div className="space-y-1.5">
+                  {tally.filter((t) => t.count > 0).map((t) => (
+                    <div key={t.id} className="flex items-center gap-3">
+                      <div className="w-40 shrink-0 truncate text-sm" title={t.label}>{t.label}</div>
+                      <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary/70"
+                          style={{ width: `${Math.max(6, (t.count / maxCount) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">{t.count}</div>
                     </div>
-                    <div className="w-8 shrink-0 text-right text-sm font-semibold tabular-nums">{t.count}</div>
-                  </div>
-                ))}
-                {tally.every((t) => t.count === 0) && (
-                  <p className="text-sm text-muted-foreground">Nobody picked any options — see the notes below.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                  {tally.every((t) => t.count === 0) && (
+                    <p className="text-sm text-muted-foreground">Nobody picked any options — see the notes below.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Everyone's own words, because that is where the good ideas hide. */}
-          {notes.length > 0 && (
+          {!freeform && notes.length > 0 && (
             <div className="space-y-3">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">In their own words</div>
               {notes.map((r) => (
@@ -163,7 +174,18 @@ export default function AdminFeedback() {
                     <div className="font-medium">{r.memberName || r.memberEmail || 'A crew member'}</div>
                     <div className="text-xs text-muted-foreground">{when(r.submittedAt)}{r.memberEmail ? ` · ${r.memberEmail}` : ''}</div>
                   </div>
-                  {r.selected.length ? (
+                  {freeform ? (
+                    (form.prompts ?? []).map((p) => {
+                      const text = (r.answers[p.id] ?? '').trim();
+                      if (!text) return null;
+                      return (
+                        <div key={p.id}>
+                          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{promptLabel.get(p.id) ?? p.id}</div>
+                          <p className="whitespace-pre-wrap text-sm text-foreground/90">{text}</p>
+                        </div>
+                      );
+                    })
+                  ) : r.selected.length ? (
                     <div className="flex flex-wrap gap-1.5">
                       {r.selected.map((id) => (
                         <Badge key={id} variant="secondary" className="font-normal">{labelOf.get(id) ?? id}</Badge>
@@ -172,7 +194,7 @@ export default function AdminFeedback() {
                   ) : (
                     <p className="text-sm text-muted-foreground">Picked nothing.</p>
                   )}
-                  {r.other.trim() && <p className="whitespace-pre-wrap text-sm italic text-foreground/90">{r.other}</p>}
+                  {!freeform && r.other.trim() && <p className="whitespace-pre-wrap text-sm italic text-foreground/90">{r.other}</p>}
                 </CardContent>
               </Card>
             ))}

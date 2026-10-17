@@ -3,7 +3,7 @@ import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { Email } from '#email';
 import { requireMember, isEmailable } from '../lib/server';
-import { getFeedbackForm, featureIds, type FeedbackForm } from '../lib/feedback';
+import { getFeedbackForm, featureIds, promptIds, type FeedbackForm } from '../lib/feedback';
 import { noReplyNotice } from '../lib/emails';
 import { notifyFeedbackResponse } from '../../server/notify';
 
@@ -11,7 +11,7 @@ import { notifyFeedbackResponse } from '../../server/notify';
 function summarise(form: FeedbackForm, selected: string[]): string {
   const chosen = new Set(selected);
   const lines: string[] = [];
-  for (const section of form.sections) {
+  for (const section of form.sections ?? []) {
     const hits = section.features.filter((f) => chosen.has(f.id));
     if (!hits.length) continue;
     lines.push(`**${section.emoji} ${section.title}**`);
@@ -19,6 +19,14 @@ function summarise(form: FeedbackForm, selected: string[]): string {
     lines.push('');
   }
   return lines.join('\n').trim();
+}
+
+/** The same, for a freeform form's paragraph answers. */
+function summariseAnswers(form: FeedbackForm, answers: Record<string, string>): string {
+  return (form.prompts ?? [])
+    .filter((p) => (answers[p.id] ?? '').trim())
+    .map((p) => `**${p.label}**\n\n> ${answers[p.id].split('\n').join('\n> ')}`)
+    .join('\n\n');
 }
 
 /**
@@ -33,11 +41,13 @@ export default createEndpoint({
     form: z.string().min(1).max(40),
     selected: z.array(z.string().min(1).max(64)).max(200).default([]),
     other: z.string().max(4000).optional(),
+    answers: z.record(z.string().max(64), z.string().max(4000)).optional(),
   }),
   outputSchema: z.object({ ok: z.boolean(), id: z.string(), selectedCount: z.number(), notified: z.number() }),
   execute: async ({ input, context }) => {
     const form = getFeedbackForm(input.form);
     if (!form) throw new ZiteError({ code: 'NOT_FOUND', message: 'That feedback form does not exist.', userFacingMessage: 'That feedback form does not exist.' });
+    const freeform = form.kind === 'freeform';
 
     const me = await requireMember(context.user.email);
     const who = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim() || me.schoolEmail || 'A crew member';
@@ -52,8 +62,24 @@ export default createEndpoint({
     const known = new Set(featureIds(form));
     const selected = [...new Set(input.selected)].filter((id) => known.has(id));
     const other = (input.other ?? '').trim();
-    if (!selected.length && !other) {
-      throw new ZiteError({ code: 'BAD_REQUEST', message: 'Empty feedback', userFacingMessage: 'Pick at least one idea, or write something in the box.' });
+    const allowed = new Set(promptIds(form));
+    const answers: Record<string, string> = {};
+    for (const [id, text] of Object.entries(input.answers ?? {})) {
+      if (!allowed.has(id)) continue;
+      const clean = (text ?? '').trim();
+      if (clean) answers[id] = clean;
+    }
+
+    // A freeform form is answered with paragraphs; an ideas form with picks and/or a note.
+    const empty = freeform ? !Object.keys(answers).length : !selected.length && !other;
+    if (empty) {
+      throw new ZiteError({
+        code: 'BAD_REQUEST',
+        message: 'Empty feedback',
+        userFacingMessage: freeform
+          ? 'Write something in at least one box.'
+          : 'Pick at least one idea, or write something in the box.',
+      });
     }
 
     let record: Record<string, unknown>;
@@ -66,6 +92,7 @@ export default createEndpoint({
           memberName: who,
           selected,
           other,
+          answers,
           submittedAt: new Date().toISOString(),
         } as never,
       });
@@ -84,11 +111,12 @@ export default createEndpoint({
 
     void (async () => {
       if (!recipients.length) return;
-      const subject = `[Feedback] ${who} answered the "what should I build" form`;
+      const subject = `[Feedback] ${who} answered "${form.title}"`;
+      const detail = freeform ? summariseAnswers(form, answers) : summarise(form, selected);
       const body =
         `**${who}** (${me.schoolEmail}) just answered the feedback form **${form.title}**.\n\n` +
-        (selected.length ? `${summarise(form, selected)}\n\n` : '') +
-        (other ? `**Their own words:**\n\n> ${other.split('\n').join('\n> ')}\n\n` : '') +
+        (detail ? `${detail}\n\n` : '') +
+        (!freeform && other ? `**Their own words:**\n\n> ${other.split('\n').join('\n> ')}\n\n` : '') +
         `---\n\nSee everyone's answers and the running tally in the **Feedback** tab.\n\n` +
         noReplyNotice(who, me.schoolEmail ?? '');
       const logs: Record<string, unknown>[] = [];
@@ -105,7 +133,7 @@ export default createEndpoint({
         }),
       );
       if (logs.length) await zite.emailLog.bulkCreate({ records: logs as never }).catch(() => {});
-      await notifyFeedbackResponse({ memberId: me.id, form: form.id, selectedCount: selected.length });
+      await notifyFeedbackResponse({ memberId: me.id, form: form.id, selectedCount: freeform ? Object.keys(answers).length : selected.length, freeform });
     })();
 
     return { ok: true, id: String(record.id), selectedCount: selected.length, notified: recipients.length };

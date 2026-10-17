@@ -20,20 +20,22 @@ export default createEndpoint({
     responded: z.boolean(),
     selected: z.array(z.string()),
     other: z.string(),
+    answers: z.record(z.string(), z.string()),
     submittedAt: z.string(),
   }),
   execute: async ({ input, context }) => {
     const form = getFeedbackForm(input.form);
     // An unknown form id is not an error here; the page simply shows "no form".
-    if (!form) return { exists: false, responded: false, selected: [], other: '', submittedAt: '' };
+    if (!form) return { exists: false, responded: false, selected: [], other: '', answers: {}, submittedAt: '' };
     const me = await requireMember(context.user.email);
     const record = await zite.feedbackResponses.findOne({ filters: { form: form.id, member: me.id } });
-    if (!record) return { exists: true, responded: false, selected: [], other: '', submittedAt: '' };
+    if (!record) return { exists: true, responded: false, selected: [], other: '', answers: {}, submittedAt: '' };
     return {
       exists: true,
       responded: true,
       selected: (record.selected as string[] | null) ?? [],
       other: (record.other as string | null) ?? '',
+      answers: (record.answers as Record<string, string> | null) ?? {},
       submittedAt: (record.submittedAt as string | null) ?? '',
     };
   },
