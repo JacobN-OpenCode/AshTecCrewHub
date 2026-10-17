@@ -263,19 +263,3 @@
   /* A call sheet should start each event on the same page, not break mid-row. */
   .print-avoid-break { break-inside: avoid; }
 }
-
-/* ---------------------------------------------------------------------------
-   Feedback round 2, round 3: "make ALL THE ICONS be the cat".
-   Every lucide icon is an <svg class="lucide ...">; we keep its box (so every
-   size, colour and layout stays exactly as it was) and paint the cat into it,
-   hiding the original strokes. One rule, so it is trivial to scope or revert.
-   --------------------------------------------------------------------------- */
-svg.lucide {
-  background-image: url('/cat.png');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-}
-svg.lucide > * {
-  opacity: 0;
-}

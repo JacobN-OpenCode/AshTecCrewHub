@@ -30,7 +30,7 @@ import {
   pruneAuth,
 } from './auth.js';
 import { catLogin } from './catLogin.js';
-import { verifyCalendarToken, buildMemberFeed, buildPublicFeed, nextCall } from './calendar.js';
+import { verifyCalendarToken, buildMemberFeed, buildPublicFeed, upcomingCalls } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
 import { notifyServerError } from './notify.js';
@@ -382,8 +382,8 @@ app.get('/next-call.json', async (req, res) => {
   res.set('Cache-Control', 'private, max-age=60');
   if (!memberId) return res.status(404).json({ error: 'Not found' });
   try {
-    const call = await nextCall(memberId);
-    res.json({ next: call });
+    const upcoming = await upcomingCalls(memberId, 5);
+    res.json({ next: upcoming[0] ?? null, upcoming });
   } catch (e) {
     console.error('[next-call] failed:', e);
     res.status(500).json({ error: 'Could not build the next call.' });
