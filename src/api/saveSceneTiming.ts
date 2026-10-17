@@ -16,6 +16,8 @@ export default createEndpoint({
     scene: z.string().max(120).optional(),
     minutes: z.number().int().min(0).max(600).optional(),
     kind: z.enum(['Actual', 'Estimate']).optional(),
+    /** Feedback round 2: a real show timing outranks a rehearsal one. */
+    source: z.enum(['rehearsal', 'show']).optional(),
     remove: z.boolean().optional(),
   }),
   outputSchema: z.object({ ok: z.boolean(), id: z.string() }),
@@ -41,6 +43,7 @@ export default createEndpoint({
         scene: scene.slice(0, 120),
         minutes,
         kind: input.kind ?? 'Actual',
+        source: input.source ?? 'rehearsal',
         recordedBy: me.id,
       } as never,
     });

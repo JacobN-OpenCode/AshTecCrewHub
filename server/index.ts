@@ -277,7 +277,10 @@ app.post('/api/auth/verify', async (req, res) => {
   const token = String(req.query.token ?? req.body?.token ?? '');
   const raw = String(req.query.callbackURL ?? req.body?.callbackURL ?? '/');
   const callbackURL = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
-  const user = token ? await consumeMagicLink(token) : null;
+  const user = token ? await consumeMagicLink(token, {
+    userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300),
+    ip: String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim().slice(0, 60),
+  }) : null;
   if (!user) return res.status(400).type('html').send(expiredPage());
   setSessionCookie(res, user);
   res.redirect(303, callbackURL);

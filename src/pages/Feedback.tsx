@@ -11,7 +11,8 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Loader2, Lock, MessageSquareHeart, Sparkles } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { SignInPanel } from '../components/LoginScreen';
-import { getFeedbackForm, type FeedbackForm } from '../lib/feedback';
+import { resolveFeedbackForm, type FeedbackForm } from '../lib/feedback';
+import { useAppSettings } from '../lib/appSettings';
 
 /** Picks the sentence a lone cat would say while you decide. */
 const CAT_LINES = [
@@ -71,7 +72,8 @@ export default function Feedback() {
   const { formId = '1' } = useParams();
   const [params] = useSearchParams();
   const { user } = useAuth();
-  const form = getFeedbackForm(formId);
+  const settings = useAppSettings();
+  const form = resolveFeedbackForm(formId, settings.feedbackForms);
 
   // Arriving back from the magic link with ?go=form means they already accepted.
   const [accepted, setAccepted] = useState(params.get('go') === 'form');

@@ -104,6 +104,7 @@ export default createEndpoint({
         scene: t.scene ?? '',
         minutes: t.minutes ?? 0,
         kind: t.kind ?? 'Actual',
+        source: (t as unknown as { source?: string }).source ?? 'rehearsal',
         recordedByName: nameOf(ids(t.recordedBy)[0]),
         recordedAt: t.recordedAt ?? null,
       }));

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   adminGetLiveShow, adminSaveLiveShow, adminSaveLiveShowScenes, adminLiveShowControl,
-  adminLiveShowDevice, liveShowChat, liveShowAnnouncement, saveLiveShowScript,
+  adminLiveShowDevice, liveShowChat, liveShowAnnouncement, saveLiveShowScript, adminImportLiveShowScenes,
 } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
@@ -117,6 +117,7 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingScenes, setSavingScenes] = useState(false);
   const [savingScript, setSavingScript] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [starting, setStarting] = useState(false);
   const [savingDevice, setSavingDevice] = useState(false);
   const [busyAction, setBusyAction] = useState('');
@@ -599,9 +600,30 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
 
       {/* Running order */}
       <div className="rounded-lg border bg-card p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold flex items-center gap-2"><ScrollText className="h-4 w-4" />Running order</h2>
-          <Button size="sm" variant="outline" onClick={() => setRows((r) => [...r, newRow()])} disabled={!ls}><Plus className="h-4 w-4 mr-1" />Add scene</Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!ls || importing}
+              title="Add any show-workspace scenes the running order is missing"
+              onClick={async () => {
+                if (!showId) return;
+                setImporting(true);
+                try {
+                  const r = await adminImportLiveShowScenes({ showId });
+                  toast.success(r.added ? `Added ${r.added} scene${r.added === 1 ? '' : 's'} from the show` : 'Already up to date');
+                  await loadShow(showId);
+                } catch (e) { toast.error((e as Error).message); }
+                finally { setImporting(false); }
+              }}
+            >
+              {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <ScrollText className="h-4 w-4 mr-1" />}
+              Import from show
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setRows((r) => [...r, newRow()])} disabled={!ls}><Plus className="h-4 w-4 mr-1" />Add scene</Button>
+          </div>
         </div>
         {!ls ? (
           <p className="text-sm text-muted-foreground">Start the show once to create it, then build the running order.</p>

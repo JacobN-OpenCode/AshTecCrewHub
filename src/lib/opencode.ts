@@ -22,7 +22,7 @@ export const OPENCODE_STATUS = {
   headline:
     'Working through the big /feedback/2 response: take out what should not be here, lock down the show workspaces, and make the whole hub feel like one system.',
   /** What is being touched right now. */
-  now: 'Batch 3 is shipped: the show workspaces are read-only for normal crew, and admins grant or revoke permissions per person. Next: the admin settings hub, signed-in devices, and the last polish.',
+  now: 'All of the /feedback/2 response is shipped. Final pass: typecheck, build, smoke and a deploy, then it is over to the crew.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -80,44 +80,45 @@ export const OPENCODE_STATUS = {
         'Normal members can look but not edit a show workspace, enforced on the server as well as the page. Admins grant extra permissions per person (Edit show workspaces, Run a show day, Post announcements and more) or take away a default, from the member editor.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'ATCMS settings hub',
       detail:
-        'The admin area becomes a real settings hub: the cat’s name, the skill list, feedback form creation, and the rest of the knobs in one place.',
+        'A new /admin/settings page: the cat’s name, the skill list members pick from (and whether they can edit it), and feedback forms an admin can create and share as /feedback/<id>. Plus the admin layout choice.',
     },
     {
-      state: 'queued',
+      state: 'done',
       title: 'Signed-in devices',
       detail:
-        'Settings lists the devices you are signed in on, with sign out everywhere and sign out all but this one.',
+        'Settings lists every device you are signed in on, with sign out for one device, all other devices, or everything. Sessions carry a user-agent and last-seen time; the session id never leaves the server.',
     },
     {
-      state: 'queued',
-      title: 'Profile fixes',
-      detail:
-        'Picture, initials, surname and year all editable again, including moving up more than one year or down.',
-    },
-    {
-      state: 'queued',
+      state: 'done',
       title: 'Cards or lists',
       detail:
-        'Admins can choose whether admin pages show cards or lists, as a personal setting.',
+        'Admins can show admin pages as cards (the default) or a plain list, as a per-device preference. The overview switches live.',
     },
     {
-      state: 'queued',
+      state: 'done',
+      title: 'Profile fixes',
+      detail:
+        'A member with no roles picked can now save their picture, initials, surname and year again — the save was blocked until two roles were chosen. Moving up more than one year, or down, both work.',
+    },
+    {
+      state: 'done',
       title: 'Smart scene timings',
       detail:
-        'Average how long each scene actually ran, learned from rehearsals and shows, with show timings taking priority.',
+        'Scene run-times are recorded as rehearsal or show, and the average prefers show timings over rehearsal ones. The workspace shows a per-scene best estimate and a total estimated run.',
     },
     {
-      state: 'queued',
+      state: 'done',
       title: 'Streamline',
       detail:
-        'One show all together, settings all together, and the live show reading its data from the show itself rather than a separate copy.',
+        'One show all together (the dashboard tabs), settings all together (Settings and ATCMS settings), and the live running order can be pulled from the show’s own scenes with “Import from show”.',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Feedback round 2, batch 4: ATCMS settings hub, signed-in devices, smart timings, profile fixes',
     'Feedback round 2, batch 3: show workspaces locked down, per-person permissions',
     'Feedback round 2, batch 2: click-a-person profiles, controlled skills, privacy controls',
     'Feedback round 2, batch 1: Contacts and direct messages removed, idle tabs hidden, email discipline',

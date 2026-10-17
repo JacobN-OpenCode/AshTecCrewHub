@@ -52,6 +52,14 @@ export async function getSessionUser(req: Request): Promise<AuthUser | null> {
       WHERE "id" = $1 AND "expiresAt" > now()`,
     [token]
   );
+  if (!rows[0]) return null;
+  // Touch the device's last-seen time, but at most every few minutes so a busy
+  // page does not write on every request.
+  await db().query(
+    `UPDATE "AuthSessions" SET "lastSeenAt" = now()
+      WHERE "id" = $1 AND "lastSeenAt" < now() - interval '5 minutes'`,
+    [token]
+  ).catch(() => {});
   return rows[0] ?? null;
 }
 
@@ -127,7 +135,10 @@ export async function peekMagicLink(token: string): Promise<{ email: string; fir
  * Consume a token and open a session. The `usedAt IS NULL` predicate makes this
  * single-use even if the link is opened twice concurrently.
  */
-export async function consumeMagicLink(token: string): Promise<AuthUser | null> {
+export async function consumeMagicLink(
+  token: string,
+  meta: { userAgent?: string; ip?: string } = {},
+): Promise<AuthUser | null> {
   const { rows } = await db().query(
     `UPDATE "AuthMagicTokens"
         SET "usedAt" = now()
@@ -148,9 +159,9 @@ export async function consumeMagicLink(token: string): Promise<AuthUser | null> 
 
   const sessionId = crypto.randomUUID();
   await db().query(
-    `INSERT INTO "AuthSessions" ("id", "email", "firstName", "lastName", "expiresAt")
-     VALUES ($1, $2, $3, $4, now() + ($5 || ' days')::interval)`,
-    [sessionId, row.email, firstName ?? '', lastName ?? '', String(SESSION_TTL_DAYS)]
+    `INSERT INTO "AuthSessions" ("id", "email", "firstName", "lastName", "expiresAt", "userAgent", "ip", "lastSeenAt")
+     VALUES ($1, $2, $3, $4, now() + ($5 || ' days')::interval, $6, $7, now())`,
+    [sessionId, row.email, firstName ?? '', lastName ?? '', String(SESSION_TTL_DAYS), meta.userAgent ?? '', meta.ip ?? '']
   );
   return { id: sessionId, email: row.email, firstName: firstName ?? '', lastName };
 }

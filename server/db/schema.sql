@@ -964,6 +964,21 @@ ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "privacy" jsonb NOT NULL DEFA
 -- catalogue in src/lib/permissions.ts. Empty means "just the defaults".
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "permissions" jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+-- ---------------------------------------------------------------------------
+-- Signed-in devices (feedback round 2). A session row is a device; the id stays
+-- secret (it is the cookie), so the UI refers to a device by a separate publicId.
+-- ---------------------------------------------------------------------------
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "publicId" uuid NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "userAgent" text NOT NULL DEFAULT '';
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "ip" text NOT NULL DEFAULT '';
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "lastSeenAt" timestamptz NOT NULL DEFAULT now();
+CREATE UNIQUE INDEX IF NOT EXISTS "AuthSessions_publicId_idx" ON "AuthSessions" ("publicId");
+CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
+
+-- Feedback round 2: where a scene timing came from, so shows can take priority
+-- over rehearsals when we average how long a scene really runs.
+ALTER TABLE "SceneTimings" ADD COLUMN IF NOT EXISTS "source" text NOT NULL DEFAULT 'rehearsal';
+
 -- A tiny key/value store for app-wide settings the admins curate (the skill
 -- options, the cat's name, and whatever else the settings page grows). Kept
 -- generic so a new setting does not need a schema change.

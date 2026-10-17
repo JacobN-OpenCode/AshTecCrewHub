@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { db } from '#db';
-import { SETTING_KEYS, DEFAULT_SETTINGS, cleanSkillOptions } from '../lib/settings';
+import { SETTING_KEYS, DEFAULT_SETTINGS, cleanSkillOptions, cleanCustomForms } from '../lib/settings';
 
 /** Read the Settings table into the resolved app settings. */
 export async function readAppSettings() {
@@ -17,7 +17,10 @@ export async function readAppSettings() {
   const catRaw = map.get(SETTING_KEYS.catName);
   const catName = typeof catRaw === 'string' && catRaw.trim() ? catRaw.trim().slice(0, 40) : DEFAULT_SETTINGS.catName;
 
-  return { skillOptions, skillsEditable, catName };
+  const formsRaw = map.get(SETTING_KEYS.feedbackForms);
+  const feedbackForms = cleanCustomForms(formsRaw);
+
+  return { skillOptions, skillsEditable, catName, feedbackForms };
 }
 
 /**

@@ -14,6 +14,9 @@ export const SETTING_KEYS = {
   skillsEditable: 'skillsEditable',
   /** The crew cat's name, so the ATCMS settings page can rename it. */
   catName: 'catName',
+  /** Admin-created feedback forms, alongside the built-in ones. */
+  feedbackForms: 'feedbackForms',
+  /** Whether admin pages prefer cards over lists (per admin, stored client-side). */
 } as const;
 
 /** The skills we offer out of the box, until an admin curates their own list. */
@@ -37,13 +40,58 @@ export type AppSettings = {
   skillOptions: string[];
   skillsEditable: boolean;
   catName: string;
+  feedbackForms: CustomFeedbackForm[];
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
   skillOptions: DEFAULT_SKILL_OPTIONS,
   skillsEditable: true,
   catName: 'Tabby',
+  feedbackForms: [],
 };
+
+/**
+ * A feedback form an admin created from the settings page. Always freeform: a
+ * title, an intro and one or more paragraph prompts. The built-in forms live in
+ * src/lib/feedback.ts; these are merged in beside them.
+ */
+export type CustomFeedbackForm = {
+  id: string;
+  title: string;
+  intro: string;
+  prompts: { id: string; label: string; hint?: string }[];
+};
+
+const slug = (s: string) =>
+  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+
+/** Tidy admin-supplied custom forms: valid ids, a title, at least one prompt. */
+export function cleanCustomForms(raw: unknown): CustomFeedbackForm[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  const out: CustomFeedbackForm[] = [];
+  const seen = new Set<string>();
+  for (const item of arr) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const id = slug(String(o.id ?? o.title ?? ''));
+    const title = String(o.title ?? '').trim().slice(0, 120);
+    if (!id || !title || seen.has(id)) continue;
+    const prompts = (Array.isArray(o.prompts) ? o.prompts : [])
+      .map((p, i) => {
+        const po = (p ?? {}) as Record<string, unknown>;
+        const label = String(po.label ?? '').trim().slice(0, 200);
+        const pid = slug(String(po.id ?? label)) || `q${i + 1}`;
+        const hint = String(po.hint ?? '').trim().slice(0, 300);
+        return label ? { id: pid, label, ...(hint ? { hint } : {}) } : null;
+      })
+      .filter((p): p is { id: string; label: string; hint?: string } => !!p)
+      .slice(0, 20);
+    if (!prompts.length) continue;
+    seen.add(id);
+    out.push({ id, title, intro: String(o.intro ?? '').trim().slice(0, 2000), prompts });
+  }
+  return out.slice(0, 40);
+}
 
 /** Tidy an admin-supplied skill list: trim, drop blanks, de-dupe, cap. */
 export const cleanSkillOptions = (raw: unknown): string[] =>

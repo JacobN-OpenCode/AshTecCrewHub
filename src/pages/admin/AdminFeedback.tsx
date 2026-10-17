@@ -5,7 +5,8 @@ import { Card, CardContent } from '@project/components/ui/card';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Loader2, MessageSquareHeart, Users } from 'lucide-react';
-import { getFeedbackForm, FEEDBACK_FORMS } from '../../lib/feedback';
+import { allFeedbackForms } from '../../lib/feedback';
+import { useAppSettings } from '../../lib/appSettings';
 
 type Response = {
   id: string;
@@ -18,9 +19,6 @@ type Response = {
   submittedAt: string;
 };
 
-/** Which forms exist, so the picker keeps working if a second one is added. */
-const FORM_IDS = Object.keys(FEEDBACK_FORMS);
-
 function when(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -29,8 +27,11 @@ function when(iso: string): string {
 }
 
 export default function AdminFeedback() {
-  const [formId, setFormId] = useState(FORM_IDS[0] ?? '1');
-  const form = getFeedbackForm(formId);
+  const settings = useAppSettings();
+  const forms = useMemo(() => allFeedbackForms(settings.feedbackForms), [settings.feedbackForms]);
+  const formIds = useMemo(() => Object.keys(forms), [forms]);
+  const [formId, setFormId] = useState('1');
+  const form = forms[formId] ?? forms[formIds[0]];
   const [responses, setResponses] = useState<Response[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,13 +91,13 @@ export default function AdminFeedback() {
             <Link to={`/feedback/${form.id}`} className="underline">/feedback/{form.id}</Link>.
           </p>
         </div>
-        {FORM_IDS.length > 1 && (
+        {formIds.length > 1 && (
           <select
             value={formId}
             onChange={(e) => setFormId(e.target.value)}
             className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
           >
-            {FORM_IDS.map((id) => <option key={id} value={id}>{getFeedbackForm(id)?.title ?? id}</option>)}
+            {formIds.map((id) => <option key={id} value={id}>{forms[id]?.title ?? id}</option>)}
           </select>
         )}
       </div>

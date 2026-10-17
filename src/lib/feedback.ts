@@ -178,6 +178,32 @@ export function getFeedbackForm(id: string): FeedbackForm | undefined {
   return FEEDBACK_FORMS[id];
 }
 
+/**
+ * Every form, built-in plus any an admin created in settings (feedback round 2).
+ * A custom form is always freeform.
+ */
+export function allFeedbackForms(custom: { id: string; title: string; intro: string; prompts: { id: string; label: string; hint?: string }[] }[] = []): Record<string, FeedbackForm> {
+  const merged: Record<string, FeedbackForm> = { ...FEEDBACK_FORMS };
+  for (const c of custom) {
+    if (merged[c.id]) continue; // never shadow a built-in
+    merged[c.id] = {
+      id: c.id,
+      fromName: 'The crew hub',
+      fromRole: 'Feedback',
+      title: c.title,
+      intro: c.intro,
+      kind: 'freeform',
+      prompts: c.prompts,
+    };
+  }
+  return merged;
+}
+
+/** Resolve a form id against the built-ins and the admin-created ones. */
+export function resolveFeedbackForm(id: string, custom?: Parameters<typeof allFeedbackForms>[0]): FeedbackForm | undefined {
+  return allFeedbackForms(custom)[id];
+}
+
 /** Every valid feature id in a form, so a submission can be filtered against it. */
 export function featureIds(form: FeedbackForm): string[] {
   return (form.sections ?? []).flatMap((s) => s.features.map((f) => f.id));

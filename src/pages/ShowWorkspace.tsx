@@ -367,39 +367,62 @@ function Notes({ ws, act }: { ws: Ws; act: ActFn }) {
 function Timings({ ws, act }: { ws: Ws; act: ActFn }) {
   const [scene, setScene] = useState('');
   const [minutes, setMinutes] = useState('');
+  const [source, setSource] = useState<'rehearsal' | 'show'>('rehearsal');
+
+  // Group each scene's timings by where they came from. A show timing outranks a
+  // rehearsal one when we decide how long the scene "really" runs.
   const byScene = useMemo(() => {
-    const map = new Map<string, { actuals: number[]; estimate: number[] }>();
+    const map = new Map<string, { show: number[]; rehearsal: number[]; estimate: number[] }>();
     for (const t of ws.timings) {
-      if (!map.has(t.scene)) map.set(t.scene, { actuals: [], estimate: [] });
+      if (!map.has(t.scene)) map.set(t.scene, { show: [], rehearsal: [], estimate: [] });
       const e = map.get(t.scene)!;
-      (t.kind === 'Estimate' ? e.estimate : e.actuals).push(t.minutes);
+      if (t.kind === 'Estimate') e.estimate.push(t.minutes);
+      else if (t.source === 'show') e.show.push(t.minutes);
+      else e.rehearsal.push(t.minutes);
     }
-    return [...map.entries()];
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [ws.timings]);
+
   const avg = (a: number[]) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
+  // The number we trust: the show average if there is one, else the rehearsal
+  // average, else the estimate.
+  const best = (v: { show: number[]; rehearsal: number[]; estimate: number[] }) =>
+    v.show.length ? avg(v.show) : v.rehearsal.length ? avg(v.rehearsal) : avg(v.estimate);
+  const totalRun = byScene.reduce((sum, [, v]) => sum + best(v), 0);
+
   return (
     <Section>
       {ws.canEdit && (
         <div className="flex flex-wrap gap-2">
           <Input value={scene} onChange={(e) => setScene(e.target.value)} placeholder="Scene" className="w-32" />
           <Input value={minutes} onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Minutes" className="w-24" inputMode="numeric" />
-          <Button disabled={!scene.trim() || !minutes} onClick={() => act(async () => { await saveSceneTiming({ showId: ws.show.id, scene, minutes: Number(minutes) }); setMinutes(''); }, 'Timing recorded')}><Plus className="h-4 w-4 mr-1" />Record run-time</Button>
+          <select value={source} onChange={(e) => setSource(e.target.value as 'rehearsal' | 'show')} className="rounded-md border bg-background px-3 text-sm">
+            <option value="rehearsal">Rehearsal</option>
+            <option value="show">Show</option>
+          </select>
+          <Button disabled={!scene.trim() || !minutes} onClick={() => act(async () => { await saveSceneTiming({ showId: ws.show.id, scene, minutes: Number(minutes), source }); setMinutes(''); }, 'Timing recorded')}><Plus className="h-4 w-4 mr-1" />Record run-time</Button>
         </div>
       )}
-      {!byScene.length && <Empty>No run-times yet. Record how long each scene actually ran and the average builds itself.</Empty>}
+      {!byScene.length && <Empty>No run-times yet. Record how long each scene ran in rehearsals and in the show, and the average builds itself — show timings win.</Empty>}
+      {byScene.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <span className="font-medium">Estimated run</span>
+          <span className="font-mono">{totalRun}m</span>
+        </div>
+      )}
       <div className="space-y-2">
-        {byScene.map(([s, v]) => {
-          const a = v.actuals;
-          return (
-            <div key={s} className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
-              <span className="font-mono">{s}</span>
-              <span className="text-muted-foreground">
-                {a.length ? `avg ${avg(a)}m from ${a.length} run${a.length === 1 ? '' : 's'}` : 'no actual runs yet'}
-                {v.estimate.length ? ` · est ${avg(v.estimate)}m` : ''}
-              </span>
-            </div>
-          );
-        })}
+        {byScene.map(([s, v]) => (
+          <div key={s} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+            <span className="font-mono">{s}</span>
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">{best(v)}m</span>
+              {v.show.length > 0 && <> · show avg {avg(v.show)}m from {v.show.length} night{v.show.length === 1 ? '' : 's'}</>}
+              {v.rehearsal.length > 0 && <> · rehearsal avg {avg(v.rehearsal)}m from {v.rehearsal.length} run{v.rehearsal.length === 1 ? '' : 's'}</>}
+              {v.estimate.length > 0 && <> · est {avg(v.estimate)}m</>}
+              {v.show.length === 0 && v.rehearsal.length === 0 && v.estimate.length === 0 && ' no timings yet'}
+            </span>
+          </div>
+        ))}
       </div>
     </Section>
   );

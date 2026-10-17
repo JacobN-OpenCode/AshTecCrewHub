@@ -15,6 +15,7 @@
 
 import '../server/env.js';
 import { db } from '../server/db/index.js';
+import { DEFAULT_SKILL_OPTIONS } from '../src/lib/settings.js';
 
 const BASE = (process.env.SMOKE_BASE_URL ?? process.env.BASE_URL ?? `http://127.0.0.1:${process.env.PORT ?? 1502}`).replace(/\/$/, '');
 
@@ -902,6 +903,40 @@ if (!admin) {
       check('granting show.edit lets the member edit', crewEdit2.status === 200, JSON.stringify(crewEdit2.body).slice(0, 120));
       if (crewEdit2.body?.id) await call('saveChecklistItem', { showId: visShowId, id: crewEdit2.body.id, remove: true });
       await call('adminSaveMember', { id: crew.id, firstName: 'S', lastName: 'Crew', email: CREW_EMAIL, permissions: { granted: [], revoked: [] } });
+
+      // Feedback round 2: signed-in devices.
+      const sess = await callAs(crewJar, 'getMySessions', {});
+      check('getMySessions lists the current device',
+        sess.status === 200 && (sess.body?.sessions ?? []).some((s: { current: boolean }) => s.current),
+        JSON.stringify(sess.body).slice(0, 160));
+      const revokeOthers = await callAs(crewJar, 'revokeSessions', { scope: 'others' });
+      check('revokeSessions (others) succeeds', revokeOthers.status === 200, JSON.stringify(revokeOthers.body).slice(0, 120));
+
+      // Feedback round 2: the admin settings hub (cat name, skills, forms).
+      const savedSettings = await call('adminSaveSettings', { catName: 'Smoke Cat', skillOptions: ['Lighting', 'Sound'], skillsEditable: false });
+      check('adminSaveSettings saves', savedSettings.status === 200, JSON.stringify(savedSettings.body).slice(0, 120));
+      const settingsBack = await call('getSettings', {});
+      check('settings read back',
+        settingsBack.body?.catName === 'Smoke Cat' && (settingsBack.body?.skillOptions ?? []).includes('Lighting') && settingsBack.body?.skillsEditable === false,
+        JSON.stringify(settingsBack.body).slice(0, 160));
+      const lockedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: ['Lighting'] });
+      check('locked skills block a normal member', lockedSkills.status === 403, `status=${lockedSkills.status}`);
+
+      // A custom feedback form is listed once created.
+      await call('adminSaveSettings', { feedbackForms: [{ id: 'smoke-form', title: 'Smoke form', intro: '', prompts: [{ id: 'q1', label: 'Say something' }] }] });
+      const formsBack = await call('getSettings', {});
+      check('a custom feedback form is listed', (formsBack.body?.feedbackForms ?? []).some((f: { id: string }) => f.id === 'smoke-form'), JSON.stringify(formsBack.body?.feedbackForms).slice(0, 160));
+
+      // Restore the defaults so repeated runs are clean.
+      await call('adminSaveSettings', { catName: 'Tabby', skillOptions: DEFAULT_SKILL_OPTIONS, skillsEditable: true, feedbackForms: [] });
+
+      // Feedback round 2: profile fixes — a member can move up more than one
+      // year, or down.
+      const yUp = await callAs(crewJar, 'updateMyProfile', { year: 'Year 13' });
+      check('a member can move up more than one year', yUp.status === 200, JSON.stringify(yUp.body).slice(0, 120));
+      const yDown = await callAs(crewJar, 'updateMyProfile', { year: 'Year 7' });
+      check('a member can move down a year', yDown.status === 200, JSON.stringify(yDown.body).slice(0, 120));
+      await callAs(crewJar, 'updateMyProfile', { year: 'Year 12' });
 
       // ---------------------------------------------- the fun ones (Batch 8)
       // Show memories gathers photos and debrief lines per show.

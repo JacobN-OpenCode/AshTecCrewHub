@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { db } from '#db';
 import { requireAdmin } from '../lib/server';
-import { SETTING_KEYS, cleanSkillOptions } from '../lib/settings';
+import { SETTING_KEYS, cleanSkillOptions, cleanCustomForms } from '../lib/settings';
 
 /**
  * The admins' settings page (the ATCMS settings hub). Writes into the generic
@@ -16,6 +16,7 @@ export default createEndpoint({
     skillOptions: z.array(z.string()).optional(),
     skillsEditable: z.boolean().optional(),
     catName: z.string().max(40).optional(),
+    feedbackForms: z.array(z.any()).optional(),
   }),
   outputSchema: z.object({ success: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -32,6 +33,9 @@ export default createEndpoint({
       const name = input.catName.trim().slice(0, 40);
       if (!name) throw new Error('The cat needs a name.');
       writes.push([SETTING_KEYS.catName, name]);
+    }
+    if (input.feedbackForms !== undefined) {
+      writes.push([SETTING_KEYS.feedbackForms, cleanCustomForms(input.feedbackForms)]);
     }
 
     for (const [key, value] of writes) {

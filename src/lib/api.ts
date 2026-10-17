@@ -122,6 +122,13 @@ export type AdminGetTicketInputType = NonNullable<_AdminGetTicketCfg['inputSchem
 export type AdminGetTicketOutputType = Awaited<ReturnType<_AdminGetTicketCfg['execute']>>;
 export const adminGetTicket = createCaller<AdminGetTicketInputType, AdminGetTicketOutputType>('adminGetTicket');
 
+import type { default as _AdminImportLiveShowScenesEp } from '../api/adminImportLiveShowScenes';
+
+type _AdminImportLiveShowScenesCfg = typeof _AdminImportLiveShowScenesEp;
+export type AdminImportLiveShowScenesInputType = NonNullable<_AdminImportLiveShowScenesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminImportLiveShowScenesCfg['execute']>[0]['input'];
+export type AdminImportLiveShowScenesOutputType = Awaited<ReturnType<_AdminImportLiveShowScenesCfg['execute']>>;
+export const adminImportLiveShowScenes = createCaller<AdminImportLiveShowScenesInputType, AdminImportLiveShowScenesOutputType>('adminImportLiveShowScenes');
+
 import type { default as _AdminLiveShowControlEp } from '../api/adminLiveShowControl';
 
 type _AdminLiveShowControlCfg = typeof _AdminLiveShowControlEp;
@@ -423,6 +430,13 @@ export type GetMyFeedbackInputType = NonNullable<_GetMyFeedbackCfg['inputSchema'
 export type GetMyFeedbackOutputType = Awaited<ReturnType<_GetMyFeedbackCfg['execute']>>;
 export const getMyFeedback = createCaller<GetMyFeedbackInputType, GetMyFeedbackOutputType>('getMyFeedback');
 
+import type { default as _GetMySessionsEp } from '../api/getMySessions';
+
+type _GetMySessionsCfg = typeof _GetMySessionsEp;
+export type GetMySessionsInputType = NonNullable<_GetMySessionsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMySessionsCfg['execute']>[0]['input'];
+export type GetMySessionsOutputType = Awaited<ReturnType<_GetMySessionsCfg['execute']>>;
+export const getMySessions = createCaller<GetMySessionsInputType, GetMySessionsOutputType>('getMySessions');
+
 import type { default as _GetNotificationHistoryEp } from '../api/getNotificationHistory';
 
 type _GetNotificationHistoryCfg = typeof _GetNotificationHistoryEp;
@@ -611,6 +625,13 @@ type _RespondCoverCfg = typeof _RespondCoverEp;
 export type RespondCoverInputType = NonNullable<_RespondCoverCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_RespondCoverCfg['execute']>[0]['input'];
 export type RespondCoverOutputType = Awaited<ReturnType<_RespondCoverCfg['execute']>>;
 export const respondCover = createCaller<RespondCoverInputType, RespondCoverOutputType>('respondCover');
+
+import type { default as _RevokeSessionsEp } from '../api/revokeSessions';
+
+type _RevokeSessionsCfg = typeof _RevokeSessionsEp;
+export type RevokeSessionsInputType = NonNullable<_RevokeSessionsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_RevokeSessionsCfg['execute']>[0]['input'];
+export type RevokeSessionsOutputType = Awaited<ReturnType<_RevokeSessionsCfg['execute']>>;
+export const revokeSessions = createCaller<RevokeSessionsInputType, RevokeSessionsOutputType>('revokeSessions');
 
 import type { default as _RollCallEp } from '../api/rollCall';
 
@@ -872,6 +893,7 @@ export const api = {
   adminGetSupport,
   adminGetSupportSettings,
   adminGetTicket,
+  adminImportLiveShowScenes,
   adminLiveShowControl,
   adminLiveShowDevice,
   adminMoveRole,
@@ -915,6 +937,7 @@ export const api = {
   getMyCatLoginStatus,
   getMyEvents,
   getMyFeedback,
+  getMySessions,
   getNotificationHistory,
   getPresence,
   getPublicCalendar,
@@ -942,6 +965,7 @@ export const api = {
   presenceStart,
   requestCover,
   respondCover,
+  revokeSessions,
   rollCall,
   saveAnnouncement,
   saveAudienceCount,

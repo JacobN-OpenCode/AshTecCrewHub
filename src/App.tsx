@@ -21,6 +21,7 @@ import Attendance from './pages/Attendance';
 import Profile from './pages/Profile';
 import StageLayout from './pages/StageLayout';
 import AdminOverview from './pages/admin/AdminOverview';
+import AdminSettings from './pages/admin/AdminSettings';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminMembers from './pages/admin/AdminMembers';
 import EmailLog from './pages/admin/EmailLog';
@@ -136,6 +137,7 @@ function SignedIn() {
           <Route path="/show/:showId/sheet" element={<CallSheet />} />
           <Route path="/tools" element={<Tools />} />
           {me.isAdmin && <Route path="/admin" element={<AdminOverview />} />}
+          {me.isAdmin && <Route path="/admin/settings" element={<AdminSettings />} />}
           {me.isAdmin && <Route path="/admin/events" element={<AdminEvents />} />}
           {me.isAdmin && <Route path="/admin/members" element={<AdminMembers />} />}
           {me.isAdmin && <Route path="/admin/emails" element={<EmailLog />} />}

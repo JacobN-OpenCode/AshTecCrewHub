@@ -311,3 +311,33 @@ export function useCatHidden() {
   };
   return [value, set] as const;
 }
+
+/**
+ * Feedback round 2: how an admin likes lists — as cards or as rows. Per device,
+ * like the other layout choices, and only ever read by the admin pages.
+ */
+export type AdminLayout = 'cards' | 'lists';
+const ADMIN_LAYOUT_KEY = 'ashtec-admin-layout';
+
+export function useAdminLayout() {
+  const [value, setValue] = useState<AdminLayout>(() => {
+    try { return localStorage.getItem(ADMIN_LAYOUT_KEY) === 'lists' ? 'lists' : 'cards'; } catch { return 'cards'; }
+  });
+  useEffect(() => {
+    const sync = () => {
+      try { setValue(localStorage.getItem(ADMIN_LAYOUT_KEY) === 'lists' ? 'lists' : 'cards'); } catch { /* ignore */ }
+    };
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: AdminLayout) => {
+    try { localStorage.setItem(ADMIN_LAYOUT_KEY, next); } catch { /* private mode */ }
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}

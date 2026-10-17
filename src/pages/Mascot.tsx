@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MASCOT } from '../lib/mascot';
+import { useAppSettings } from '../lib/appSettings';
 import { useCatHidden } from '../lib/uiPrefs';
 import { playSfx } from '../lib/sfx';
 import { Button } from '@project/components/ui/button';
@@ -14,6 +15,7 @@ import { Cat, MessageCircle, Sparkles } from 'lucide-react';
  */
 export default function Mascot() {
   const [hidden, setHidden] = useCatHidden();
+  const { catName } = useAppSettings();
   const [line, setLine] = useState(MASCOT.line());
 
   return (
@@ -24,13 +26,13 @@ export default function Mascot() {
         <div className="relative">
           <motion.img
             src={MASCOT.image}
-            alt={MASCOT.name}
+            alt={catName}
             draggable={false}
             className="mx-auto h-32 w-32 drop-shadow-xl"
             animate={{ y: [0, -6, 0], rotate: [-2, 2, -2] }}
             transition={{ repeat: Infinity, duration: 4.5, ease: 'easeInOut' }}
           />
-          <h1 className="mt-4 text-4xl font-bold tracking-tight">{MASCOT.name}</h1>
+          <h1 className="mt-4 text-4xl font-bold tracking-tight">{catName}</h1>
           <p className="mt-1 text-sm font-medium uppercase tracking-wider text-primary">{MASCOT.role}</p>
           <p className="mt-3 text-lg text-muted-foreground">{MASCOT.tagline}</p>
         </div>
@@ -72,7 +74,7 @@ export default function Mascot() {
       <section className="flex items-center justify-between gap-4 rounded-2xl border bg-card p-5">
         <div>
           <h3 className="font-semibold">Roaming the app</h3>
-          <p className="text-sm text-muted-foreground">Show {MASCOT.name} in the corner of every page. It is per device, so a shared computer need not have a cat.</p>
+          <p className="text-sm text-muted-foreground">Show {catName} in the corner of every page. It is per device, so a shared computer need not have a cat.</p>
         </div>
         <Switch checked={!hidden} onCheckedChange={(on) => { setHidden(!on); playSfx('pop'); }} aria-label="Show the cat on every page" />
       </section>

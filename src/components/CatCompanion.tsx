@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cat } from 'lucide-react';
 import { MASCOT } from '../lib/mascot';
+import { useAppSettings } from '../lib/appSettings';
 import { useCatHidden } from '../lib/uiPrefs';
 import { playSfx } from '../lib/sfx';
 
@@ -15,6 +16,7 @@ import { playSfx } from '../lib/sfx';
  */
 export default function CatCompanion() {
   const [hidden] = useCatHidden();
+  const { catName } = useAppSettings();
   const [line, setLine] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -44,7 +46,7 @@ export default function CatCompanion() {
             className="mb-2 max-w-[220px] rounded-2xl rounded-br-sm border bg-card px-3 py-2 text-sm shadow-lg"
           >
             <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-              <Cat className="h-3 w-3" />{MASCOT.name}
+              <Cat className="h-3 w-3" />{catName}
             </div>
             {line}
           </motion.div>
@@ -54,8 +56,8 @@ export default function CatCompanion() {
       <button
         type="button"
         onClick={() => { playSfx('pop'); navigate('/mascot'); }}
-        title={`${MASCOT.name}, the crew cat`}
-        aria-label={`Open the ${MASCOT.name} page`}
+        title={`${catName}, the crew cat`}
+        aria-label={`Open the ${catName} page`}
         className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <motion.img

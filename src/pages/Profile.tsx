@@ -1,10 +1,12 @@
 import { previewId, pv } from '../lib/preview';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket,
-  saveNotificationPrefs, getNotificationHistory, exportMyData, getSettings, type GetNotificationHistoryOutputType,
+  saveNotificationPrefs, getNotificationHistory, exportMyData, getSettings, getMySessions, revokeSessions,
+  type GetNotificationHistoryOutputType, type GetMySessionsOutputType,
 } from '#api';
+import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -49,6 +51,25 @@ export default function Profile() {
   const [privacy, setPrivacy] = useState<Privacy>(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [skillsEditable, setSkillsEditable] = useState(true);
+  const [sessions, setSessions] = useState<GetMySessionsOutputType['sessions'] | null>(null);
+  const [sessionBusy, setSessionBusy] = useState('');
+
+  const loadSessions = useCallback(async () => {
+    try { const r = await getMySessions({}); setSessions(r.sessions); }
+    catch { setSessions([]); }
+  }, []);
+  useEffect(() => { void loadSessions(); }, [loadSessions]);
+
+  const removeSession = async (publicId?: string, isCurrent?: boolean, scope?: 'one' | 'others' | 'all') => {
+    setSessionBusy(publicId ?? scope ?? '');
+    try {
+      if (isCurrent) { await logout(); return; }
+      await revokeSessions({ scope: scope ?? 'one', publicId });
+      toast.success('Signed out');
+      await loadSessions();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSessionBusy(''); }
+  };
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   // Ticket 171e29fa: upload our own copy instead of requiring a public URL.
@@ -347,10 +368,46 @@ export default function Profile() {
           <p className="text-xs text-muted-foreground">Hiding your email never stops you signing in or receiving important mail.</p>
         </div>
 
+        {/* Feedback round 2: the devices you are signed in on. */}
+        <div className="border-t pt-5 space-y-3">
+          <div>
+            <h3 className="font-semibold">Signed-in devices</h3>
+            <p className="text-sm text-muted-foreground">Everywhere your account is signed in. Sign out any you do not recognise.</p>
+          </div>
+          {!sessions ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <ul className="space-y-2">
+              {sessions.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm">
+                  <MonitorSmartphone className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="font-medium">{s.name}</span>
+                  {s.current && <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30">This device</Badge>}
+                  <span className="text-xs text-muted-foreground">
+                    Last used {new Date(s.lastSeenAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                  <Button size="sm" variant="outline" className="ml-auto" disabled={sessionBusy === s.id}
+                    onClick={() => removeSession(s.id, s.current)}>
+                    {s.current ? 'Sign out' : 'Sign out this device'}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button size="sm" variant="outline" disabled={!sessions || sessions.length < 2 || sessionBusy === 'others'}
+            onClick={() => removeSession(undefined, false, 'others')}>
+            Sign out all other devices
+          </Button>
+        </div>
+
         {/* Ticket 2ffb3a6d: admins assign their own roles, so they never see the
             preferred-roles picker. Saving their details must not then demand two
             choices it does not show them. */}
-        <Button data-tour="profile-save" onClick={save} disabled={busy || (!me.isAdmin && (!p1 || !p2 || p1 === p2))}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        {/* Feedback round 2: roles are optional, so the save is only blocked when
+            two roles are chosen AND they are the same. Previously a member with
+            no roles picked could not save a picture, initials, surname or year
+            change at all. */}
+        <Button data-tour="profile-save" onClick={save} disabled={busy || (!me.isAdmin && !!p1 && p1 === p2)}>{busy ? 'Saving…' : 'Save profile'}</Button>
           </div>
 
           <CalendarIntegration />
