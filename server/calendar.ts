@@ -58,11 +58,11 @@ export async function verifyCalendarToken(token: string): Promise<string | null>
 }
 
 /**
- * The .ics body for one member: every non-hidden event they are involved in -
- * the shows they answered Yes or Maybe to, anything they have an attendance row
- * for, and club sessions (which everyone is invited to).
+ * Every non-hidden event one member is involved in: the shows they answered Yes
+ * or Maybe to, anything they have an attendance row for, and club sessions
+ * (which everyone is invited to).
  */
-export async function buildMemberFeed(memberId: string): Promise<string> {
+export async function memberEvents(memberId: string) {
   const [shows, subs, resps, att] = await Promise.all([
     zite.shows.findAll({ limit: 500 }),
     zite.subEvents.findAll({ limit: 2000 }),
@@ -102,7 +102,46 @@ export async function buildMemberFeed(memberId: string): Promise<string> {
       hidden: !!e.hidden,
     }));
 
+  return { events, showName };
+}
+
+/** The .ics body for one member. */
+export async function buildMemberFeed(memberId: string): Promise<string> {
+  const { events, showName } = await memberEvents(memberId);
   return buildIcs(events, showName, 'AshTec Crew');
+}
+
+/**
+ * The next call for one member, as plain data (feedback round 2, round 3).
+ *
+ * This exists so a watch can show the next call without a native app that needs
+ * a paid developer account: an Apple Shortcut running on the Apple Watch, or a
+ * tiny sideloaded Wear OS app, can fetch it with the same per-member token the
+ * calendar feed uses and render it however it likes.
+ */
+export async function nextCall(memberId: string) {
+  const { events, showName } = await memberEvents(memberId);
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = events
+    .filter((e) => !!e.date && e.date >= today)
+    .sort((a, b) => `${a.date} ${a.startTime ?? a.meetTime ?? ''}`.localeCompare(`${b.date} ${b.startTime ?? b.meetTime ?? ''}`));
+  const e = upcoming[0];
+  if (!e) return null;
+  return {
+    title: e.title,
+    type: e.type,
+    subtype: e.subtype,
+    show: e.showIds.map(showName).filter(Boolean).join(', '),
+    date: e.date,
+    dateTbc: e.dateTbc,
+    meetTime: e.meetTime,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    // Convenient pre-joined label, e.g. "Tue 4 Nov · 16:30".
+    when: e.date
+      ? `${new Date(`${e.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}${e.startTime ? ` · ${e.startTime}` : e.meetTime ? ` · ${e.meetTime}` : ''}`
+      : '',
+  };
 }
 
 /**

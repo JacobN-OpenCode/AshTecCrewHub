@@ -366,6 +366,10 @@ if (!admin) {
       check('birthday must be MM-DD', badBd.status !== 200);
       const bdays = await call('getBirthdays', { days: 30 });
       check('getBirthdays is members-only and shaped', bdays.status === 200 && Array.isArray(bdays.body?.birthdays));
+      // The watch feed (feedback round 2, round 3): /next-call.json needs the
+      // per-member calendar token, and 404s without one.
+      const ncNoToken = await fetch(`${BASE}/next-call.json`);
+      check('next-call.json requires a token', ncNoToken.status === 404, `status=${ncNoToken.status}`);
       // Restore the row so repeated runs do not leave a status on the admin.
       await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
 

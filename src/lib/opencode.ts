@@ -22,9 +22,21 @@ export const OPENCODE_STATUS = {
   headline:
     'The big /feedback/2 response is shipped, and round two of the settings work is going out: cards-or-lists everywhere, far more control in ATCMS settings, and the leaderboard removed.',
   /** What is being touched right now. */
-  now: 'Cards-or-lists now drives the crew, support, events and overview dashboards (not just the overview); ATCMS settings grew a Preferences section, branding, feature switches and crew option lists; and the crew leaderboard is gone.',
+  now: 'The cat is now every icon and the app icon; and a no-signup watch path is in: subscribe to the calendar feed, or point an Apple Shortcut / a sideloaded Wear app at the new /next-call.json.',
   /** The roadmap being worked through. */
   tracks: [
+    {
+      state: 'done',
+      title: 'The cat is every icon',
+      detail:
+        'One rule paints the cat into every lucide icon (they keep their size and layout), and the favicon, home-screen icon and Apple touch icon are the cat too.',
+    },
+    {
+      state: 'done',
+      title: 'Watch without signing up for anything',
+      detail:
+        'The zero-account path is the calendar feed (Apple/Google calendar on the watch shows every call). For a proper "next call" face, there is a new /next-call.json secured by the same per-member token, ready for an Apple Shortcut or a sideloaded Wear OS app.',
+    },
     {
       state: 'done',
       title: 'Cards or lists, everywhere',
@@ -112,6 +124,7 @@ export const OPENCODE_STATUS = {
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'The cat is every icon; watch path (calendar feed + /next-call.json)',
     'Badges removed (with the leaderboard), settings expanded',
     'Round 2: cards/lists everywhere, ATCMS settings expanded, leaderboard removed',
     'Feedback round 2, batch 4: ATCMS settings hub, signed-in devices, smart timings, profile fixes',

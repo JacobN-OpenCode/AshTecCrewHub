@@ -30,7 +30,7 @@ import {
   pruneAuth,
 } from './auth.js';
 import { catLogin } from './catLogin.js';
-import { verifyCalendarToken, buildMemberFeed, buildPublicFeed } from './calendar.js';
+import { verifyCalendarToken, buildMemberFeed, buildPublicFeed, nextCall } from './calendar.js';
 import * as rateLimit from './rateLimit.js';
 import { logRequest, logPageView, setViewDuration, pruneActivity } from './activityLog.js';
 import { notifyServerError } from './notify.js';
@@ -364,6 +364,29 @@ app.get('/calendar.ics', async (req, res) => {
   } catch (e) {
     console.error('[calendar] feed failed:', e);
     res.status(500).type('text/plain').send('Could not build the calendar.');
+  }
+});
+
+/**
+ * The next call as JSON, for a watch (feedback round 2, round 3).
+ *
+ * Same per-member token as the calendar feed, so it needs no login: an Apple
+ * Shortcut on the Apple Watch, or a sideloaded Wear OS app, can fetch it and
+ * show the next call. CORS is open because a Shortcut / widget may fetch it
+ * cross-origin; the token is the only secret and it never leaves the member.
+ */
+app.get('/next-call.json', async (req, res) => {
+  const token = String(req.query.token ?? '');
+  const memberId = token ? await verifyCalendarToken(token) : null;
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cache-Control', 'private, max-age=60');
+  if (!memberId) return res.status(404).json({ error: 'Not found' });
+  try {
+    const call = await nextCall(memberId);
+    res.json({ next: call });
+  } catch (e) {
+    console.error('[next-call] failed:', e);
+    res.status(500).json({ error: 'Could not build the next call.' });
   }
 });
 
