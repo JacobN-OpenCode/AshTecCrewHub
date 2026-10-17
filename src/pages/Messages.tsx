@@ -11,6 +11,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
 import MemberAvatar from '../components/MemberAvatar';
 import { useMe } from '../lib/me';
+import { playSfx } from '../lib/sfx';
 import { MessageSquarePlus, SendHorizontal, ArrowLeft, Search, MessagesSquare } from 'lucide-react';
 
 type Conversation = GetConversationsOutputType['conversations'][number];
@@ -106,6 +107,7 @@ export default function Messages() {
     setSending(true);
     try {
       await sendMessage({ toId: other, body });
+      playSfx('send');
       setDraft('');
       await loadThread(other);
       await loadConvs();

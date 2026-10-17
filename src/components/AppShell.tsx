@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
-  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake,
+  Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, DoorOpen, Eye, GraduationCap, HeartHandshake, Images,
   LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MessagesSquare, MoreHorizontal, BookUser, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Trophy, Tv, Users, Wrench, X,
 } from 'lucide-react';
@@ -12,6 +12,7 @@ import SupportButton from './SupportButton';
 import PresenceBanner from './PresenceBanner';
 import OfflineBanner from './OfflineBanner';
 import KeyboardShortcuts, { type Shortcut } from './KeyboardShortcuts';
+import CatCompanion from './CatCompanion';
 import CommandPalette, { type PaletteItem } from './CommandPalette';
 import MemberAvatar from './MemberAvatar';
 import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
@@ -182,6 +183,9 @@ function Shell() {
     const club: NavItem[] = [];
     if (me.isAdmin || me.isStaff) club.push({ to: '/parents', label: 'For parents', icon: HeartHandshake });
     club.push({ to: '/tools', label: 'Tools', icon: Wrench });
+    // Batch 8: the fun ones.
+    club.push({ to: '/memories', label: 'Memories', icon: Images });
+    club.push({ to: '/mascot', label: 'The cat', icon: Cat });
     groups.push({ label: 'Club', items: club });
   }
 
@@ -521,6 +525,8 @@ function Shell() {
 
       <CommandPalette open={palette} onOpenChange={setPalette} items={paletteItems} loading={searchLoading} />
       <KeyboardShortcuts shortcuts={shortcuts} />
+      {/* Batch 8: the crew cat roams the app (unless hidden on this device). */}
+      {!previewId() && <CatCompanion />}
       {!previewId() && <SupportButton />}
     </div>
   );

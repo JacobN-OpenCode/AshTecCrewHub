@@ -381,6 +381,13 @@ export type GetMeInputType = NonNullable<_GetMeCfg['inputSchema']> extends { _in
 export type GetMeOutputType = Awaited<ReturnType<_GetMeCfg['execute']>>;
 export const getMe = createCaller<GetMeInputType, GetMeOutputType>('getMe');
 
+import type { default as _GetMemoriesEp } from '../api/getMemories';
+
+type _GetMemoriesCfg = typeof _GetMemoriesEp;
+export type GetMemoriesInputType = NonNullable<_GetMemoriesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetMemoriesCfg['execute']>[0]['input'];
+export type GetMemoriesOutputType = Awaited<ReturnType<_GetMemoriesCfg['execute']>>;
+export const getMemories = createCaller<GetMemoriesInputType, GetMemoriesOutputType>('getMemories');
+
 import type { default as _GetMessageDirectoryEp } from '../api/getMessageDirectory';
 
 type _GetMessageDirectoryCfg = typeof _GetMessageDirectoryEp;
@@ -909,6 +916,7 @@ export const api = {
   getLiveShowAdmins,
   getLiveShowState,
   getMe,
+  getMemories,
   getMessageDirectory,
   getMyCatLoginStatus,
   getMyEvents,

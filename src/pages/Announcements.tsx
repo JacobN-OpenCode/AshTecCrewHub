@@ -10,6 +10,7 @@ import { Switch } from '@project/components/ui/switch';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
+import { playSfx } from '../lib/sfx';
 import { Megaphone, Pin, Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
 
 type Item = GetAnnouncementsOutputType['items'][number];
@@ -84,6 +85,7 @@ export default function Announcements() {
             setBusy(true);
             try {
               await saveAnnouncement(editing ? { id: editing.id, title, body, pinned } : { title, body, pinned });
+              playSfx(editing ? 'success' : 'badge');
               toast.success(editing ? 'Announcement updated' : 'Announcement posted');
               setComposing(false); setEditing(null);
               await load();

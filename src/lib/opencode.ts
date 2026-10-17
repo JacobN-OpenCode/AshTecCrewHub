@@ -20,9 +20,9 @@ export const OPENCODE_STATUS = {
   updated: '2026-10-17',
   /** One line on the assistant's current focus. */
   headline:
-    'Shipping the feedback roadmap in batches, plus small site and repo chores in between.',
+    'All eight batches of the feedback roadmap are shipped; now tidying up and watching for new feedback.',
   /** What is being touched right now. */
-  now: 'Batch 7 of the feedback roadmap: the crew (a crew-wide announcements feed, private direct messages with an unread badge, and a searchable skills directory).',
+  now: 'Batch 8 of the feedback roadmap: the fun ones (the cat out of the feedback forms and onto every page, silly sound effects with a mute, a named mascot with a backstory, and a show memories wall). That is the whole roadmap done.',
   /** The roadmap being worked through. */
   tracks: [
     {
@@ -83,20 +83,28 @@ export const OPENCODE_STATUS = {
         'Per-kind push tuning and a notification history, keyboard shortcuts, a one-click data export, accessibility settings (text size and high contrast), a next-call widget and a watch companion, printable call sheets, and offline reads for the pages a show day depends on. Live in production.',
     },
     {
-      state: 'active',
+      state: 'done',
       title: 'Feedback roadmap — Batch 7: the crew',
       detail:
-        'A crew-wide announcements feed admins post to (and push), private direct messages between members with an unread badge, and a searchable skills directory of who can teach what.',
+        'A crew-wide announcements feed admins post to (and push), private direct messages between members with an unread badge, and a searchable skills directory of who can teach what. Live in production.',
+    },
+    {
+      state: 'done',
+      title: 'Feedback roadmap — Batch 8: the fun ones',
+      detail:
+        'The cat, out of the feedback forms and onto every page as a companion you can hide; silly synthesised sound effects with a mute switch; a named mascot (Tabby) with a backstory; and a show memories wall gathering each run’s photos and debrief lines. Live in production.',
     },
     {
       state: 'queued',
-      title: 'Feedback roadmap — Batch 8: the fun ones',
+      title: 'Whatever the crew asks for next',
       detail:
-        'More cat, a mascot, sound effects and show memories.',
+        'The roadmap is fully shipped. New feedback forms feed straight back in here.',
     },
   ] as Track[],
   /** Recent shipped commits, newest first. */
   shipped: [
+    'Batch 8: the fun ones (the cat everywhere, sound effects, a named mascot, show memories)',
+    'Batch 7: the crew (announcements, direct messages, skills directory)',
     'Batch 6: app polish (push tuning, keyboard shortcuts, data export, accessibility, widgets, call sheets, offline)',
     'Batch 5: scheduling (clash detector, term view, availability, rotas, travel time, parents feed)',
     'Batch 4: show-day extras (photos, debrief, green room, lost property, box office)',

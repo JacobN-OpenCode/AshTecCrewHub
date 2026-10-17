@@ -865,6 +865,13 @@ if (!admin) {
         JSON.stringify(meRow));
 
       await callAs(crewJar, 'updateMyProfile', { skillsTeach: '', skillsLearn: '' });
+
+      // ---------------------------------------------- the fun ones (Batch 8)
+      // Show memories gathers photos and debrief lines per show.
+      const memories = await callAs(crewJar, 'getMemories', {});
+      check('getMemories returns a show list',
+        memories.status === 200 && Array.isArray(memories.body?.shows),
+        JSON.stringify(memories.body).slice(0, 120));
     }
 
       // ------------------------------------------------------------- logout

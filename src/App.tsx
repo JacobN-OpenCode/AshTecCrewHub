@@ -34,6 +34,8 @@ import Leaderboard from './pages/Leaderboard';
 import Announcements from './pages/Announcements';
 import Messages from './pages/Messages';
 import Skills from './pages/Skills';
+import Mascot from './pages/Mascot';
+import Memories from './pages/Memories';
 import OpenCode from './pages/OpenCode';
 import ShowWorkspace from './pages/ShowWorkspace';
 import LoginCat from './components/LoginCat';
@@ -122,6 +124,9 @@ function SignedIn() {
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/skills" element={<Skills />} />
+          {/* Batch 8: the mascot and the show memories wall. */}
+          <Route path="/mascot" element={<Mascot />} />
+          <Route path="/memories" element={<Memories />} />
           <Route path="/show/:showId" element={<ShowWorkspace />} />
           {/* Batch 6: printable call sheet (rendered in the shell so nav works
               on screen; @media print hides the chrome). */}

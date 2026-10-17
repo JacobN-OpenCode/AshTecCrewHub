@@ -285,3 +285,29 @@ export function applyAccessibilityPrefs(): void {
   applyHighContrast(getHighContrast());
   applyDensity(getDensity());
 }
+
+const CAT_KEY = 'ashtec-cat-hidden';
+
+/** Batch 8: whether the floating crew cat is hidden on this device. */
+export function getCatHidden(): boolean {
+  try { return localStorage.getItem(CAT_KEY) === '1'; } catch { return false; }
+}
+
+export function useCatHidden() {
+  const [value, setValue] = useState<boolean>(() => getCatHidden());
+  useEffect(() => {
+    const sync = () => setValue(getCatHidden());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: boolean) => {
+    try { localStorage.setItem(CAT_KEY, next ? '1' : '0'); } catch { /* private mode */ }
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}

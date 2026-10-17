@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Watch, LayoutPanelTop } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
@@ -21,6 +21,7 @@ import MyBadges from '../components/MyBadges';
 import { ROLES, SELF_YEARS, WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { buildIcs, downloadIcs } from '../lib/ics';
 import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, ACCENTS } from '../lib/uiPrefs';
+import { useSfxMuted, playSfx } from '../lib/sfx';
 import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
@@ -310,6 +311,8 @@ export default function Profile() {
           <Preferences />
 
           <AccessibilitySettings />
+
+          <SoundSettings />
 
           {me.isAdmin && <EmergencySignIn />}
 
@@ -775,6 +778,35 @@ function AccessibilitySettings() {
         </span>
         <Switch checked={contrast} onCheckedChange={setContrast} aria-label="Use high contrast" />
       </label>
+    </div>
+  );
+}
+
+/**
+ * Batch 8: sound effects. Little synthesised noises on a few satisfying actions,
+ * per device, off with one switch. There is a preview button so you know what
+ * you are signing up for (and what you are switching off).
+ */
+function SoundSettings() {
+  const [muted, setMuted] = useSfxMuted();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Volume2 className="h-5 w-5 text-primary" />Sound effects
+        </h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. A few small noises when things happen.</p>
+      </div>
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="flex items-center gap-2 font-medium text-sm">{muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}Play sounds</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">Sending a message, posting an announcement, and other little moments.</span>
+        </span>
+        <Switch checked={!muted} onCheckedChange={(on) => setMuted(!on)} aria-label="Play sound effects" />
+      </label>
+      <Button variant="outline" size="sm" onClick={() => { if (muted) setMuted(false); playSfx('success'); }}>
+        Preview
+      </Button>
     </div>
   );
 }
