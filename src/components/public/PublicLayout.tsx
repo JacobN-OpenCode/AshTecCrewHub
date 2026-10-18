@@ -135,6 +135,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t pt-6 text-sm text-muted-foreground">
           <p>{PLATFORM} · {SCHOOL}</p>
           <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <p>Built by the crew, for the crew.</p>
             <a href="/github" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground">
               <Github className="h-4 w-4" /> GitHub
