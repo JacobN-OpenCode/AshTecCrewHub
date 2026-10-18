@@ -69,6 +69,18 @@ export default function Privacy() {
           If you do not agree with this notice, please do not use the crew hub.
         </p>
 
+        <div className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/[0.06] p-5">
+          <h2 className="font-semibold text-amber-500">Not affiliated with the school</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            The AshTec Crew Hub is an independent, student-run project. We are <strong className="text-foreground">in
+            no way directly affiliated with, endorsed by, sponsored by or controlled by Ashford School</strong> (Kent),
+            which is owned by the United Learning Trust. We operate independently of the school and of the Trust, and
+            nothing here is their responsibility or their service. The school&rsquo;s name is used only to say where
+            the crew is based and which productions we help with. Any questions about the crew hub should come to the
+            crew, not to the school.
+          </p>
+        </div>
+
         {/* Contents */}
         <nav className="mt-8 rounded-2xl border bg-card p-5">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contents</h2>
@@ -204,7 +216,7 @@ export default function Privacy() {
               <li>In the crew WhatsApp community;</li>
               <li>On the project on GitHub, where an issue can be opened.</li>
             </ul>
-            <p>The crew hub is run by the AshTec Crew at Ashford School, United Kingdom.</p>
+            <p>The crew hub is run by the AshTec Crew, an independent student group based at Ashford School in the United Kingdom. We are not affiliated with, endorsed by, sponsored by or controlled by Ashford School or the United Learning Trust, and we operate independently of them.</p>
           </Section>
 
           <Section n={11} title="How can you review, update or delete your data?">

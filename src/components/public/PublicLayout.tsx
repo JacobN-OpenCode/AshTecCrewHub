@@ -133,7 +133,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
         <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t pt-6 text-sm text-muted-foreground">
-          <p>{PLATFORM} · {SCHOOL}</p>
+          <div>
+            <p>{PLATFORM} · {SCHOOL}</p>
+            <p className="mt-1 text-xs text-muted-foreground/80">
+              An independent, student-run project. Not affiliated with, endorsed by or controlled by Ashford School or the United Learning Trust.
+            </p>
+          </div>
           <div className="flex items-center gap-4">
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <p>Built by the crew, for the crew.</p>
