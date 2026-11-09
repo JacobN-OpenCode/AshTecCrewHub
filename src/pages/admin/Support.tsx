@@ -9,7 +9,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench, X } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
 import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
@@ -37,6 +37,8 @@ export default function Support() {
   const [onlyReferred, setOnlyReferred] = useState(false);
   const [busyMaint, setBusyMaint] = useState('');
   const [pinning, setPinning] = useState('');
+  const [untagging, setUntagging] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const [reminding, setReminding] = useState(false);
   const [remindingId, setRemindingId] = useState('');
   const [sameTab] = useSupportSameTab();
@@ -116,6 +118,30 @@ export default function Support() {
       toast.error((e as Error).message);
     } finally { setPinning(''); }
   };
+  // Ticket 1: "needs to be able to untag stuff". Removing the refer-to-opencode
+  // label used to mean opening the ticket and unticking a checkbox. The tag is
+  // only a label, so it can be cleared straight from the list.
+  const untag = async (t: Ticket) => {
+    if (untagging) return;
+    setUntagging(t.id);
+    setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, referToOpencode: false } : x)));
+    try {
+      await adminUpdateTicket({ id: t.id, referToOpencode: false });
+      toast.success(`Removed “${OPENCODE_TAG}”`);
+    } catch (e) {
+      setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, referToOpencode: true } : x)));
+      toast.error((e as Error).message);
+    } finally { setUntagging(''); }
+  };
+  // Ticket 7: Refresh said "Refreshed" before the reload had finished, so a
+  // ticket raised a second ago could still be missing. It now waits.
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await load(); toast.success('Refreshed'); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setRefreshing(false); }
+  };
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
   const referred = tickets.filter((t) => t.referToOpencode).length;
@@ -162,12 +188,28 @@ export default function Support() {
     return `${days} days`;
   };
 
-  /** One ticket row, shared between the flat list, the by-status groups and cards. */
+  /**
+   * One ticket row, shared between the flat list, the by-status groups and cards.
+   *
+   * Ticket 7 ("the ticket buttons are a little broken"): the row used to be one
+   * <Link> with the pin, remind and untag controls nested inside it. A button
+   * inside an anchor is invalid HTML and the browser gives the click to the
+   * anchor, so the buttons either did nothing or opened the ticket instead. The
+   * link is now an empty stretched overlay covering the row, and the controls
+   * sit above it on their own layer - so the row is still clickable, and the
+   * buttons work.
+   */
   const row = (t: Ticket, card = false) => (
-    <Link key={t.id} to={`/admin/support/${t.id}`} target={sameTab ? undefined : '_blank'} rel={sameTab ? undefined : 'noopener'}
-      className={card
-        ? 'flex h-full flex-col gap-2 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40'
-        : 'w-full p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40'}>
+    <div key={t.id} className={card
+      ? 'relative flex h-full flex-col gap-2 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40'
+      : 'relative w-full p-4 flex flex-col md:flex-row md:items-center gap-2 transition-colors hover:bg-muted/40'}>
+      <Link
+        to={`/admin/support/${t.id}`}
+        target={sameTab ? undefined : '_blank'}
+        rel={sameTab ? undefined : 'noopener'}
+        aria-label={`Open ${t.subject}`}
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate flex items-center gap-1.5">
           {t.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
@@ -195,15 +237,27 @@ export default function Support() {
             : <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{t.replyCount} {t.replyCount === 1 ? 'reply' : 'replies'}</span>}
         </p>
       </div>
-      <div className="flex gap-1.5 shrink-0">
+      <div className="relative z-10 flex flex-wrap items-center gap-1.5 shrink-0">
         {t.severity && (
           <Badge variant="outline" className={SEVERITY_STYLE[t.severity]}>
             <Flag className="h-3 w-3 mr-1" />{t.severity}
           </Badge>
         )}
         {t.referToOpencode && (
-          <Badge variant="outline" className={OPENCODE_TAG_STYLE}>
-            <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
+          <Badge variant="outline" className={`${OPENCODE_TAG_STYLE} pr-1`}>
+              <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
+              <button
+                type="button"
+                title={`Remove “${OPENCODE_TAG}”`}
+                aria-label={`Remove ${OPENCODE_TAG} from this ticket`}
+                disabled={untagging === t.id}
+                onClick={() => untag(t)}
+                className="ml-1 rounded-full p-0.5 transition-colors hover:bg-purple-500/25 disabled:opacity-50"
+              >
+                {untagging === t.id
+                  ? <Loader2 className="h-3 w-3 animate-spin" />
+                  : <X className="h-3 w-3" />}
+              </button>
           </Badge>
         )}
         <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
@@ -217,7 +271,7 @@ export default function Support() {
           variant="ghost" size="sm" className="h-7 px-2 text-xs"
           disabled={pinning === t.id}
           title={t.pinned ? 'Unpin this ticket' : 'Pin this ticket to the top'}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(t); }}
+          onClick={() => togglePin(t)}
         >
           {pinning === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
         </Button>
@@ -226,13 +280,13 @@ export default function Support() {
             variant="ghost" size="sm" className="h-7 px-2 text-xs"
             disabled={remindingId === t.id}
             title="Remind the maintainers about just this ticket"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); remindOne(t.id); }}
+            onClick={() => remindOne(t.id)}
           >
             {remindingId === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
           </Button>
         )}
       </div>
-    </Link>
+    </div>
   );
 
   return (
@@ -251,7 +305,7 @@ export default function Support() {
               {reminding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BellRing className="h-4 w-4 mr-2" />}
               Remind maintainers{maintainerTurn > 0 ? ` (${maintainerTurn})` : ''}
             </Button>
-            <Button variant="outline" onClick={() => { load(); toast.success('Refreshed'); }}>Refresh</Button>
+            <Button variant="outline" disabled={refreshing} onClick={refresh}>{refreshing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}Refresh</Button>
           </div>
         </div>
 
