@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from '#auth';
 import { loginWithRedirect } from '#auth';
-import { checkEmail } from '#api';
+import { checkEmail, getSignInDomainHints } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Loader2, Mail } from 'lucide-react';
@@ -20,15 +20,38 @@ export function SignInPanel({ onSent, callbackURL = '/' }: { onSent?: () => void
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<{ email: string; firstName: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const valid = /^\S+@\S+\.\S+$/.test(email);
+  // Ticket 6: "Preset email suffixes for sign in". Everyone is on a school
+  // domain, so typing "moorej" should be enough - the rest is picked from here.
+  const [domains, setDomains] = useState<string[]>([]);
+  const [domainHint, setDomainHint] = useState('');
+  useEffect(() => {
+    getSignInDomainHints({})
+      .then((r) => setDomains(r.domains))
+      .catch(() => { /* hints are optional; the box still works without them */ });
+  }, []);
+  // A typed "@" (or a full address) means the person is doing it themselves.
+  const local = email.includes('@') ? '' : email.trim();
+  const sugared = (raw: string) => {
+    const v = raw.trim();
+    if (v.includes('@') || !v) return v;
+    // One shared domain: fill it in on its own. Several: the chips below ask
+    // which, because guessing wrong sends the link to nobody.
+    return domains.length === 1 ? `${v}@${domains[0]}` : v;
+  };
+  const resolved = sugared(email);
+  const valid = /^\S+@\S+\.\S+$/.test(resolved);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
+    if (!valid) {
+      if (local && domains.length > 1) setDomainHint('Choose your school above, or type the whole address.');
+      return;
+    }
+    setDomainHint('');
     setBusy(true);
     setProblem(null);
     try {
-      const who = await checkEmail({ email });
+      const who = await checkEmail({ email: resolved });
       if (!who.exists && !who.setupMode) {
         setProblem('We could not find a crew account for that address. Ask a crew admin to add you.');
         return;
@@ -40,17 +63,17 @@ export function SignInPanel({ onSent, callbackURL = '/' }: { onSent?: () => void
         return;
       }
       const res = await signIn.magicLink({
-        email,
+        email: resolved,
         // The hosted sign-up screen used to ask for this. The crew list already
         // knows it, so pass it through rather than making someone type it again.
-        name: who.firstName || email,
+        name: who.firstName || resolved,
         callbackURL,
       });
       if (res.error) {
         setProblem(res.error.message ?? 'That did not work. Try again in a moment.');
         return;
       }
-      setSent({ email, firstName: who.firstName });
+      setSent({ email: resolved, firstName: who.firstName });
       onSent?.();
     } finally {
       setBusy(false);
@@ -91,9 +114,28 @@ export function SignInPanel({ onSent, callbackURL = '/' }: { onSent?: () => void
             setEmail(e.target.value);
             setProblem(null);
           }}
-          placeholder="you@ashfordschool.co.uk"
+          placeholder={domains.length === 1 ? `you${domains[0]}` : 'you@ashfordschool.co.uk'}
           autoComplete="email"
         />
+        {/* Ticket 6: the suffix, one tap away. */}
+        {local !== '' && domains.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            {domains.map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                onClick={() => { setEmail(`${local}@${d}`); setProblem(null); setDomainHint(''); }}
+              >
+                @{d}
+              </button>
+            ))}
+          </div>
+        )}
+        {local !== '' && domains.length > 1 && (
+          <p className="text-xs text-muted-foreground">Pick your school from the list, or type the whole address.</p>
+        )}
+        {domainHint && <p className="text-xs text-destructive">{domainHint}</p>}
       </div>
       {problem && <p className="text-sm text-destructive">{problem}</p>}
       <Button className="h-12 w-full rounded-full text-base" disabled={!valid || busy}>

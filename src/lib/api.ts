@@ -486,6 +486,13 @@ export type GetShowWorkspaceInputType = NonNullable<_GetShowWorkspaceCfg['inputS
 export type GetShowWorkspaceOutputType = Awaited<ReturnType<_GetShowWorkspaceCfg['execute']>>;
 export const getShowWorkspace = createCaller<GetShowWorkspaceInputType, GetShowWorkspaceOutputType>('getShowWorkspace');
 
+import type { default as _GetSignInDomainHintsEp } from '../api/getSignInDomainHints';
+
+type _GetSignInDomainHintsCfg = typeof _GetSignInDomainHintsEp;
+export type GetSignInDomainHintsInputType = NonNullable<_GetSignInDomainHintsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetSignInDomainHintsCfg['execute']>[0]['input'];
+export type GetSignInDomainHintsOutputType = Awaited<ReturnType<_GetSignInDomainHintsCfg['execute']>>;
+export const getSignInDomainHints = createCaller<GetSignInDomainHintsInputType, GetSignInDomainHintsOutputType>('getSignInDomainHints');
+
 import type { default as _GetStaffHomeEp } from '../api/getStaffHome';
 
 type _GetStaffHomeCfg = typeof _GetStaffHomeEp;
@@ -924,6 +931,7 @@ export const api = {
   getSettings,
   getShowMedia,
   getShowWorkspace,
+  getSignInDomainHints,
   getStaffHome,
   getStageLayout,
   globalSearch,
