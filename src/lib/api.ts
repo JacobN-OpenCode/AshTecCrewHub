@@ -24,6 +24,13 @@ export type AdminDeleteSubEventInputType = NonNullable<_AdminDeleteSubEventCfg['
 export type AdminDeleteSubEventOutputType = Awaited<ReturnType<_AdminDeleteSubEventCfg['execute']>>;
 export const adminDeleteSubEvent = createCaller<AdminDeleteSubEventInputType, AdminDeleteSubEventOutputType>('adminDeleteSubEvent');
 
+import type { default as _AdminExportTicketsEp } from '../api/adminExportTickets';
+
+type _AdminExportTicketsCfg = typeof _AdminExportTicketsEp;
+export type AdminExportTicketsInputType = NonNullable<_AdminExportTicketsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminExportTicketsCfg['execute']>[0]['input'];
+export type AdminExportTicketsOutputType = Awaited<ReturnType<_AdminExportTicketsCfg['execute']>>;
+export const adminExportTickets = createCaller<AdminExportTicketsInputType, AdminExportTicketsOutputType>('adminExportTickets');
+
 import type { default as _AdminGetDataEp } from '../api/adminGetData';
 
 type _AdminGetDataCfg = typeof _AdminGetDataEp;
@@ -865,6 +872,7 @@ export const api = {
   ackCueCall,
   adminClearSessionHistory,
   adminDeleteSubEvent,
+  adminExportTickets,
   adminGetData,
   adminGetDiagnostics,
   adminGetEmailLog,
