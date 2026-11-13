@@ -14,7 +14,7 @@ import PublicLayout from '../../components/public/PublicLayout';
  * Linked only from the public footer, never from inside the signed-in app.
  */
 
-const UPDATED = '18 October 2026';
+const UPDATED = '13 November 2026';
 
 const TOC = [
   'What information do we collect?',
@@ -99,7 +99,7 @@ export default function Privacy() {
         <div className="mt-8 rounded-2xl border border-primary/25 bg-primary/[0.04] p-5">
           <h2 className="font-semibold">Summary of key points</h2>
           <ul className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground">
-            <li><strong className="text-foreground">What we collect.</strong> Only what the crew needs to run the club: your name and school email, your year and roles, your answers to event forms, attendance and check-in records, and anything you choose to add (a picture link, a phone number, skills).</li>
+            <li><strong className="text-foreground">What we collect.</strong> Only what the crew needs to run the club: your name and school email, your year and roles, your answers to event forms, attendance and check-in records, and anything you choose to add (a profile picture, skills).</li>
             <li><strong className="text-foreground">Sensitive information.</strong> We do not collect or process special-category (sensitive) personal information.</li>
             <li><strong className="text-foreground">Third parties.</strong> We do not collect information about you from anyone else, and we do not sell or rent your information.</li>
             <li><strong className="text-foreground">Why.</strong> To run the crew, send the reminders and alerts you have asked for, keep the system secure, and answer your support tickets and feedback.</li>
@@ -115,14 +115,14 @@ export default function Privacy() {
               <li>your <strong>first initial and surname</strong> (we deliberately store only a first initial, never a full first name);</li>
               <li>your <strong>school email address</strong> (this is your sign-in);</li>
               <li>your <strong>year group</strong> and your <strong>crew roles</strong> and preferred roles;</li>
-              <li>optional extras, only if you choose to add them: a <strong>profile picture link</strong>, a <strong>phone number</strong> you opt to share, your <strong>birthday as a day and month only</strong> (never the year), a status line, and the <strong>skills</strong> you tag.</li>
+              <li>optional extras, only if you choose to add them: a <strong>profile picture</strong> (you can upload one, which we store on our own server, or paste a link to one), your <strong>birthday as a day and month only</strong> (never the year), a status line, and the <strong>skills</strong> you tag.</li>
             </ul>
             <p><strong>Information created by using the crew hub.</strong> When you use the service we record:</p>
             <ul>
               <li>your answers to event and show forms (coming, maybe, or not attending);</li>
               <li>attendance and venue check-in records for rehearsals and shows;</li>
               <li>anything you post in the crew hub, such as rehearsal notes, show debriefs, green-room messages and lost-property entries;</li>
-              <li>support tickets and feedback you submit, and the replies on them;</li>
+              <li>support tickets and feedback you submit, the replies on them, and any <strong>pictures you attach to a ticket</strong> (stored on our own server, like profile pictures);</li>
               <li>notifications sent to you, and when;</li>
               <li>sign-in and session details (the device and the time), kept so you can see and sign out your devices;</li>
               <li>coarse page-view counts, so we can see which parts of the hub are used. These are recorded on our own server, not by a third-party analytics service.</li>
@@ -147,7 +147,7 @@ export default function Privacy() {
           <Section n={3} title="What legal bases do we rely on?">
             <p>Under the UK GDPR and the Data Protection Act 2018 we must have a lawful basis for processing your information. We rely on:</p>
             <ul>
-              <li><strong>Consent</strong> for the optional things &mdash; a profile picture, a shared phone number, your birthday, your skills, and notifications. You can withdraw consent at any time (see <a href="#s7">section 7</a>).</li>
+              <li><strong>Consent</strong> for the optional things &mdash; a profile picture, your birthday, your skills, and notifications. You can withdraw consent at any time (see <a href="#s7">section 7</a>).</li>
               <li><strong>Legitimate interests</strong> for running the club &mdash; managing the crew, its events and its shows, and keeping the system secure. We have balanced this against your rights, and the information is limited to what the club actually needs.</li>
               <li><strong>Vital interests</strong> where it is necessary to protect someone&rsquo;s safety, such as knowing who is on site during a show.</li>
               <li><strong>Legal obligations</strong> where the law requires us to keep or disclose something.</li>

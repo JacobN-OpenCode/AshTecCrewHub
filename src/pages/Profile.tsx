@@ -51,7 +51,6 @@ export default function Profile() {
   const [statusEmoji, setStatusEmoji] = useState(me.statusEmoji ?? '');
   const [birthday, setBirthday] = useState(me.birthday ?? '');
   const [contactShare, setContactShare] = useState(!!me.contactShare);
-  const [contactPhone, setContactPhone] = useState(me.contactPhone ?? '');
   const [skillsTeach, setSkillsTeach] = useState<string[]>(parseList(me.skillsTeach));
   const [skillsLearn, setSkillsLearn] = useState<string[]>(parseList(me.skillsLearn));
   const [privacy, setPrivacy] = useState<Privacy>(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
@@ -104,7 +103,7 @@ export default function Profile() {
     setFirstName(me.firstName); setLastName(me.lastName); setYear(me.year); setEmail(me.email);
     setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
     setStatusText(me.statusText ?? ''); setStatusEmoji(me.statusEmoji ?? ''); setBirthday(me.birthday ?? '');
-    setContactShare(!!me.contactShare); setContactPhone(me.contactPhone ?? '');
+    setContactShare(!!me.contactShare);
     setSkillsTeach(parseList(me.skillsTeach)); setSkillsLearn(parseList(me.skillsLearn));
     setPrivacy(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
   }, [me]);
@@ -133,7 +132,7 @@ export default function Profile() {
     try {
       const r = await updateMyProfile({
         avatarUrl: pic, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
-        statusText, statusEmoji, birthday, contactShare, contactPhone, skillsTeach, skillsLearn, privacy,
+        statusText, statusEmoji, birthday, contactShare, skillsTeach, skillsLearn, privacy,
       });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
@@ -313,19 +312,15 @@ export default function Profile() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold">Contact sheet</h3>
-              <p className="text-sm text-muted-foreground">Share your details with the crew so people can reach you.</p>
+              <p className="text-sm text-muted-foreground">Share your school email with the crew so people can reach you.</p>
             </div>
             <Switch checked={contactShare} onCheckedChange={setContactShare} />
           </div>
-          {contactShare && (
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="space-y-1 sm:col-span-2">
-                <Label htmlFor="cp">Mobile number (optional)</Label>
-                <Input id="cp" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={20} placeholder="07700 900123" />
-                <p className="text-xs text-muted-foreground">Your school email is always shown when you turn this on. Turn it off any time and you disappear from the sheet.</p>
-              </div>
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {contactShare
+              ? 'Your school email is on the contact sheet. Turn this off any time and you disappear from it.'
+              : 'Off, so you are not on the contact sheet.'}
+          </p>
         </div>
 
         {/* Feedback round 2: skills are chosen from the list an admin curates,

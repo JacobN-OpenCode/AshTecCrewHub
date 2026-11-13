@@ -566,7 +566,6 @@ ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusText" text NOT NULL DE
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusEmoji" text NOT NULL DEFAULT '';
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "birthday" text NOT NULL DEFAULT ''; -- MM-DD
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NULL DEFAULT false;
-ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactPhone" text NOT NULL DEFAULT '';
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
 ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
 

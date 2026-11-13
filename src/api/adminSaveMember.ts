@@ -30,7 +30,6 @@ export default createEndpoint({
     statusEmoji: z.string().max(4).optional(),
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
-    contactPhone: z.string().max(20).optional(),
     // Ticket 456e6083: selecting "No mentor yet" sends an explicit null. The
     // column is nullable, so null has to be accepted here or saving a member
     // with no mentor was rejected before it reached the database.
@@ -85,7 +84,6 @@ export default createEndpoint({
       statusEmoji: (input.statusEmoji ?? '').trim().slice(0, 4),
       birthday: (input.birthday ?? '').trim(),
       contactShare: !!input.contactShare,
-      contactPhone: (input.contactPhone ?? '').trim().slice(0, 20),
       mentorId: input.mentorId || null,
       isMentor: !!input.isMentor,
     };

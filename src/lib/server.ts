@@ -190,7 +190,6 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   statusEmoji: (m as unknown as { statusEmoji?: string }).statusEmoji ?? '',
   birthday: (m as unknown as { birthday?: string }).birthday ?? '',
   contactShare: !!(m as unknown as { contactShare?: boolean }).contactShare,
-  contactPhone: (m as unknown as { contactPhone?: string }).contactPhone ?? '',
   mentorId: (m as unknown as { mentorId?: string | null }).mentorId ?? null,
   isMentor: !!(m as unknown as { isMentor?: boolean }).isMentor,
   // Contractors (ticket 00c0715c) are external: they get the platform and
