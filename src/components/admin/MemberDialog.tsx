@@ -14,7 +14,7 @@ import MemberAvatar from '../MemberAvatar';
 import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../../lib/avatarUrl';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);

@@ -357,7 +357,7 @@ if (!admin) {
 
       // Batch 1 profile extras: status, birthday, contact-sheet opt-in and the
       // mentor lookup all round-trip through updateMyProfile/getMe.
-      const bits = await call('updateMyProfile', { statusText: 'On lighting desk', statusEmoji: '🎧', birthday: '03-14', contactShare: true, contactPhone: '07700 900123' });
+      const bits = await call('updateMyProfile', { statusText: 'On lighting desk', statusEmoji: '🎧', birthday: '03-14', contactShare: true });
       check('updateMyProfile accepts status/birthday/contact', bits.status === 200, JSON.stringify(bits.body).slice(0, 160));
       const meBits = await call('getMe', {});
       const bm = meBits.body?.member ?? {};
@@ -377,7 +377,7 @@ if (!admin) {
         pubAdmins.status === 200 && Array.isArray(pubAdminsBody.admins) && pubAdminsBody.admins.every((a: any) => a.email === undefined && typeof a.id === 'string'),
         JSON.stringify(pubAdminsBody).slice(0, 160));
       // Restore the row so repeated runs do not leave a status on the admin.
-      await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '' });
+      await call('updateMyProfile', { statusText: '', statusEmoji: '', birthday: '', contactShare: false });
 
       // -------------------------------------------- Batch 3: show workspace
       // The whole show workspace round-trips through the members-only endpoints:

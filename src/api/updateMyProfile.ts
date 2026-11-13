@@ -43,7 +43,6 @@ export default createEndpoint({
     statusEmoji: z.string().max(4).optional(),
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
-    contactPhone: z.string().max(20).optional(),
     // Skills: the member picks from the admin-curated options, so these are
     // lists of chosen labels, not free text.
     skillsTeach: z.array(z.string()).max(40).optional(),
@@ -106,7 +105,6 @@ export default createEndpoint({
       record.birthday = b;
     }
     if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
-    if (input.contactPhone !== undefined) record.contactPhone = input.contactPhone.trim().slice(0, 20);
 
     // Skills are admin-curated now. If an admin has turned member editing off,
     // only an admin may change them; otherwise keep the chosen labels that are
