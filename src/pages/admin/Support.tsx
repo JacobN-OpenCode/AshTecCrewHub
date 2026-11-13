@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, adminUpdateTicket, type AdminGetSupportOutputType } from '#api';
+import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, adminUpdateTicket, adminExportTickets, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
@@ -9,7 +9,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, BellRing, Clock, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench, X } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Download, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench, X } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
 import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
@@ -38,6 +38,7 @@ export default function Support() {
   const [busyMaint, setBusyMaint] = useState('');
   const [pinning, setPinning] = useState('');
   const [untagging, setUntagging] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reminding, setReminding] = useState(false);
   const [remindingId, setRemindingId] = useState('');
@@ -289,6 +290,30 @@ export default function Support() {
     </div>
   );
 
+  // One file with every open ticket and its whole thread, so the backlog can be
+  // handed over without opening each ticket. Built in the browser from the
+  // endpoint's JSON, so nothing is stored server-side.
+  const exportOpen = async () => {
+    setExporting(true);
+    try {
+      const r = await adminExportTickets({});
+      const blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ashtec-open-tickets-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(r.count === 0 ? 'No open tickets to download' : `Downloaded ${r.count} open ticket${r.count === 1 ? '' : 's'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not build the export.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="grid lg:grid-cols-[1fr_280px] gap-6">
       <div className="space-y-6 min-w-0">
@@ -301,6 +326,10 @@ export default function Support() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={exportOpen} disabled={exporting} title="Download every open ticket, with its full thread, as one JSON file">
+              {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Download open tickets
+            </Button>
             <Button variant="outline" onClick={remind} disabled={reminding || maintainerTurn === 0}>
               {reminding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BellRing className="h-4 w-4 mr-2" />}
               Remind maintainers{maintainerTurn > 0 ? ` (${maintainerTurn})` : ''}
