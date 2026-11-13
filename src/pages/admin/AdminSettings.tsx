@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveSettings } from '#api';
+import { adminSaveSettings, adminGetSupportSettings, adminSetSupportSettings } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
@@ -8,13 +8,11 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Badge } from '@project/components/ui/badge';
-import { Cat, GraduationCap, LayoutGrid, List, MessageSquareHeart, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
-import { cn } from '@project/components/lib/utils';
+import { Cat, GraduationCap, MessageSquareHeart, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
 import { useAppSettings, refreshAppSettings } from '../../lib/appSettings';
 import {
   cleanSkillOptions, FEATURE_KEYS, FEATURE_LABELS, type CustomFeedbackForm, type Features, type CrewLists,
 } from '../../lib/settings';
-import { useAdminLayout } from '../../lib/uiPrefs';
 
 /**
  * The ATCMS settings hub (feedback round 2). One page for the knobs: how admin
@@ -23,7 +21,6 @@ import { useAdminLayout } from '../../lib/uiPrefs';
  */
 export default function AdminSettings() {
   const settings = useAppSettings();
-  const [layout, setLayout] = useAdminLayout();
 
   const [catName, setCatName] = useState(settings.catName);
   const [platformName, setPlatformName] = useState(settings.platformName);
@@ -35,6 +32,24 @@ export default function AdminSettings() {
   const [forms, setForms] = useState<CustomFeedbackForm[]>(settings.feedbackForms);
   const [newSkill, setNewSkill] = useState('');
   const [busy, setBusy] = useState('');
+  // Tickets d1ae2a76 / 09b3e402 / 26239458: the site-wide default for support
+  // email. Each member can override it in their own profile.
+  const [summaryMode, setSummaryMode] = useState<'per-ticket' | 'daily'>('per-ticket');
+  useEffect(() => {
+    adminGetSupportSettings({}).then((r) => setSummaryMode(r.mode as 'per-ticket' | 'daily')).catch(() => {});
+  }, []);
+  const setDaily = async (daily: boolean) => {
+    const prev = summaryMode;
+    const mode = daily ? 'daily' : 'per-ticket';
+    setSummaryMode(mode);
+    try {
+      await adminSetSupportSettings({ mode });
+      toast.success(daily ? 'The default is now one daily summary' : 'The default is now an email per ticket');
+    } catch (e) {
+      setSummaryMode(prev);
+      toast.error((e as Error).message);
+    }
+  };
 
   useEffect(() => { setCatName(settings.catName); }, [settings.catName]);
   useEffect(() => { setPlatformName(settings.platformName); }, [settings.platformName]);
@@ -84,27 +99,23 @@ export default function AdminSettings() {
         <p className="mt-1 text-muted-foreground">The knobs for the whole crew hub, in one place.</p>
       </div>
 
-      {/* Preferences */}
+      {/* Ticket 26239458: the cards-or-lists choice is a per-device preference, so
+          it now lives in the member's own profile with the other device settings.
+          This page is for the things that apply to everyone. */}
+
+      {/* Support email default (tickets d1ae2a76 / 09b3e402 / 26239458) */}
       <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Preferences</h2>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">Admin pages: cards or lists</p>
-            <p className="text-xs text-muted-foreground">Applies to the crew, support, events and overview dashboards. Per device, and yours alone. Cards is the default.</p>
-          </div>
-          <div className="flex gap-2">
-            {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setLayout(id)}
-                className={cn('inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium', layout === id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}
-              >
-                <Icon className="h-4 w-4" />{label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <h2 className="flex items-center gap-2 font-semibold"><MessageSquareHeart className="h-4 w-4 text-primary" /> Support email</h2>
+        <label className="flex items-start justify-between gap-3 cursor-pointer">
+          <span>
+            <span className="block text-sm font-medium">Default: one daily summary instead of per-ticket email</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              This is only the default. Everyone can choose per-ticket or daily for themselves in their profile, and their choice wins.
+              Off: a new ticket emails each maintainer straight away. On: one email a day listing the last day&apos;s tickets.
+            </span>
+          </span>
+          <Switch checked={summaryMode === 'daily'} onCheckedChange={setDaily} aria-label="Default to one daily support summary" />
+        </label>
       </section>
 
       {/* Branding */}

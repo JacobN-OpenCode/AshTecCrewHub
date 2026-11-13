@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket,
   saveNotificationPrefs, getNotificationHistory, exportMyData, getSettings, getMySessions, revokeSessions,
+  saveSupportEmailMode,
   type GetNotificationHistoryOutputType, type GetMySessionsOutputType,
 } from '#api';
 import { logout } from '#auth';
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop } from 'lucide-react';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
@@ -23,7 +24,8 @@ import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, ACCENTS } from '../lib/uiPrefs';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 import { useSfxMuted, playSfx } from '../lib/sfx';
 import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
@@ -121,12 +123,10 @@ export default function Profile() {
     // save, with the same wording the server uses. It used to surface as a failed
     // API call, which read as "the crew hub broke" over a mistyped URL.
     const pic = avatarUrl.trim();
-    if (pic && !/^https?:\/\//i.test(pic)) {
-      toast.error('The picture must be a link starting with http:// or https://, or upload a file.');
-      return;
-    }
-    if (pic && /\s/.test(pic)) {
-      toast.error('That picture link has a space in it - check it is one clean URL.');
+    // Ticket 3bf93c2e: an uploaded picture is a relative /api/uploads/... path,
+    // so this has to accept our own files as well as pasted links.
+    if (pic && !isAvatarUrl(pic)) {
+      toast.error(AVATAR_URL_MESSAGE);
       return;
     }
     setBusy(true);
@@ -430,7 +430,11 @@ export default function Profile() {
 
           <PwaSettings />
 
+          {me.isAdmin && <AdminPageLayout />}
+
           <NotificationTuning />
+
+          <SupportEmailSettings />
 
           <NotificationHistory />
 
@@ -988,6 +992,88 @@ function NotificationTuning() {
 }
 
 /**
+ * Ticket 26239458: "all the per device settings should be in the profile". The
+ * admin cards-or-lists choice is per device, so it belongs here with the other
+ * device settings rather than in the site-wide settings page.
+ */
+function AdminPageLayout() {
+  const [layout, setLayout] = useAdminLayout();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <LayoutGrid className="h-5 w-5 text-primary" />Admin pages
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Cards or lists on the crew, support, events and overview dashboards. Just for this browser.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
+          <button key={id} type="button" onClick={() => setLayout(id)}
+            className={cn('inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium', layout === id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>
+            <Icon className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tickets d1ae2a76 "Personalised email settings" and 09b3e402 "Summary vs per
+ * ticket emails": support-ticket email is now a per-account choice. The site-wide
+ * switch in Admin settings only sets the default for anyone who has not picked.
+ */
+function SupportEmailSettings() {
+  const { me, refreshMe } = useMe();
+  const [busy, setBusy] = useState(false);
+  const current = (me as unknown as { supportEmailMode?: string }).supportEmailMode ?? '';
+
+  const choose = async (mode: '' | 'per-ticket' | 'daily') => {
+    setBusy(true);
+    try {
+      await saveSupportEmailMode({ mode });
+      await refreshMe();
+      toast.success('Support email preference saved');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const OPTIONS: { value: '' | 'per-ticket' | 'daily'; label: string; hint: string }[] = [
+    { value: '', label: 'Follow the site default', hint: 'Whatever an admin has set for everyone.' },
+    { value: 'per-ticket', label: 'Every ticket, as it is raised', hint: 'One email each time a new ticket comes in.' },
+    { value: 'daily', label: 'One summary a day', hint: 'A single email each morning listing the last day of tickets.' },
+  ];
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Mail className="h-5 w-5 text-primary" />Support ticket email
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          How you want to hear about new support tickets. This is yours alone, and it follows your account to every device.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {OPTIONS.map((o) => (
+          <label key={o.value || 'default'} className="flex items-start justify-between gap-4 cursor-pointer">
+            <span>
+              <span className="block font-medium text-sm">{o.label}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{o.hint}</span>
+            </span>
+            <input type="radio" name="support-email-mode" className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+              checked={current === o.value} disabled={busy} onChange={() => void choose(o.value)}
+              aria-label={o.label} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Batch 6: notification history. What was pushed to this member recently, so
  * someone who was offline can see what they missed. Read-only and scoped to the
  * signed-in member.
@@ -1123,9 +1209,25 @@ function CalendarIntegration() {
   const [feed, setFeed] = useState<{ url: string; webcal: string } | null>(null);
 
   // Ticket ab308aca: the live subscribe feed.
+  // Ticket 65aaf306: "it shows it as an invalid token". The feed URL is built
+  // from APP_URL on the server, so if that is unset the link comes back pointing
+  // at localhost and no calendar app can fetch it. Rewrite it to the address the
+  // member is actually using, which is the one that works.
+  const fixHost = (u: string) => {
+    try {
+      const parsed = new URL(u, window.location.origin);
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        return `${window.location.origin}${parsed.pathname}${parsed.search}`;
+      }
+      return parsed.toString();
+    } catch { return u; }
+  };
   useEffect(() => {
     getCalendarFeed({})
-      .then((f) => setFeed(f as { url: string; webcal: string }))
+      .then((f) => {
+        const g = f as { url: string; webcal: string };
+        setFeed({ url: fixHost(g.url), webcal: fixHost(g.webcal) });
+      })
       .catch(() => {});
   }, []);
 
@@ -1185,6 +1287,10 @@ function CalendarIntegration() {
           <Button size="sm" variant="outline" onClick={copy} disabled={!feed}>Copy link</Button>
         </div>
         {feed && <p className="break-all font-mono text-[11px] text-muted-foreground">{feed.url}</p>}
+        <p className="text-xs text-muted-foreground">
+          Google Calendar does not take the <span className="font-mono">webcal</span> button: use <strong>Copy link</strong>, then
+          Other calendars → From URL and paste it. Apple and Outlook can use the button.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-3">

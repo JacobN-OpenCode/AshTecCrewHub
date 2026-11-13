@@ -3,6 +3,7 @@ import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, findMemberByEmail } from '../lib/server';
 import { parsePermissionState } from '../lib/permissions';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 
 export default createEndpoint({
   description: 'Creates, updates or deletes a crew member (admins)',
@@ -56,8 +57,9 @@ export default createEndpoint({
     // Ticket 76cf803c: a bad picture link is the person's typo, not a server
     // fault. Throwing a plain Error made this a 500 and emailed the maintainers;
     // a BAD_REQUEST says exactly what is wrong and stays out of the error feed.
-    if (avatarUrl && (!/^https?:\/\//i.test(avatarUrl) || /\s/.test(avatarUrl))) {
-      throw new ZiteError({ code: 'BAD_REQUEST', message: 'Profile picture URL must start with http:// or https://.' });
+    // Ticket 3bf93c2e: an uploaded picture is a relative /api/uploads/... path.
+    if (avatarUrl && !isAvatarUrl(avatarUrl)) {
+      throw new ZiteError({ code: 'BAD_REQUEST', message: AVATAR_URL_MESSAGE });
     }
     const record: Record<string, unknown> = {
       firstName: input.firstName,

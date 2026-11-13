@@ -46,6 +46,9 @@ export default createEndpoint({
         pinned: !!(ticket as { pinned?: boolean }).pinned,
         assignedMaintainerIds: ids(ticket.assignedMaintainers),
         lastReplyAt: ticket.lastReplyAt ?? '', lastReplyFrom: ticket.lastReplyFrom ?? '', escalatedAt: ticket.escalatedAt ?? '',
+        // Ticket 5a04aaf1: pictures the submitter attached, as paths we host.
+        attachments: ((ticket as { attachments?: string }).attachments ?? '')
+          .split(',').map((u) => u.trim()).filter((u) => u.startsWith('/api/uploads/')),
       },
       replies,
       submitter: person(members.find((m) => m.id === ids(ticket.submittedBy)[0])),

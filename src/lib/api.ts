@@ -766,6 +766,13 @@ export type SaveShowSceneInputType = NonNullable<_SaveShowSceneCfg['inputSchema'
 export type SaveShowSceneOutputType = Awaited<ReturnType<_SaveShowSceneCfg['execute']>>;
 export const saveShowScene = createCaller<SaveShowSceneInputType, SaveShowSceneOutputType>('saveShowScene');
 
+import type { default as _SaveSupportEmailModeEp } from '../api/saveSupportEmailMode';
+
+type _SaveSupportEmailModeCfg = typeof _SaveSupportEmailModeEp;
+export type SaveSupportEmailModeInputType = NonNullable<_SaveSupportEmailModeCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveSupportEmailModeCfg['execute']>[0]['input'];
+export type SaveSupportEmailModeOutputType = Awaited<ReturnType<_SaveSupportEmailModeCfg['execute']>>;
+export const saveSupportEmailMode = createCaller<SaveSupportEmailModeInputType, SaveSupportEmailModeOutputType>('saveSupportEmailMode');
+
 import type { default as _SendCueCallEp } from '../api/sendCueCall';
 
 type _SendCueCallCfg = typeof _SendCueCallEp;
@@ -978,6 +985,7 @@ export const api = {
   saveSchedulePrefs,
   saveShowPhoto,
   saveShowScene,
+  saveSupportEmailMode,
   sendCueCall,
   sendTestNotification,
   setAdminNotifications,

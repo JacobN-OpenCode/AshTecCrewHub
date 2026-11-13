@@ -30,15 +30,21 @@ export default createEndpoint({
     name: z.string().max(120).optional(),
     platform: z.string().max(60).optional(),
     userAgent: z.string().max(400).optional(),
-    email: z.string().email(),
+    // Ticket 9cc2b8ac: the screen setup sends the admin's member id, because
+    // getLiveShowAdmins deliberately never publishes admin email addresses.
+    // `email` stays accepted for older clients and the Mac app.
+    memberId: z.string().optional(),
+    email: z.string().email().optional(),
     pin: z.string().min(1).max(200),
   }),
   outputSchema: z.any(),
   execute: async ({ input }) => {
     const liveShow = await currentLiveShow();
     if (!liveShow) throw new Error('No live show has been set up yet.');
-    const member = await findMemberByEmail(input.email);
-    if (!member?.isAdmin || !(await verifyAdminSecret(input.email, input.pin))) {
+    const email = await credentialEmail(input.email, input.memberId);
+    if (!email) throw new Error('Pick which admin is setting up this screen.');
+    const member = await findMemberByEmail(email);
+    if (!member?.isAdmin || !(await verifyAdminSecret(email, input.pin))) {
       throw new Error('Those admin details are not right.');
     }
     const device = await enableLiveShowDevice(liveShow, {

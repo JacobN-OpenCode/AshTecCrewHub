@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminGetSupportSettings, adminSetSupportSettings, adminUpdateTicket, adminExportTickets, type AdminGetSupportOutputType } from '#api';
+import { adminGetSupport, adminSetMaintainer, adminRemindMaintainers, adminUpdateTicket, adminExportTickets, type AdminGetSupportOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
-import { Switch } from '@project/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { AlertCircle, ArrowUpRight, BellRing, Clock, Download, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench, X } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
@@ -45,23 +44,6 @@ export default function Support() {
   const [sameTab] = useSupportSameTab();
   // Feedback round 2: cards or a list, the admin's choice (default cards).
   const [layout] = useAdminLayout();
-  // Ticket f505c30e: per-ticket vs one daily summary email for new tickets.
-  const [summaryMode, setSummaryMode] = useState<'per-ticket' | 'daily'>('per-ticket');
-  useEffect(() => {
-    adminGetSupportSettings({}).then((r) => setSummaryMode(r.mode as 'per-ticket' | 'daily')).catch(() => {});
-  }, []);
-  const setDaily = async (daily: boolean) => {
-    const prev = summaryMode;
-    const mode = daily ? 'daily' : 'per-ticket';
-    setSummaryMode(mode);
-    try {
-      await adminSetSupportSettings({ mode });
-      toast.success(daily ? 'New tickets will arrive as one daily summary' : 'Each new ticket will be emailed straight away');
-    } catch (e) {
-      setSummaryMode(prev);
-      toast.error((e as Error).message);
-    }
-  };
   const load = useCallback(() => adminGetSupport({}).then((r) => setTickets(r.tickets)), []);
   useEffect(() => { load(); }, [load]);
   // Ticket 92805b9d: keep the list current without the Refresh button. A quiet
@@ -390,17 +372,17 @@ export default function Support() {
       </div>
 
       <aside className="rounded-2xl border bg-card p-4 h-fit space-y-3 min-w-0">
-        <div className="border-b pb-3">
-          <label className="flex items-start justify-between gap-3 cursor-pointer">
-            <span>
-              <span className="block text-sm font-medium">Daily summary instead of per-ticket email</span>
-              <span className="block text-xs text-muted-foreground mt-0.5">
-                A team-wide setting, not just yours: it changes what every maintainer receives.
-                Off: every new ticket emails each maintainer. On: one email a day listing the last day&apos;s tickets.
-              </span>
-            </span>
-            <Switch checked={summaryMode === 'daily'} onCheckedChange={setDaily} aria-label="Send one daily support summary" />
-          </label>
+        {/* Tickets d1ae2a76 / 09b3e402 / 26239458: the email mode is now a
+            per-account choice in each member's profile, with the site-wide
+            default living in Admin settings. This page just points at it. */}
+        <div className="border-b pb-3 space-y-1">
+          <p className="text-sm font-medium">Support email</p>
+          <p className="text-xs text-muted-foreground">
+            Everyone picks per-ticket or a daily summary in their own profile. The default for anyone who has not picked is in Settings.
+          </p>
+          <Button asChild variant="outline" size="sm" className="w-full">
+            <Link to="/admin/settings">Open Settings</Link>
+          </Button>
         </div>
         <div className="flex items-center gap-2 font-semibold"><Wrench className="h-4 w-4 text-primary" />Maintainers</div>
         <p className="text-xs text-muted-foreground">Admins only. Emailed about bug reports. Feature requests and general support go to all admins who aren’t staff.</p>

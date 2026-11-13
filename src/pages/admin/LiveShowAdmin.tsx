@@ -12,6 +12,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@project/components/ui/select';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@project/components/ui/alert-dialog';
+import {
   Loader2, Plus, Trash2, ArrowUp, ArrowDown, Tv, Play, Pause, RotateCcw, ChevronLeft,
   ChevronRight, Save, ScrollText, BellRing, Megaphone, MessageSquare, Monitor, Smartphone,
   Tablet, Power, Radio, Pencil, X,
@@ -119,6 +123,7 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
   const [savingScript, setSavingScript] = useState(false);
   const [importing, setImporting] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   const [savingDevice, setSavingDevice] = useState(false);
   const [busyAction, setBusyAction] = useState('');
 
@@ -203,9 +208,16 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
     }
   };
 
+  // Ticket 50c01a2a: "the stop show button doesn't work". Two things made it
+  // look dead: it returned silently when no show was selected, and it asked for
+  // confirmation through window.confirm, which is suppressed in the installed
+  // PWA/kiosk screens. The confirm is now a proper dialog, and Stop closes every
+  // open show server-side so a stale row cannot keep the screens live.
   const stopShow = async () => {
-    if (!showId) return;
-    if (!window.confirm('Stop the show? Every screen goes back to "No show running".')) return;
+    if (!showId) {
+      toast.error('Pick a show first, then stop it.');
+      return;
+    }
     setStarting(true);
     try {
       await adminSaveLiveShow({ showId, open: false, status: 'finished' });
@@ -377,7 +389,7 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
           )}
           <div className="ml-auto">
             {ls?.open
-              ? <Button variant="destructive" onClick={stopShow} disabled={starting}>{starting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Power className="h-4 w-4 mr-2" />}Stop Show</Button>
+              ? <Button variant="destructive" onClick={() => setConfirmStop(true)} disabled={starting}>{starting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Power className="h-4 w-4 mr-2" />}Stop Show</Button>
               : <Button onClick={startShow} disabled={starting}>{starting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}Start Show</Button>}
           </div>
         </div>
@@ -387,6 +399,21 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
             : 'Starting saves the settings below, opens the show and starts the clock. Screens that are enabled switch to the board.'}
         </p>
       </div>
+
+      <AlertDialog open={confirmStop} onOpenChange={setConfirmStop}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop the show?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every screen goes back to &quot;No show running&quot; and the show clock stops.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it running</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmStop(false); void stopShow(); }}>Stop the show</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick controls */}
       {ls?.open && (

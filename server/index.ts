@@ -90,29 +90,73 @@ const AVATAR_URL_PREFIX = '/api/uploads/avatars';
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_MIME: Record<string, string> = { png: 'png', jpg: 'jpg', jpeg: 'jpg', webp: 'webp' };
 
+// Ticket 5a04aaf1: pictures on support tickets. Same hosting and the same
+// limits, in their own folder so a ticket image is never confused with an
+// avatar, and so the two can be cleaned up separately.
+const TICKET_IMAGE_DIR = path.join(root, 'uploads', 'tickets');
+const TICKET_IMAGE_URL_PREFIX = '/api/uploads/tickets';
+
+/**
+ * Shared data-URL image upload: validate, hash, write, return the URL.
+ *
+ * The file name is the owner plus a content hash, so replacing a picture writes
+ * a new file and browsers never show a stale one, and the URL is ours to hand
+ * out without being guessable from somebody else's id alone.
+ */
+async function saveImageUpload(
+  req: Request,
+  res: Response,
+  opts: { dir: string; prefix: string; maxBytes: number; owner: string; tooBig: string },
+): Promise<Response> {
+  const match = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.dataUrl ?? ''));
+  if (!match) return res.status(400).json({ message: 'Choose a PNG, JPG or WebP image.' });
+  const buf = Buffer.from(match[2], 'base64');
+  if (!buf.length) return res.status(400).json({ message: 'That file was empty.' });
+  if (buf.length > opts.maxBytes) return res.status(400).json({ message: opts.tooBig });
+  const hash = createHash('sha1').update(buf).digest('hex').slice(0, 16);
+  const file = `${opts.owner}-${hash}.${AVATAR_MIME[match[1]]}`;
+  await mkdir(opts.dir, { recursive: true });
+  await writeFile(path.join(opts.dir, file), buf);
+  // Served under /api/... because that prefix is what the reverse proxy in
+  // front of us forwards to this process; a bare /uploads would hit the static
+  // site instead and miss the server.
+  return res.json({ url: `${opts.prefix}/${file}` });
+}
+
+/** The signed-in member's id, or their email if the row cannot be found. */
+async function uploadOwner(req: Request): Promise<string | null> {
+  const user = await getSessionUser(req);
+  if (!user) return null;
+  const { rows } = await db().query('SELECT "id" FROM "CrewMembers" WHERE lower("schoolEmail") = $1', [user.email.toLowerCase()]);
+  return String(rows[0]?.id ?? user.email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40) || 'member';
+}
+
 app.post('/api/uploadAvatar', express.json({ limit: '6mb' }), async (req: Request, res: Response) => {
   try {
-    const user = await getSessionUser(req);
-    if (!user) return res.status(401).json({ statusCode: 401, code: 'UNAUTHORIZED', message: 'Not signed in' });
-    const match = /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.dataUrl ?? ''));
-    if (!match) return res.status(400).json({ message: 'Choose a PNG, JPG or WebP image.' });
-    const buf = Buffer.from(match[2], 'base64');
-    if (!buf.length) return res.status(400).json({ message: 'That file was empty.' });
-    if (buf.length > AVATAR_MAX_BYTES) return res.status(400).json({ message: 'That image is larger than 2 MB.' });
-    // Key the file by the member, so the URL is ours to hand out but never guessable
-    // from someone else's id alone (the content hash changes on every upload).
-    const { rows } = await db().query('SELECT "id" FROM "CrewMembers" WHERE lower("schoolEmail") = $1', [user.email.toLowerCase()]);
-    const owner = String(rows[0]?.id ?? user.email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40) || 'member';
-    const hash = createHash('sha1').update(buf).digest('hex').slice(0, 16);
-    const file = `${owner}-${hash}.${AVATAR_MIME[match[1]]}`;
-    await mkdir(AVATAR_DIR, { recursive: true });
-    await writeFile(path.join(AVATAR_DIR, file), buf);
-    // Served under /api/... because that prefix is what the reverse proxy in
-    // front of us forwards to this process; a bare /uploads would hit the static
-    // site instead and miss the server.
-    return res.json({ url: `${AVATAR_URL_PREFIX}/${file}` });
+    const owner = await uploadOwner(req);
+    if (!owner) return res.status(401).json({ statusCode: 401, code: 'UNAUTHORIZED', message: 'Not signed in' });
+    return await saveImageUpload(req, res, {
+      dir: AVATAR_DIR, prefix: AVATAR_URL_PREFIX, maxBytes: AVATAR_MAX_BYTES, owner,
+      tooBig: 'That image is larger than 2 MB.',
+    });
   } catch (e) {
     console.error('[server] uploadAvatar failed:', e);
+    return res.status(500).json({ message: 'Could not save that image. Try again.' });
+  }
+});
+
+// Ticket 5a04aaf1: "Add pictures to support tickets". Same shape as the avatar
+// upload, so the client can reuse one helper for both.
+app.post('/api/uploadTicketImage', express.json({ limit: '6mb' }), async (req: Request, res: Response) => {
+  try {
+    const owner = await uploadOwner(req);
+    if (!owner) return res.status(401).json({ statusCode: 401, code: 'UNAUTHORIZED', message: 'Not signed in' });
+    return await saveImageUpload(req, res, {
+      dir: TICKET_IMAGE_DIR, prefix: TICKET_IMAGE_URL_PREFIX, maxBytes: AVATAR_MAX_BYTES, owner,
+      tooBig: 'That image is larger than 2 MB.',
+    });
+  } catch (e) {
+    console.error('[server] uploadTicketImage failed:', e);
     return res.status(500).json({ message: 'Could not save that image. Try again.' });
   }
 });
