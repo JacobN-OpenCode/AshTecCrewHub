@@ -11,9 +11,10 @@ import type { AdminData, AdminMember } from '../../lib/useAdminData';
 import { useAppSettings } from '../../lib/appSettings';
 import { PERMISSIONS, type PermissionState } from '../../lib/permissions';
 import MemberAvatar from '../MemberAvatar';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../../lib/avatarUrl';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] } };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, contactPhone: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
@@ -32,7 +33,9 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
     // Ticket 76cf803c: catch a mistyped picture link before the save, with the
     // same wording the server uses, rather than surfacing it as a failed call.
     const pic = f.avatarUrl.trim();
-    if (pic && !/^https?:\/\//i.test(pic)) { toast.error('The picture must be a link starting with http:// or https://.'); return; }
+    // Ticket 3bf93c2e: an uploaded picture comes back as a relative /api/uploads
+    // path, so only reject it when it is neither that nor a full http(s) link.
+    if (pic && !isAvatarUrl(pic)) { toast.error(AVATAR_URL_MESSAGE); return; }
     if (pic && /\s/.test(pic)) { toast.error('That picture link has a space in it - check it is one clean URL.'); return; }
     setBusy(true);
     try { await adminSaveMember({ id: member?.id, ...f, avatarUrl: pic }); toast.success('Member saved'); onSaved(); onClose(); }

@@ -104,6 +104,45 @@ function clampEnd(end: string, start: string): string {
   return start;
 }
 
+/**
+ * Ticket 255054a8 / 65aaf306: "iCal 1 hour early" and "invalid token" on import.
+ *
+ * We used to write `DTSTART;TZID=Europe/London:...` with no VTIMEZONE block.
+ * A client that cannot resolve the timezone id falls back to UTC, so every BST
+ * event landed an hour early, and Google Calendar rejected the feed outright.
+ * Rather than ship a VTIMEZONE table that has to be kept in step with the tz
+ * database, convert the London wall time to UTC here and publish plain `...Z`
+ * stamps, which every client understands.
+ */
+const LONDON = 'Europe/London';
+
+/** Minutes London is ahead of UTC at a given instant (0 in winter, 60 in BST). */
+function londonOffsetMinutes(utcMs: number): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: LONDON,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(utcMs));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? '0');
+  const asIfUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+  return Math.round((asIfUtc - utcMs) / 60000);
+}
+
+/** `YYYYMMDD` + `HHMMSS` London wall time -> `YYYYMMDDTHHMMSSZ` UTC stamp. */
+function utcStamp(day: string, hhmmss: string): string {
+  const wall = Date.UTC(
+    Number(day.slice(0, 4)), Number(day.slice(4, 6)) - 1, Number(day.slice(6, 8)),
+    Number(hhmmss.slice(0, 2)), Number(hhmmss.slice(2, 4)), Number(hhmmss.slice(4, 6)),
+  );
+  // Two passes: the offset at the corrected instant can differ from the offset
+  // at the naive one when the time sits on a DST boundary.
+  let ms = wall - londonOffsetMinutes(wall) * 60000;
+  ms = wall - londonOffsetMinutes(ms) * 60000;
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+}
+
 const fold = (line: string) => {
   // RFC 5545 caps content lines at 75 octets, continuations start with a space.
   if (line.length <= 73) return line;
@@ -151,16 +190,16 @@ export function buildIcs(events: IcsEvent[], showName: (id: string) => string, c
 
     if (start && end) {
       lines.push(
-        `DTSTART;TZID=Europe/London:${day}T${start}`,
-        `DTEND;TZID=Europe/London:${day}T${clampEnd(end, start)}`,
+        `DTSTART:${utcStamp(day, start)}`,
+        `DTEND:${utcStamp(day, clampEnd(end, start))}`,
       );
     } else if (start) {
       // Start but no end: default to +1h so the calendar shows a sensible
       // block rather than an all-day marker.
-      lines.push(`DTSTART;TZID=Europe/London:${day}T${start}`, `DTEND;TZID=Europe/London:${day}T${defaultEnd(start)}`);
+      lines.push(`DTSTART:${utcStamp(day, start)}`, `DTEND:${utcStamp(day, defaultEnd(start))}`);
     } else if (looseStart) {
       // Legacy meet time fallback for events that never had structured times.
-      lines.push(`DTSTART;TZID=Europe/London:${day}T${looseStart}`, `DTEND;TZID=Europe/London:${day}T${defaultEnd(looseStart)}`);
+      lines.push(`DTSTART:${utcStamp(day, looseStart)}`, `DTEND:${utcStamp(day, defaultEnd(looseStart))}`);
     } else {
       lines.push(`DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${day}`);
     }

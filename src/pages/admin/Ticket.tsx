@@ -84,6 +84,18 @@ export default function Ticket() {
           <section className="space-y-2 min-w-0">
             <h2 className="text-sm font-semibold text-muted-foreground">Original message</h2>
             <p className="whitespace-pre-wrap break-words text-sm rounded-2xl bg-muted/40 p-4">{t.message}</p>
+            {/* Ticket 5a04aaf1: pictures the submitter attached. */}
+            {Array.isArray(t.attachments) && t.attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {t.attachments.map((url: string) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer"
+                    className="block h-24 w-24 overflow-hidden rounded-xl border hover:border-primary"
+                    title="Open the full picture">
+                    <img src={url} alt="Attachment" className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">

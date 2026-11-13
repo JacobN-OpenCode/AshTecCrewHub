@@ -91,6 +91,7 @@ export default createEndpoint({
           lastReplyFrom: t.lastReplyFrom ?? '',
           escalatedAt: t.escalatedAt ?? '',
           adminNotes: t.adminNotes ?? '',
+          attachments: ((t as { attachments?: string }).attachments ?? '').split(',').map((u) => u.trim()).filter(Boolean),
           message: t.message ?? '',
           replies,
         };

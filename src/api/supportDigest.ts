@@ -5,7 +5,7 @@ import { Email } from '#email';
 import { requireAdmin, ids, isEmailable } from '../lib/server';
 import { fullName } from '../lib/support';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
-import { getSupportSummaryMode, getLastDigestDate, setLastDigestDate } from '../../server/supportSummary';
+import { getSupportSummaryMode, getLastDigestDate, setLastDigestDate, effectiveSupportMode } from '../../server/supportSummary';
 
 /**
  * Ticket f505c30e: the daily support digest.
@@ -32,8 +32,16 @@ export default createEndpoint({
   execute: async ({ context }) => {
     if (context.user) await requireAdmin(context.user.email);
 
+    // Ticket d1ae2a76 / 09b3e402: the summary is per account now. The site-wide
+    // setting is only the default, so this runs whenever at least one person has
+    // asked for a daily summary, and only those people are emailed.
     const mode = await getSupportSummaryMode();
-    if (mode !== 'daily') return { skipped: 'per-ticket mode' };
+    const { records: members } = await zite.crewMembers.findAll({ limit: 2000 });
+    const recipients = members.filter(
+      (m) => (m.isAdmin || m.isMaintainer) && !m.isPreviewAccount && isEmailable(m)
+        && effectiveSupportMode((m as { supportEmailMode?: string }).supportEmailMode, mode) === 'daily',
+    );
+    if (!recipients.length) return { skipped: 'nobody takes a daily summary' };
 
     const today = new Date().toISOString().slice(0, 10);
     if ((await getLastDigestDate()) === today) return { skipped: 'already sent today' };
@@ -54,11 +62,8 @@ export default createEndpoint({
     await setLastDigestDate(today);
     if (!fresh.length) return { date: today, count: 0, sent: 0 };
 
-    const { records: members } = await zite.crewMembers.findAll({ limit: 2000 });
-    // Union of the two per-ticket audiences: admins (non-staff) and maintainers.
-    const recipients = members.filter(
-      (m) => (m.isAdmin || m.isMaintainer) && !m.isPreviewAccount && isEmailable(m),
-    );
+    // Union of the two per-ticket audiences: admins (non-staff) and maintainers,
+    // narrowed above to the people who asked for a summary.
     const who = new Map(members.map((m) => [m.id, fullName(m)!]));
 
     const byType = fresh.reduce<Record<string, number>>((acc, t) => {

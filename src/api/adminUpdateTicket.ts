@@ -3,6 +3,7 @@ import { OPENCODE_TAG_TYPES } from '../lib/supportStyle';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
+import { REPLY_KIND, fullName } from '../lib/support';
 
 /** A plain label for "hand this to the coding agent". Setting it triggers nothing. */
 
@@ -21,8 +22,11 @@ export default createEndpoint({
   }),
   outputSchema: z.object({ success: z.boolean() }),
   execute: async ({ input, context }) => {
-    await requireAdmin(context.user.email);
+    const admin = await requireAdmin(context.user.email);
     if (input.delete) { await zite.supportTickets.delete({ id: input.id }); return { success: true }; }
+    // Ticket 817c47e9: "Ticket status changed by who and when". Read the row
+    // before the update so the change can be described in the thread.
+    const before = await zite.supportTickets.findOne({ filters: { id: input.id } });
     const record: Record<string, unknown> = {};
     if (input.status) record.status = input.status;
     if (input.severity !== undefined) record.severity = input.severity;
@@ -53,6 +57,37 @@ export default createEndpoint({
       record.escalatedAt = null;
     }
     await zite.supportTickets.update({ id: input.id, record: record as never });
+
+    // Ticket 817c47e9: leave a trail. Each change becomes an internal note, so
+    // the thread answers "who moved this, and when" without a new table. Notes
+    // are excluded from reply counts and from the maintainer-turn rules, so this
+    // cannot disturb the escalation logic.
+    const changes: string[] = [];
+    if (input.status && before && (before.status ?? 'Open') !== input.status) {
+      changes.push(`status ${before.status ?? 'Open'} → ${input.status}`);
+    }
+    if (input.severity !== undefined && before && (before.severity ?? '') !== input.severity) {
+      changes.push(`severity ${before.severity || 'none'} → ${input.severity || 'none'}`);
+    }
+    if (input.assignedMaintainerIds && before) {
+      const was = ids(before.assignedMaintainers).slice().sort().join(',');
+      const now = input.assignedMaintainerIds.slice().sort().join(',');
+      if (was !== now) {
+        const { records: people } = await zite.crewMembers.findAll({ limit: 2000 });
+        const nameOf = new Map(people.map((m) => [m.id, fullName(m) || 'someone']));
+        const names = input.assignedMaintainerIds.map((id) => nameOf.get(id) ?? 'someone');
+        changes.push(names.length ? `assigned to ${names.join(', ')}` : 'unassigned');
+      }
+    }
+    if (changes.length) {
+      await zite.supportReplies.create({
+        record: {
+          ticket: input.id, author: admin.id, kind: REPLY_KIND.note,
+          body: `${fullName(admin) || 'An admin'} changed ${changes.join('; ')}.`,
+          recipients: '', sentAt: new Date().toISOString(),
+        } as never,
+      });
+    }
     return { success: true };
   },
 });

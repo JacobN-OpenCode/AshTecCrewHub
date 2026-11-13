@@ -17,6 +17,23 @@ export const SUPPORT_DIGEST_SENT_KEY = 'supportDigestLastSent';
 export type SupportSummaryMode = 'per-ticket' | 'daily';
 
 /**
+ * Ticket d1ae2a76 / 09b3e402: the mode is now per account, with the site-wide
+ * value as the default. A member row of '' means "follow the site setting", so
+ * nobody's inbox changes until they choose something.
+ */
+export type SupportEmailMode = '' | 'per-ticket' | 'daily';
+
+export const isSupportEmailMode = (v: unknown): v is SupportEmailMode =>
+  v === '' || v === 'per-ticket' || v === 'daily';
+
+/** What this member actually gets, given the site default. */
+export const effectiveSupportMode = (
+  memberMode: string | null | undefined,
+  siteMode: SupportSummaryMode,
+): SupportSummaryMode =>
+  memberMode === 'per-ticket' || memberMode === 'daily' ? memberMode : siteMode;
+
+/**
  * Defaults to per-ticket: existing behaviour is unchanged until an admin opts
  * into the daily summary, so deploying this is not a surprise for the team.
  */

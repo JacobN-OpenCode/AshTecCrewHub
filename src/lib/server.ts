@@ -200,6 +200,9 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   adminNotifications: m.adminNotifications === null || m.adminNotifications === undefined ? !!m.isAdmin : !!m.adminNotifications,
   // Feedback round 2: per-member permission overrides (granted/revoked).
   permissions: parsePermissionState((m as unknown as { permissions?: unknown }).permissions),
+  // Ticket d1ae2a76 / 09b3e402: '' means "follow the site-wide support email
+  // setting"; 'per-ticket' or 'daily' is this member's own choice.
+  supportEmailMode: (m as unknown as { supportEmailMode?: string }).supportEmailMode ?? '',
 });
 
 const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));

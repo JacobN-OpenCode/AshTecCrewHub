@@ -56,6 +56,21 @@ export default createEndpoint({
     } else {
       liveShow = await zite.liveShows.create({ record: { showId: input.showId, ...record } });
     }
+    if (input.open === false) {
+      // Ticket 50c01a2a: "the stop show button doesn't work". Stop only ever
+      // closed the row matching the show the admin had selected, so a show left
+      // open under a different showId kept every screen live. Stopping is a
+      // global action: after it, nothing is open.
+      const { records } = await zite.liveShows.findAll({ limit: 100 });
+      for (const other of records) {
+        if (other.open && other.id !== liveShow.id) {
+          await zite.liveShows.update({
+            id: other.id,
+            record: { open: false, status: 'finished', timerMode: 'stopped', timerStartAt: null, timerElapsedMs: 0 },
+          });
+        }
+      }
+    }
     if (input.open) {
       // Only one show can be open at a time: opening one closes any other.
       const { records } = await zite.liveShows.findAll({ limit: 100 });

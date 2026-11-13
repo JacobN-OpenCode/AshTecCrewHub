@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { submitSupport, type SubmitSupportInputType } from '#api';
@@ -6,10 +6,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Textarea } from '@project/components/ui/textarea';
-import { Bug, LifeBuoy, Lightbulb, Loader2, MessageCircleQuestion } from 'lucide-react';
+import { Bug, ImagePlus, LifeBuoy, Lightbulb, Loader2, MessageCircleQuestion, X } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
 import { useSupportCollapsed } from '../lib/uiPrefs';
+import { uploadTicketImage } from '../lib/ticketImageUpload';
 
 type T = SubmitSupportInputType['type'];
 const TYPES: { v: T; icon: typeof Bug; hint: string }[] = [
@@ -25,6 +26,11 @@ export default function SupportButton() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  // Ticket 5a04aaf1: pictures on a ticket. Uploaded as they are picked, so Send
+  // only has to pass the paths along.
+  const [pictures, setPictures] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [collapsed] = useSupportCollapsed();
   const valid = subject.trim().length >= 3 && message.trim().length >= 10;
 
@@ -39,11 +45,25 @@ export default function SupportButton() {
   const send = async () => {
     setBusy(true);
     try {
-      const r = await submitSupport({ type, subject, message, page: loc.pathname });
+      const r = await submitSupport({ type, subject, message, page: loc.pathname, attachments: pictures });
       toast.success(`Sent! ${r.notified} ${r.notified === 1 ? 'person was' : 'people were'} notified.`);
-      setOpen(false); setSubject(''); setMessage('');
+      setOpen(false); setSubject(''); setMessage(''); setPictures([]);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
+  };
+
+  const addPictures = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const room = 4 - pictures.length;
+      const picked = Array.from(files).slice(0, Math.max(0, room));
+      if (Array.from(files).length > room) toast.error('Four pictures is the limit.');
+      const urls: string[] = [];
+      for (const f of picked) urls.push(await uploadTicketImage(f));
+      setPictures((p) => [...p, ...urls].slice(0, 4));
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
   return (
@@ -91,6 +111,33 @@ export default function SupportButton() {
                 {message.length >= SUPPORT_MESSAGE_MAX ? ' — limit reached' : ''}
               </p>
             )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm">Pictures <span className="text-muted-foreground">(optional, up to 4)</span></label>
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+                onChange={(e) => addPictures(e.target.files)} />
+              <Button type="button" variant="outline" size="sm" disabled={uploading || pictures.length >= 4}
+                onClick={() => fileRef.current?.click()}>
+                {uploading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImagePlus className="h-4 w-4 mr-1.5" />}
+                {uploading ? 'Uploading…' : 'Add a picture'}
+              </Button>
+            </div>
+            {pictures.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {pictures.map((url) => (
+                  <div key={url} className="relative h-16 w-16 overflow-hidden rounded-lg border">
+                    <img src={url} alt="Attached picture" className="h-full w-full object-cover" />
+                    <button type="button" aria-label="Remove this picture" title="Remove this picture"
+                      onClick={() => setPictures((p) => p.filter((u) => u !== url))}
+                      className="absolute right-0.5 top-0.5 rounded-full bg-background/80 p-0.5 hover:bg-destructive/20">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">A screenshot of the problem is worth a thousand words.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>

@@ -965,6 +965,14 @@ CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
 -- over rehearsals when we average how long a scene really runs.
 ALTER TABLE "SceneTimings" ADD COLUMN IF NOT EXISTS "source" text NOT NULL DEFAULT 'rehearsal';
 
+-- Ticket d1ae2a76 / 09b3e402: how this member wants support email. '' follows
+-- the site-wide default, so nobody's inbox changes until they pick something.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "supportEmailMode" text NOT NULL DEFAULT '';
+
+-- Ticket 5a04aaf1: pictures attached to a support ticket. Comma-separated
+-- /api/uploads/tickets/... paths, same hosting as profile pictures.
+ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "attachments" text NOT NULL DEFAULT '';
+
 -- A tiny key/value store for app-wide settings the admins curate (the skill
 -- options, the cat's name, and whatever else the settings page grows). Kept
 -- generic so a new setting does not need a schema change.

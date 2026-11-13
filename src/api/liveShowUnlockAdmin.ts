@@ -16,18 +16,24 @@ export default createEndpoint({
   description: 'Unlock the in-page live show controls with an admin email and cat-login secret',
   authenticated: false,
   inputSchema: z.object({
-    email: z.string().email(),
+    // Ticket 9cc2b8ac: the unlock prompt only knows the admin's member id (the
+    // admin list never exposes email addresses), so accept that and resolve the
+    // address server-side. `email` still works for older clients.
+    memberId: z.string().optional(),
+    email: z.string().email().optional(),
     pin: z.string().min(1).max(200),
   }),
   outputSchema: z.object({
     admin: z.object({ id: z.string(), name: z.string(), email: z.string() }),
   }),
   execute: async ({ input }) => {
-    const member = await findMemberByEmail(input.email);
-    if (!member?.isAdmin || !(await verifyAdminSecret(input.email, input.pin))) {
+    const email = await credentialEmail(input.email, input.memberId);
+    if (!email) throw new Error('Pick which admin is unlocking the controls.');
+    const member = await findMemberByEmail(email);
+    if (!member?.isAdmin || !(await verifyAdminSecret(email, input.pin))) {
       throw new Error('Those admin details are not right.');
     }
     const name = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || 'Admin';
-    return { admin: { id: String(member.id), name, email: input.email.trim().toLowerCase() } };
+    return { admin: { id: String(member.id), name, email } };
   },
 });

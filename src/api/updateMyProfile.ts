@@ -5,6 +5,7 @@ import { requireMember } from '../lib/server';
 import { YEARS, ROLES } from '../lib/constants';
 import { parsePrivacy, onlyKnownSkills } from '../lib/settings';
 import { readAppSettings } from './getSettings';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -91,9 +92,10 @@ export default createEndpoint({
       const url = input.avatarUrl.trim();
       // Ticket 76cf803c: a mistyped picture link is a 400, not a 500. It used to
       // read as "the crew hub broke" and paged the maintainers over a typo.
+      // Ticket 3bf93c2e: accept the relative path our own uploader returns, not
+      // just absolute links, or an uploaded picture can never be saved.
       if (!url) record.avatarUrl = '';
-      else if (!/^https?:\/\//i.test(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: 'The picture must be a link starting with http:// or https://.' });
-      else if (/\s/.test(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: 'That picture link has a space in it - check it is one clean URL.' });
+      else if (!isAvatarUrl(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: AVATAR_URL_MESSAGE });
       else record.avatarUrl = url;
     }
     if (input.statusText !== undefined) record.statusText = input.statusText.trim().slice(0, 120);
