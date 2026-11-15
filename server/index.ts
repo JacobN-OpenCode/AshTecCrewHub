@@ -22,6 +22,9 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { ZiteError, type EndpointConfig, type ZiteSchedule, type ZiteScheduledContext } from './backend.js';
 import {
   getSessionUser,
+  getActAs,
+  startActAs,
+  stopActAs,
   requestMagicLink,
   consumeMagicLink,
   peekMagicLink,
@@ -182,6 +185,41 @@ app.post('/api/analyticsLeave', async (req, res) => {
   const seconds = Number(req.body?.seconds ?? 0);
   if (viewId) await setViewDuration({ viewId, seconds }).catch(() => {});
   res.json({ ok: true });
+});
+
+// Admins can "log in as" a crew member: same session, different person. The
+// cookie it sets is only honoured while the real session behind it is an
+// admin's, so leaving is the same click whether or not anything is going on.
+app.get('/api/actAs', async (req: Request, res: Response) => {
+  try {
+    const act = await getActAs(req);
+    if (!act) return res.json({ acting: null });
+    const name = (m: { firstName: string; lastName: string; email: string }) =>
+      [m.firstName, m.lastName].filter(Boolean).join(' ').trim() || m.email;
+    return res.json({
+      acting: { id: act.member.id, name: name(act.member), adminName: name(act.admin) },
+    });
+  } catch (e) {
+    console.error('[server] actAs lookup failed:', e);
+    return res.json({ acting: null });
+  }
+});
+
+app.post('/api/actAs', async (req: Request, res: Response) => {
+  const memberId = typeof req.body?.memberId === 'string' ? req.body.memberId : '';
+  try {
+    const m = await startActAs(req, res, memberId);
+    const name = [m.firstName, m.lastName].filter(Boolean).join(' ').trim() || m.email;
+    console.log(`[server] admin is now acting as ${name} (${m.email})`);
+    return res.json({ ok: true, member: { id: m.id, name } });
+  } catch (e: any) {
+    return res.status(400).json({ message: e?.message ?? 'Could not switch accounts.' });
+  }
+});
+
+app.post('/api/leaveActAs', async (_req: Request, res: Response) => {
+  stopActAs(res);
+  return res.json({ ok: true });
 });
 
 const endpoints = await loadEndpoints();

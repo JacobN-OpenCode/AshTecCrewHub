@@ -4,7 +4,7 @@ import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
-  LayoutGrid, LifeBuoy, Lightbulb, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
+  LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -19,6 +19,7 @@ import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
 import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview, pv } from '../lib/preview';
+import { getActAs, stopActAs, type ActAsState } from '../lib/actAs';
 import { ACCENTS, useSidebarCollapsed, useAccent, useDensity } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
@@ -105,6 +106,10 @@ export default function AppShell() {
 
 function Shell() {
   const { me, supportAwaiting, liveShowActive, specialNote } = useMe();
+  // Admins can log in as a crew member. The server honours that on every request,
+  // so this is only here to say who you are and to get you back out.
+  const [acting, setActing] = useState<ActAsState>(null);
+  useEffect(() => { void getActAs().then(setActing); }, []);
   // Feedback round 2: branding and feature switches come from ATCMS settings.
   const { platformName, features } = useAppSettings();
   const loc = useLocation();
@@ -312,6 +317,14 @@ function Shell() {
 
   return (
     <div className="min-h-screen spotlight">
+      {acting && (
+        <div className="relative z-40 flex flex-wrap items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-black">
+          <LogIn className="h-4 w-4" />
+          <span>Signed in as <strong>{acting.name}</strong>. Anything you change is saved as them.</span>
+          <Button size="sm" variant="secondary" className="h-7" onClick={() => void stopActAs()}>Leave</Button>
+        </div>
+      )}
+
       {previewId() && (
         <div className="relative z-40 bg-primary text-primary-foreground text-sm px-4 py-2 flex items-center justify-center gap-3">
           <Eye className="h-4 w-4" />Previewing as <strong>{me.firstName} {me.lastName}</strong> (pretend account)
