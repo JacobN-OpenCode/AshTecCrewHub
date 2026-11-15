@@ -88,7 +88,9 @@ export default createEndpoint({
           show: e.showIds.map(showName).filter(Boolean).join(', '),
           sortKey: [e.date ?? '9999-99-99', e.startTime ?? e.meetTime ?? ''].join(' '),
         }))
-        .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+        .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+        // sortKey is only for ordering; it is not part of the response.
+        .map(({ sortKey, ...rest }) => rest);
 
       const token = await calendarToken(m.id);
       children.push({
