@@ -10,8 +10,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { Crown, Eye, Plus, Search, Shield, Trash2, Wrench, X } from 'lucide-react';
+import { Crown, Eye, LogIn, Plus, Search, Shield, Trash2, Wrench, X } from 'lucide-react';
 import { startPreview } from '../../lib/preview';
+import { startActAs } from '../../lib/actAs';
+import { useMe } from '../../lib/me';
 import { useAdminData, type AdminMember } from '../../lib/useAdminData';
 import { ROLES, YEARS, MEMBER_TYPES } from '../../lib/constants';
 import { useAppSettings } from '../../lib/appSettings';
@@ -35,6 +37,9 @@ export default function AdminMembers() {
   const [editing, setEditing] = useState<{ m: AdminMember | null; preview?: boolean } | null>(null);
   const [profile, setProfile] = useState<AdminMember | null>(null);
   const [del, setDel] = useState<AdminMember | null>(null);
+  // "Log in as": you become that member, so anything you change is saved as them.
+  const [acting, setActing] = useState<AdminMember | null>(null);
+  const { me } = useMe();
   // Feedback round 2: cards or a list, the admin's choice (default cards).
   const [layout] = useAdminLayout();
   // The option lists are admin-curated in ATCMS settings.
@@ -97,6 +102,18 @@ export default function AdminMembers() {
     setDel(null);
   };
 
+  /** Log in as that member. Saved as them, by design. */
+  const doAct = async () => {
+    const m = acting;
+    if (!m) return;
+    try {
+      await startActAs(m.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not switch accounts.');
+      setActing(null);
+    }
+  };
+
   /** The body of a crew entry, shared by the card and the list layouts. */
   const memberInner = (m: AdminMember) => (
     <>
@@ -134,6 +151,17 @@ export default function AdminMembers() {
         {m.isPreview
           ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); startPreview(m.id); }}><Eye className="h-4 w-4 mr-1.5" />Preview as</Button>
           : <RemindButton memberId={m.id} data={data} />}
+        {me?.id !== m.id && (
+          <Button
+            size="icon"
+            variant="ghost"
+            title={`Log in as ${m.firstName}`}
+            aria-label={`Log in as ${m.firstName} ${m.lastName}`}
+            onClick={(e) => { e.stopPropagation(); setActing(m); }}
+          >
+            <LogIn className="h-4 w-4" />
+          </Button>
+        )}
         <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDel(m); }}><Trash2 className="h-4 w-4" /></Button>
       </div>
     </>
@@ -203,6 +231,21 @@ export default function AdminMembers() {
         onEdit={(m) => { setProfile(null); setEditing({ m }); }} />
       <MemberDialog open={!!editing} member={editing?.m ?? null} data={data} onClose={() => setEditing(null)}
         preview={editing?.preview} onSaved={async () => { await reload(); }} />
+      <AlertDialog open={!!acting} onOpenChange={(o) => !o && setActing(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log in as {acting?.firstName} {acting?.lastName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will see the app exactly as they see it, and anything you change is saved as them.
+              A bar at the top says who you are until you press Leave.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doAct}>Log in as {acting?.firstName}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={!!del} onOpenChange={(o) => !o && setDel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

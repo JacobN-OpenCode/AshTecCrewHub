@@ -30,8 +30,10 @@ type ChildEvent = {
   startTime: string | null;
   endTime: string | null;
   show: string;
-  sortKey: string;
 };
+
+/** Same as a ChildEvent plus the key used to put the list in date order. */
+type SortedEvent = ChildEvent & { sortKey: string };
 
 type Child = {
   firstName: string;
@@ -73,7 +75,7 @@ export default createEndpoint({
       // A parent sees only what is on the public page's level: anything tied
       // solely to a hidden show stays out, and undated events are kept (the
       // page groups them under "dates still to be confirmed").
-      const visible = events
+      const visible: ChildEvent[] = (events
         .filter((e) => e.showIds.length === 0 || e.showIds.some((id) => !hiddenShows.has(id)))
         .map((e) => ({
           id: e.id,
@@ -87,10 +89,10 @@ export default createEndpoint({
           endTime: e.endTime,
           show: e.showIds.map(showName).filter(Boolean).join(', '),
           sortKey: [e.date ?? '9999-99-99', e.startTime ?? e.meetTime ?? ''].join(' '),
-        }))
+        })) as SortedEvent[])
         .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
         // sortKey is only for ordering; it is not part of the response.
-        .map(({ sortKey, ...rest }) => rest);
+        .map(({ sortKey: _sortKey, ...rest }) => rest);
 
       const token = await calendarToken(m.id);
       children.push({

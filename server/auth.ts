@@ -20,6 +20,14 @@ import { db } from './db/index.js';
 import { Email } from './email.js';
 
 const SESSION_COOKIE = 'crew_session';
+/**
+ * Admin "log in as" (impersonation). Holds the id of the member the admin is
+ * acting as, never their credentials. It is only ever set by /api/actAs, which
+ * first checks the real session belongs to an admin, and it is re-checked on
+ * every request, so a demoted admin or an expired session cannot keep using it.
+ * A session cookie (no maxAge), so closing the browser drops it.
+ */
+const ACT_AS_COOKIE = 'crew_act_as';
 const TOKEN_TTL_MIN = 15;
 const SESSION_TTL_DAYS = 30;
 
@@ -43,8 +51,8 @@ const parseCookies = (header?: string): Record<string, string> => {
   return out;
 };
 
-/** Resolve the signed-in user from the session cookie, or null. */
-export async function getSessionUser(req: Request): Promise<AuthUser | null> {
+/** The session behind the cookie, ignoring any admin "log in as". */
+export async function getRealSessionUser(req: Request): Promise<AuthUser | null> {
   const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
   if (!token) return null;
   const { rows } = await db().query(
@@ -63,10 +71,99 @@ export async function getSessionUser(req: Request): Promise<AuthUser | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * The admin behind an active "log in as", and the member they are acting as, or
+ * null when nobody is impersonating. Re-validated on every call: the act-as
+ * cookie is worthless without a live admin session behind it.
+ */
+export async function getActAs(
+  req: Request
+): Promise<{ admin: AuthUser; member: AuthUser } | null> {
+  const memberId = parseCookies(req.headers.cookie)[ACT_AS_COOKIE];
+  if (!memberId) return null;
+  const real = await getRealSessionUser(req);
+  if (!real) return null;
+  const { rows } = await db().query(
+    `SELECT "id", "schoolEmail", "firstName", "lastName", "isAdmin"
+       FROM "CrewMembers" WHERE lower("schoolEmail") = $1`,
+    [real.email.toLowerCase()]
+  );
+  const admin = rows[0];
+  if (!admin?.isAdmin) return null;
+  if (admin.id === memberId) return null;
+  const { rows: target } = await db().query(
+    `SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1`,
+    [memberId]
+  );
+  if (!target[0]) return null;
+  return {
+    admin: { id: admin.id, email: admin.schoolEmail, firstName: admin.firstName, lastName: admin.lastName },
+    member: {
+      id: target[0].id,
+      email: target[0].schoolEmail,
+      firstName: target[0].firstName,
+      lastName: target[0].lastName,
+    },
+  };
+}
+
+/**
+ * Resolve the signed-in user from the session cookie, or null.
+ *
+ * When an admin is acting as another member this returns that member, so every
+ * endpoint acts as them and anything they do is saved as them. The real admin is
+ * still the one behind the session (see getActAs), which is what lets them leave.
+ */
+export async function getSessionUser(req: Request): Promise<AuthUser | null> {
+  const real = await getRealSessionUser(req);
+  if (!real) return null;
+  const act = await getActAs(req).catch(() => null);
+  if (!act) return real;
+  return {
+    id: act.member.id,
+    email: act.member.email,
+    firstName: act.member.firstName,
+    lastName: act.member.lastName,
+  };
+}
+
+/** Start acting as another member. The caller's own session must be an admin's. */
+export async function startActAs(req: Request, res: Response, memberId: string): Promise<AuthUser> {
+  const real = await getRealSessionUser(req);
+  if (!real) throw new Error('Sign in first.');
+  const { rows } = await db().query(
+    `SELECT "id", "isAdmin" FROM "CrewMembers" WHERE lower("schoolEmail") = $1`,
+    [real.email.toLowerCase()]
+  );
+  const admin = rows[0];
+  if (!admin?.isAdmin) throw new Error('Admins only.');
+  if (admin.id === memberId) throw new Error('That is your own account.');
+  const { rows: target } = await db().query(
+    `SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1`,
+    [memberId]
+  );
+  if (!target[0]) throw new Error('No such crew member.');
+  res.cookie(ACT_AS_COOKIE, memberId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: appUrl().startsWith('https://'),
+    path: '/',
+  });
+  const t = target[0];
+  return { id: t.id, email: t.schoolEmail, firstName: t.firstName, lastName: t.lastName };
+}
+
+/** Stop acting as someone and go back to being yourself. */
+export function stopActAs(res: Response): void {
+  res.clearCookie(ACT_AS_COOKIE, { path: '/' });
+}
+
 export async function destroySession(req: Request, res: Response): Promise<void> {
   const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
   if (token) await db().query('DELETE FROM "AuthSessions" WHERE "id" = $1', [token]).catch(() => {});
   res.clearCookie(SESSION_COOKIE, { path: '/' });
+  // Signing out must not leave an impersonation cookie behind.
+  stopActAs(res);
 }
 
 /**
