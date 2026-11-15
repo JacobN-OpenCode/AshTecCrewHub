@@ -430,6 +430,13 @@ export type GetNotificationHistoryInputType = NonNullable<_GetNotificationHistor
 export type GetNotificationHistoryOutputType = Awaited<ReturnType<_GetNotificationHistoryCfg['execute']>>;
 export const getNotificationHistory = createCaller<GetNotificationHistoryInputType, GetNotificationHistoryOutputType>('getNotificationHistory');
 
+import type { default as _GetParentTimetableEp } from '../api/getParentTimetable';
+
+type _GetParentTimetableCfg = typeof _GetParentTimetableEp;
+export type GetParentTimetableInputType = NonNullable<_GetParentTimetableCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetParentTimetableCfg['execute']>[0]['input'];
+export type GetParentTimetableOutputType = Awaited<ReturnType<_GetParentTimetableCfg['execute']>>;
+export const getParentTimetable = createCaller<GetParentTimetableInputType, GetParentTimetableOutputType>('getParentTimetable');
+
 import type { default as _GetPresenceEp } from '../api/getPresence';
 
 type _GetPresenceCfg = typeof _GetPresenceEp;
@@ -937,6 +944,7 @@ export const api = {
   getMyFeedback,
   getMySessions,
   getNotificationHistory,
+  getParentTimetable,
   getPresence,
   getPublicCalendar,
   getPublicParents,

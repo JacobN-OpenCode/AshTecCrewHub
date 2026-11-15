@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getPublicParents } from '#api';
+import { getParentTimetable, getPublicParents } from '#api';
 import { Button } from '@project/components/ui/button';
+import { Input } from '@project/components/ui/input';
 import { Skeleton } from '@project/components/ui/skeleton';
 import {
-  CalendarDays, Clock, HeartHandshake, Mail, MapPin, Package, Info,
+  CalendarDays, Check, Clock, Copy, HeartHandshake, Loader2, Mail, MapPin, Package, Info,
 } from 'lucide-react';
 import { SCHOOL } from '../lib/constants';
 import { formatEventTimeRange } from '../lib/icsBuild';
@@ -58,6 +59,209 @@ const longDate = (iso: string) =>
  * signed-in members who open it from the sidebar, so the page does not throw
  * away their navigation.
  */
+type ParentEvent = {
+  id: string;
+  title: string;
+  type: string;
+  subtype: string;
+  date: string | null;
+  dateTbc: boolean;
+  meetTime: string;
+  startTime: string | null;
+  endTime: string | null;
+  show: string;
+};
+
+type ParentChild = {
+  firstName: string;
+  url: string;
+  webcal: string;
+  events: ParentEvent[];
+};
+
+/**
+ * The parent lookup: type the address your child added on their profile and see
+ * their dates. No account, no verification, and nothing is ever emailed to the
+ * address. The server only ever returns a first name, the dates, and a private
+ * calendar link, so this card cannot leak anything else.
+ */
+function ParentLookup() {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const [result, setResult] = useState<{ found: boolean; children: ParentChild[] } | null>(null);
+  const [copied, setCopied] = useState('');
+
+  const look = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const addr = email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(addr)) {
+      setProblem('Type the email address you gave the crew.');
+      return;
+    }
+    setProblem('');
+    setBusy(true);
+    try {
+      const r = (await getParentTimetable({ email: addr })) as unknown as {
+        found?: boolean;
+        children?: ParentChild[];
+      };
+      setResult({ found: !!r.found, children: r.children ?? [] });
+    } catch {
+      setProblem('That did not work. Try again in a moment.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(url);
+      window.setTimeout(() => setCopied(''), 2000);
+    } catch {
+      setProblem('Copying did not work. Select the link and copy it by hand.');
+    }
+  };
+
+  const reset = () => {
+    setResult(null);
+    setProblem('');
+    setEmail('');
+  };
+
+  if (result?.found) {
+    const kids = result.children;
+    const one = kids.length === 1;
+    return (
+      <section className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-6">
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <HeartHandshake className="h-3.5 w-3.5" />
+            Hello, and welcome
+          </span>
+          <h2 className="text-2xl font-extrabold tracking-tight">
+            {one ? `Hello, ${kids[0].firstName}'s family.` : 'Hello, and welcome.'}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground max-w-prose">
+            Here is everything {one ? kids[0].firstName : 'your children'} {one ? 'is' : 'are'} part of,
+            straight from the list the crew works from, so it updates itself. Add the calendar link
+            below and the dates land in your own calendar, changes included.
+          </p>
+        </div>
+
+        {kids.map((kid) => {
+          const upcoming = kid.events.filter((e) => e.date && !e.dateTbc);
+          const tbc = kid.events.filter((e) => !e.date || e.dateTbc);
+          const byDate = new Map<string, ParentEvent[]>();
+          for (const e of upcoming) {
+            const list = byDate.get(e.date as string) ?? [];
+            list.push(e);
+            byDate.set(e.date as string, list);
+          }
+          const days = [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+          return (
+            <div key={kid.url} className="rounded-xl border bg-card p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="font-bold tracking-tight">{kid.firstName}</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm" className="rounded-full">
+                    <a href={kid.webcal}>Add to your calendar</a>
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={() => copy(kid.url)}>
+                    {copied === kid.url ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied === kid.url ? 'Copied' : 'Copy link'}
+                  </Button>
+                </div>
+              </div>
+
+              {days.length === 0 && tbc.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nothing in the diary just yet.</p>
+              )}
+
+              {days.map(([date, list]) => (
+                <div key={date} className="space-y-2">
+                  <h4 className="text-sm font-bold tracking-tight">{niceDate(date)}</h4>
+                  <ul className="space-y-2">
+                    {list.map((e) => (
+                      <li key={e.id} className="rounded-lg border p-3">
+                        <p className="font-semibold leading-tight">{e.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {e.show || e.subtype || e.type}
+                        </p>
+                        {(e.startTime || e.endTime) && (
+                          <p className="text-xs text-muted-foreground mt-1 font-mono">
+                            {formatEventTimeRange(e.startTime, e.endTime)}
+                          </p>
+                        )}
+                        {!e.startTime && !e.endTime && e.meetTime && (
+                          <p className="text-xs text-muted-foreground mt-1">Meet {e.meetTime}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              {tbc.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold tracking-tight">Dates still to be confirmed</h4>
+                  <ul className="space-y-2">
+                    {tbc.map((e) => (
+                      <li key={e.id} className="rounded-lg border p-3">
+                        <p className="font-semibold leading-tight">{e.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{e.show || e.subtype || e.type}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <button type="button" onClick={reset} className="text-xs text-muted-foreground underline underline-offset-4">
+          Not your email? Try another
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border bg-card p-6 space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-lg font-bold tracking-tight">Looking for your child&rsquo;s dates?</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Type the email address your child added on their profile. You will see their rehearsals and
+          performances, and a calendar link you can subscribe to.
+        </p>
+      </div>
+      <form onSubmit={look} className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="parent@example.com"
+          aria-label="Your email address"
+          maxLength={200}
+          className="sm:flex-1"
+        />
+        <Button type="submit" disabled={busy} className="rounded-full px-5">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          Show my child&rsquo;s dates
+        </Button>
+      </form>
+      {problem && <p className="text-sm text-destructive">{problem}</p>}
+      {result && !result.found && (
+        <p className="text-sm text-muted-foreground">
+          No crew member has added that email yet. Ask them to add it on their profile.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export default function PublicParents({ inShell = false }: { inShell?: boolean }) {
   const [shows, setShows] = useState<PublicShow[] | null>(null);
   const [events, setEvents] = useState<PublicEvent[] | null>(null);
@@ -213,6 +417,8 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
             reads from the same list the stage manager uses.
           </p>
         </div>
+
+        <ParentLookup />
 
         <section className="rounded-2xl border bg-card p-6 space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

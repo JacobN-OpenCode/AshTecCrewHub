@@ -51,6 +51,7 @@ export default function Profile() {
   const [statusEmoji, setStatusEmoji] = useState(me.statusEmoji ?? '');
   const [birthday, setBirthday] = useState(me.birthday ?? '');
   const [contactShare, setContactShare] = useState(!!me.contactShare);
+  const [parentEmail, setParentEmail] = useState((me as unknown as { parentEmail?: string }).parentEmail ?? '');
   const [skillsTeach, setSkillsTeach] = useState<string[]>(parseList(me.skillsTeach));
   const [skillsLearn, setSkillsLearn] = useState<string[]>(parseList(me.skillsLearn));
   const [privacy, setPrivacy] = useState<Privacy>(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
@@ -104,6 +105,7 @@ export default function Profile() {
     setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
     setStatusText(me.statusText ?? ''); setStatusEmoji(me.statusEmoji ?? ''); setBirthday(me.birthday ?? '');
     setContactShare(!!me.contactShare);
+    setParentEmail((me as unknown as { parentEmail?: string }).parentEmail ?? '');
     setSkillsTeach(parseList(me.skillsTeach)); setSkillsLearn(parseList(me.skillsLearn));
     setPrivacy(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
   }, [me]);
@@ -132,7 +134,7 @@ export default function Profile() {
     try {
       const r = await updateMyProfile({
         avatarUrl: pic, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
-        statusText, statusEmoji, birthday, contactShare, skillsTeach, skillsLearn, privacy,
+        statusText, statusEmoji, birthday, contactShare, parentEmail, skillsTeach, skillsLearn, privacy,
       });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
@@ -321,6 +323,32 @@ export default function Profile() {
               ? 'Your school email is on the contact sheet. Turn this off any time and you disappear from it.'
               : 'Off, so you are not on the contact sheet.'}
           </p>
+        </div>
+
+        {/* For parents: the address a parent types on the public For parents
+            page to see this member's dates. Nothing is ever sent to it. */}
+        <div className="border-t pt-5 space-y-3">
+          <div>
+            <h3 className="font-semibold">For parents</h3>
+            <p className="text-sm text-muted-foreground">
+              Add a parent or guardian email, and they can look your dates up on the For parents page. Nothing is sent to them.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pe">Parent or guardian email</Label>
+            <Input
+              id="pe"
+              type="email"
+              value={parentEmail}
+              onChange={(e) => setParentEmail(e.target.value)}
+              maxLength={200}
+              placeholder="parent@example.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Two parents? Separate the addresses with a comma. Nothing is verified, so only add an address you are happy for
+              someone to type in. Anyone with it sees your first name and your dates, nothing else.
+            </p>
+          </div>
         </div>
 
         {/* Feedback round 2: skills are chosen from the list an admin curates,

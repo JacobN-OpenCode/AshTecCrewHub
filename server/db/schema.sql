@@ -972,6 +972,11 @@ ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "supportEmailMode" text NOT N
 -- /api/uploads/tickets/... paths, same hosting as profile pictures.
 ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "attachments" text NOT NULL DEFAULT '';
 
+-- For parents: the address a parent can type on the public For parents page to
+-- see their child's dates. Comma-separated, so two parents can both look in.
+-- Nothing is ever sent to it, and it is never shown anywhere but that lookup.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "parentEmail" text NOT NULL DEFAULT '';
+
 -- A tiny key/value store for app-wide settings the admins curate (the skill
 -- options, the cat's name, and whatever else the settings page grows). Kept
 -- generic so a new setting does not need a schema change.
