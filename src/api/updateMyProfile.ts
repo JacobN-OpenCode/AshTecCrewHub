@@ -43,6 +43,9 @@ export default createEndpoint({
     statusEmoji: z.string().max(4).optional(),
     birthday: z.string().max(5).optional(),
     contactShare: z.boolean().optional(),
+    // For parents: up to two addresses, comma-separated. Nothing is ever sent
+    // to them; they only unlock the public For parents lookup.
+    parentEmail: z.string().max(200).optional(),
     // Skills: the member picks from the admin-curated options, so these are
     // lists of chosen labels, not free text.
     skillsTeach: z.array(z.string()).max(40).optional(),
@@ -105,6 +108,15 @@ export default createEndpoint({
       record.birthday = b;
     }
     if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
+
+    if (input.parentEmail !== undefined) {
+      const list = input.parentEmail.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+      if (list.length > 2) throw new Error('Add at most two parent addresses.');
+      for (const addr of list) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) throw new Error(`"${addr}" does not look like an email address.`);
+      }
+      record.parentEmail = list.join(',');
+    }
 
     // Skills are admin-curated now. If an admin has turned member editing off,
     // only an admin may change them; otherwise keep the chosen labels that are

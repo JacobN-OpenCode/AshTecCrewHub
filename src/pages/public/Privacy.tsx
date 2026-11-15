@@ -14,7 +14,7 @@ import PublicLayout from '../../components/public/PublicLayout';
  * Linked only from the public footer, never from inside the signed-in app.
  */
 
-const UPDATED = '13 November 2026';
+const UPDATED = '15 November 2026';
 
 const TOC = [
   'What information do we collect?',
@@ -115,7 +115,7 @@ export default function Privacy() {
               <li>your <strong>first initial and surname</strong> (we deliberately store only a first initial, never a full first name);</li>
               <li>your <strong>school email address</strong> (this is your sign-in);</li>
               <li>your <strong>year group</strong> and your <strong>crew roles</strong> and preferred roles;</li>
-              <li>optional extras, only if you choose to add them: a <strong>profile picture</strong> (you can upload one, which we store on our own server, or paste a link to one), your <strong>birthday as a day and month only</strong> (never the year), a status line, and the <strong>skills</strong> you tag.</li>
+              <li>optional extras, only if you choose to add them: a <strong>profile picture</strong> (you can upload one, which we store on our own server, or paste a link to one), your <strong>birthday as a day and month only</strong> (never the year), a status line, the <strong>skills</strong> you tag, and a <strong>parent or guardian email address</strong> so a parent can look your dates up on the For parents page (we never email that address).</li>
             </ul>
             <p><strong>Information created by using the crew hub.</strong> When you use the service we record:</p>
             <ul>
@@ -147,7 +147,7 @@ export default function Privacy() {
           <Section n={3} title="What legal bases do we rely on?">
             <p>Under the UK GDPR and the Data Protection Act 2018 we must have a lawful basis for processing your information. We rely on:</p>
             <ul>
-              <li><strong>Consent</strong> for the optional things &mdash; a profile picture, your birthday, your skills, and notifications. You can withdraw consent at any time (see <a href="#s7">section 7</a>).</li>
+              <li><strong>Consent</strong> for the optional things &mdash; a profile picture, your birthday, your skills, a parent or guardian email, and notifications. You can withdraw consent at any time (see <a href="#s7">section 7</a>).</li>
               <li><strong>Legitimate interests</strong> for running the club &mdash; managing the crew, its events and its shows, and keeping the system secure. We have balanced this against your rights, and the information is limited to what the club actually needs.</li>
               <li><strong>Vital interests</strong> where it is necessary to protect someone&rsquo;s safety, such as knowing who is on site during a show.</li>
               <li><strong>Legal obligations</strong> where the law requires us to keep or disclose something.</li>
@@ -160,6 +160,7 @@ export default function Privacy() {
             <ul>
               <li><strong>With crew admins</strong>, who run the club and can see the crew information they need to do so.</li>
               <li><strong>With the providers that run the service</strong>, acting on our instructions: our email provider (to send sign-in links and notifications), our push-notification service (to deliver notifications to your devices), and our hosting provider (which stores the data). Each is only given what it needs to do its job.</li>
+              <li><strong>With a parent or guardian, if you add their email.</strong> Anyone who types that address on the public For parents page sees your first name, the dates you are involved in, and a private calendar link for those dates. Nothing else: no surname, no school email, no attendance, no responses. Nothing is ever sent to the address, and there is no verification step, so only add an address you are happy for someone to type in. You can clear it on your profile at any time.</li>
               <li><strong>Where the law requires it</strong>, such as cooperating with a lawful request from a regulator or the police, or defending a legal claim.</li>
             </ul>
           </Section>
