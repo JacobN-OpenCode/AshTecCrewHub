@@ -308,7 +308,7 @@ export default function Calendar() {
                           : 'hover:bg-muted',
                       )}
                     >
-                      {r === 'Yes' ? 'In' : r === 'No' ? 'No' : 'Maybe'}
+                      {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Can’t go' : 'Maybe'}
                     </button>
                   ))}
                 </div>

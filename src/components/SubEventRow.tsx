@@ -9,7 +9,7 @@ export type MySubEvent = GetMyEventsOutputType['subEvents'][number];
 type Status = 'Expected Arrival' | 'Maybe' | 'Not Attending';
 
 const OPTIONS: { v: Status; label: string; on: string }[] = [
-  { v: 'Expected Arrival', label: 'Attending', on: 'bg-emerald-500 text-white border-emerald-500' },
+  { v: 'Expected Arrival', label: 'I’m in', on: 'bg-emerald-500 text-white border-emerald-500' },
   { v: 'Maybe', label: 'Maybe', on: 'bg-yellow-500 text-black border-yellow-500' },
   { v: 'Not Attending', label: 'Can’t go', on: 'bg-red-500 text-white border-red-500' },
 ];

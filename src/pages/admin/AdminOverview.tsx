@@ -18,7 +18,7 @@ const TILES: Tile[] = [
   { to: '/admin/settings', label: 'Settings', blurb: 'Cat name, skills, feedback forms', icon: Cog },
   { to: '/admin/events', label: 'Manage events', blurb: 'Shows, rehearsals and performances', icon: Settings2 },
   { to: '/admin/members', label: 'Crew', blurb: 'Members, roles, permissions and preview mode', icon: Users },
-  { to: '/admin/attendance', label: 'Venue check-in', blurb: 'Who is on site right now', icon: DoorOpen },
+  { to: '/admin/attendance', label: 'Check-in', blurb: 'Who is on site right now', icon: DoorOpen },
   { to: '/admin/emails', label: 'Emails', blurb: 'Everything the app has sent', icon: Mail },
   { to: '/admin/support', label: 'Support', blurb: 'Bug reports and feature requests', icon: LifeBuoy },
   { to: '/admin/live-show', label: 'Live show setup', blurb: 'Prepare the show dashboard', icon: Tv },

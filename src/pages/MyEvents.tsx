@@ -48,7 +48,8 @@ export default function MyEvents() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
+        <h1 className="text-3xl font-bold tracking-tight">My events</h1>
+        <p className="text-sm text-muted-foreground">Hi {who} 👋</p>
         <p className="text-muted-foreground mt-1">
           {todo ? <>You have <span className="text-primary font-semibold">{todo}</span> thing{todo > 1 ? 's' : ''} to respond to.</> : 'You’re all caught up.'}
         </p>
@@ -118,7 +119,8 @@ function ContractorInvites({ events, who }: { events: MySubEvent[]; who: string 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
+        <h1 className="text-3xl font-bold tracking-tight">My events</h1>
+        <p className="text-sm text-muted-foreground">Hi {who} 👋</p>
         <p className="text-muted-foreground mt-1">
           {events.length === 0
             ? 'You have no event invitations right now.'

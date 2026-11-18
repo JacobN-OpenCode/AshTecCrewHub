@@ -88,7 +88,7 @@ export default function Attendance() {
     if (!reasonLabel) return toast.error('Pick a reason for leaving.');
     // Mirrors the server's own rule so the member finds out before the round trip.
     if (reasonLabel === CUSTOM_REASON && words(reason) < 8)
-      return toast.error('Describe why you are leaving in at least 8 words.');
+      return toast.error('Tell the stage manager why you are leaving, in at least 8 words.');
     if (comingBack && !backTime) return toast.error('Say what time you will be back.');
 
     setBusy(true);

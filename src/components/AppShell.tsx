@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
@@ -122,10 +123,13 @@ function Shell() {
   // the tightened spacing (via data-density on <html>).
   const [density] = useDensity();
   const [drawer, setDrawer] = useState(false);
+  // Signing out is one tap too easy on a phone in a dark wing, so ask first.
+  const [outAsk, setOutAsk] = useState(false);
   const [palette, setPalette] = useState(false);
   // Events and crew for the search are fetched the first time it opens, not on
   // every page load, so the shell stays cheap.
   const [search, setSearch] = useState<GlobalSearchOutputType | null>(null);
+  const signOut = () => { if (previewId()) { exitPreview(); return; } setOutAsk(true); };
   const [searchLoading, setSearchLoading] = useState(false);
   // Member view hides the admin surfaces on this device. Read once on mount:
   // turning it on or off reloads the page, so it never changes underneath us.
@@ -188,6 +192,8 @@ function Shell() {
     if (features.schedule) main.push({ to: '/schedule', label: 'Schedule', icon: CalendarRange });
     // Batch 7: crew announcements.
     if (features.announcements) main.push({ to: '/announcements', label: 'Announcements', icon: Megaphone });
+    // Your own settings were only reachable by tapping your name.
+    if (nonActor) main.push({ to: '/profile', label: 'My settings', icon: Settings2 });
   } else {
     // Actors have a deliberately small world; the dashboard plus the stage board
     // (their "who to contact") is all they need.
@@ -218,7 +224,7 @@ function Shell() {
   // dropdown. Staff who are not admins only get the check-in controls.
   const admin: NavItem[] = [
     { to: '/admin', label: 'Overview', icon: ChartColumn },
-    { to: '/admin/settings', label: 'ATCMS Settings', icon: Cog },
+    { to: '/admin/settings', label: 'Settings', icon: Cog },
     ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Check-in', icon: DoorOpen }] : []),
     { to: '/admin/events', label: 'Manage Events', icon: Settings2 },
     { to: '/admin/members', label: 'Crew', icon: Users },
@@ -250,7 +256,7 @@ function Shell() {
     actions.push({ id: 'act:accent', label: 'Change accent colour', group: 'Actions', icon: Palette, keywords: 'theme colour color theme', run: cycleAccent });
     actions.push({ id: 'act:sidebar', label: collapsed ? 'Expand sidebar' : 'Collapse sidebar', group: 'Actions', icon: collapsed ? PanelLeftOpen : PanelLeftClose, keywords: 'menu layout nav navigation', run: () => setCollapsed(!collapsed) });
     if (nonActor) actions.push({ id: 'act:settings', label: 'Open settings', group: 'Actions', icon: Settings2, keywords: 'profile account details', to: '/profile' });
-    actions.push({ id: 'act:signout', label: 'Sign out', group: 'Actions', icon: LogOut, keywords: 'log out log out', run: () => (previewId() ? exitPreview() : logout()) });
+    actions.push({ id: 'act:signout', label: 'Sign out', group: 'Actions', icon: LogOut, keywords: 'log out log out', run: signOut });
     items.push(...actions);
 
     if (search) {
@@ -292,7 +298,7 @@ function Shell() {
     .sort((a, b) => b.to.length - a.to.length)[0];
   const title = loc.pathname === '/' ? main[0].label : admin.find((i) => i.to === loc.pathname)?.label ?? active?.label ?? PLATFORM;
 
-  const mobileTabs = main.filter((i) => ['/', '/attendance', '/calendar'].includes(i.to));
+  const mobileTabs = main.filter((i) => ['/', '/my-events', '/attendance', '/calendar'].includes(i.to));
 
   // Batch 6: `g` then a letter jumps to a page. Built from the nav that exists
   // for this account, so a shortcut can never offer a page the member lacks.
@@ -421,7 +427,7 @@ function Shell() {
             {collapsed ? (
               <div className="flex flex-col items-center gap-1">
                 <Tutorial />
-                <Button variant="ghost" size="icon" onClick={() => (previewId() ? exitPreview() : logout())} title="Sign out" aria-label="Sign out">
+                <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" aria-label="Sign out">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
@@ -445,7 +451,7 @@ function Shell() {
                   </div>
                 )}
                 <Tutorial />
-                <Button variant="ghost" size="icon" data-tour="signout" onClick={() => (previewId() ? exitPreview() : logout())} title="Sign out" aria-label="Sign out">
+                <Button variant="ghost" size="icon" data-tour="signout" onClick={signOut} title="Sign out" aria-label="Sign out">
                   <LogOut className="h-4 w-4" />
                 </Button>
               </div>
@@ -462,7 +468,7 @@ function Shell() {
                     variant="ghost"
                     size="sm"
                     data-tour="signout"
-                    onClick={() => (previewId() ? exitPreview() : logout())}
+                    onClick={signOut}
                     className="flex-1 justify-start"
                   >
                     <LogOut className="mr-2 h-4 w-4" />Sign out
@@ -582,7 +588,7 @@ function Shell() {
               )}
               <div className="mt-1 flex items-center gap-1">
                 <Tutorial />
-                <Button variant="ghost" size="sm" onClick={() => (previewId() ? exitPreview() : logout())} className="flex-1 justify-start">
+                <Button variant="ghost" size="sm" onClick={signOut} className="flex-1 justify-start">
                   <LogOut className="mr-2 h-4 w-4" />Sign out
                 </Button>
               </div>
@@ -596,6 +602,18 @@ function Shell() {
       {/* Batch 8: the crew cat roams the app (unless hidden on this device). */}
       {!previewId() && <CatCompanion />}
       {!previewId() && <SupportButton />}
+      <Dialog open={outAsk} onOpenChange={setOutAsk}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sign out of the crew hub?</DialogTitle>
+            <DialogDescription>You will need a new email link to get back in. Anything you have not saved is lost.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOutAsk(false)}>Stay signed in</Button>
+            <Button variant="destructive" onClick={() => { setOutAsk(false); void logout(); }}>Sign out</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

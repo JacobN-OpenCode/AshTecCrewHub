@@ -104,6 +104,11 @@ export default function SupportButton() {
           <div className="space-y-1"><label className="text-sm">Details</label>
             <Textarea rows={6} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={SUPPORT_MESSAGE_MAX}
               placeholder={type === 'Bug Report' ? 'What happened, and what did you expect?' : 'Tell us more…'} />
+            {message.trim().length > 0 && message.trim().length < 10 && (
+              <p className="text-xs text-muted-foreground">
+                {10 - message.trim().length} more characters, so we know what to look at.
+              </p>
+            )}
             {message.length > 0 && message.trim().length < 10 && <p className="text-xs text-destructive">Please add a bit more detail.</p>}
             {message.length > 15000 && (
               <p className={cn('text-xs tabular-nums', message.length >= SUPPORT_MESSAGE_MAX ? 'text-destructive font-medium' : 'text-amber-400')}>

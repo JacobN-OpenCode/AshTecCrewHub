@@ -156,8 +156,9 @@ export default function Home() {
     <div className="space-y-6 hc-stagger">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{greeting()}, {me.firstName}</h1>
+          <h1 className="text-2xl font-semibold">Home</h1>
           <p className="text-sm text-muted-foreground mt-1">
+            {greeting()}, {me.firstName} ·{}
             {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             {me.isAdmin ? ' · Admin' : me.isStaff ? ' · Staff' : me.memberType !== 'Normal Member' ? ` · ${me.memberType}` : ''}
           </p>
@@ -246,7 +247,7 @@ export default function Home() {
               <p className="text-sm text-muted-foreground">You are all caught up.</p>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground">{pending.length} form{pending.length === 1 ? '' : 's'} still need your answer.</p>
+                <p className="text-sm text-muted-foreground">{pending.length === 1 ? '1 form is' : `${pending.length} forms are`} still waiting for your answer.</p>
                 <ul className="space-y-2">
                   {pending.slice(0, 4).map((f) => (
                     <li key={`${f.kind}-${f.id}`} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm">
