@@ -10,6 +10,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
 import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, Pin, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
+import { remindOutcome } from '../../lib/remindOutcome';
 import { useMe } from '../../lib/me';
 
 type Status = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
@@ -152,8 +153,10 @@ export default function Ticket() {
               <Button variant="outline" className="w-full" disabled={busy === 'remind'}
                 onClick={() => run('remind', async () => {
                   const r = await adminRemindMaintainers({ ids: [t.id] });
-                  if (r.emailed) toast.success(`Reminded the maintainers (${r.emailed} emailed)`);
-                  else toast.info('No maintainer could be emailed for this ticket.');
+                  const out = remindOutcome(r);
+                  if (out.kind === 'success') toast.success(out.text);
+                  else if (out.kind === 'error') toast.error(out.text);
+                  else toast.info(out.text);
                 }, () => {})}>
                 {busy === 'remind' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BellRing className="h-4 w-4 mr-2" />}
                 Remind maintainers about this ticket

@@ -133,7 +133,7 @@ export default function AdminFeedback() {
                 <div className="space-y-1.5">
                   {tally.filter((t) => t.count > 0).map((t) => (
                     <div key={t.id} className="flex items-center gap-3">
-                      <div className="w-40 shrink-0 truncate text-sm" title={t.label}>{t.label}</div>
+                      <div className="w-24 shrink-0 truncate text-sm sm:w-40" title={t.label}>{t.label}</div>
                       <div className="h-5 flex-1 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full bg-primary/70"

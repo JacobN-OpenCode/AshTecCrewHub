@@ -1429,7 +1429,7 @@ function YourTickets() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v); setExpanded(false); }}>
-            <SelectTrigger className="w-[130px]" aria-label="How many tickets to show">
+            <SelectTrigger className="w-full sm:w-[130px]" aria-label="How many tickets to show">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1451,7 +1451,7 @@ function YourTickets() {
             />
           )}
           <Select value={view} onValueChange={(v) => { setView(v); setExpanded(false); }}>
-            <SelectTrigger className="w-[180px]" aria-label="Which tickets to show">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Which tickets to show">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -42,3 +42,13 @@ export function isDueForEscalation(t: { submittedAt?: string | null; lastReplyAt
 export const ticketUrl = (id: string) => `${process.env.APP_URL}/admin/support/${id}`;
 
 export const fullName = (m: { firstName?: string | null; lastName?: string | null }) => `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+
+
+/**
+ * What to say after pressing "remind the maintainers" (ticket 9db2a2a0).
+ *
+ * The button used to only speak up when an email went out, so an admin whose
+ * nudge was skipped got no feedback at all and assumed it was broken. Every
+ * outcome now has words: sent, skipped because nobody is waiting on a
+ * maintainer, or skipped because nobody has an address we can use.
+ */

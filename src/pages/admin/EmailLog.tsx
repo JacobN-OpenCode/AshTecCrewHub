@@ -84,7 +84,7 @@ export default function EmailLog() {
         <Button onClick={() => setCompose(true)}><PenSquare className="h-4 w-4 mr-1.5" />New message</Button>
       </div>
       <ComposeDialog open={compose} data={data} onClose={() => setCompose(false)} onSent={() => { setCompose(false); loadLog(); }} />
-      <div className="grid sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" /><Input data-tour="emails-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <Select value={member} onValueChange={setMember}><SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="all">All members</SelectItem>{data.members.map((m) => <SelectItem key={m.id} value={m.id}>{m.firstName} {m.lastName}</SelectItem>)}</SelectContent></Select>

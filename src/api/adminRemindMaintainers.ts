@@ -26,7 +26,13 @@ export default createEndpoint({
     // (the list page button) keeps the original all-at-once digest.
     ids: z.array(z.string()).optional(),
   }),
-  outputSchema: z.object({ reminded: z.number(), emailed: z.number() }),
+  outputSchema: z.object({
+    reminded: z.number(),
+    emailed: z.number(),
+    // Ticket 9db2a2a0: the button used to fail silently when nothing was sent,
+    // so the admin pressed it again and again. This says why in one short line.
+    skipped: z.enum(['', 'closed', 'waiting-on-reporter', 'mixed', 'nobody']).default(''),
+  }),
   execute: async ({ input, context }) => {
     await requireAdmin(context.user.email);
     const { records: tickets } = await zite.supportTickets.findAll({ limit: 2000 });
@@ -46,16 +52,28 @@ export default createEndpoint({
     // The maintainer's turn, by the same rule the page's "waiting on a
     // maintainer" filter uses: active, and the last real message is not from a
     // maintainer (i.e. nobody has answered yet, or the sender replied last).
-    const pending = tickets.filter((t) => {
-      if (only && !only.has(t.id)) return false;
-      if (!ACTIVE.includes(t.status ?? 'Open')) return false;
+    const inScope = only ? tickets.filter((t) => only.has(t.id)) : tickets;
+    const pending: typeof tickets = [];
+    let closed = 0;
+    let waitingOnReporter = 0;
+    for (const t of inScope) {
+      if (!ACTIVE.includes(t.status ?? 'Open')) { closed++; continue; }
       const replies = (byTicket.get(t.id) ?? [])
         .filter((r) => r.kind !== REPLY_KIND.note)
         .sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));
       const newest = replies[0];
-      return !newest || newest.kind === REPLY_KIND.fromUser;
-    });
-    if (!pending.length) return { reminded: 0, emailed: 0 };
+      const waiting = !newest || newest.kind === REPLY_KIND.fromUser;
+      // The turn rule is for the all-at-once digest. When an admin asks about
+      // specific tickets they already know what they want chased, so the nudge
+      // goes out even if the newest message happens to be a maintainer's: the
+      // usual reason for that is a reply nobody saw.
+      if (!waiting && !only) { waitingOnReporter++; continue; }
+      pending.push(t);
+    }
+    if (!pending.length) {
+      const skipped = closed && waitingOnReporter ? 'mixed' : closed ? 'closed' : waitingOnReporter ? 'waiting-on-reporter' : 'mixed';
+      return { reminded: 0, emailed: 0, skipped };
+    }
 
     const all = members as unknown as CrewMembersRecordType[];
     const invoker = all.find((m) => m.schoolEmail?.toLowerCase() === context.user.email.toLowerCase());
@@ -109,6 +127,8 @@ export default createEndpoint({
     }
 
     void notifySupportReminder([...perPerson.keys()], { count: pending.length, url: '/admin/support' });
-    return { reminded: pending.length, emailed };
+    // Nobody to email: every assignee is missing an address, or the ticket has
+    // no assignee and no maintainer/admin is emailable.
+    return { reminded: pending.length, emailed, skipped: emailed ? '' : ('nobody' as const) };
   },
 });

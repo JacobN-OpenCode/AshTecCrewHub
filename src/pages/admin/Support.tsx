@@ -13,6 +13,7 @@ import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
 import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
+import { remindOutcome } from '../../lib/remindOutcome';
 
 type Ticket = AdminGetSupportOutputType['tickets'][number];
 
@@ -136,8 +137,10 @@ export default function Support() {
     setRemindingId(id);
     try {
       const r = await adminRemindMaintainers({ ids: [id] });
-      if (r.emailed) toast.success(`Reminded the maintainers about this ticket (${r.emailed} emailed)`);
-      else toast.info('No maintainer could be emailed for this ticket.');
+      const out = remindOutcome(r);
+      if (out.kind === 'success') toast.success(out.text);
+      else if (out.kind === 'error') toast.error(out.text);
+      else toast.info(out.text);
       await load();
     } catch (e) { toast.error((e as Error).message); }
     finally { setRemindingId(''); }
@@ -147,8 +150,10 @@ export default function Support() {
     setReminding(true);
     try {
       const r = await adminRemindMaintainers({});
-      if (r.reminded === 0) toast.info('Nothing is waiting on the maintainers right now.');
-      else toast.success(`Reminded maintainers about ${r.reminded} ${r.reminded === 1 ? 'ticket' : 'tickets'}${r.emailed ? ` (${r.emailed} emailed)` : ''}`);
+      const out = remindOutcome(r);
+      if (out.kind === 'success') toast.success(out.text);
+      else if (out.kind === 'error') toast.error(out.text);
+      else toast.info(out.text);
       await load();
     } catch (e) { toast.error((e as Error).message); }
     finally { setReminding(false); }
