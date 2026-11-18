@@ -18,7 +18,8 @@ const CHAT_MAX = 500;
  *     without minting a cookie.
  *
  * Either path attaches a real member as the author, so a message always has a
- * name on it.
+ * name on it. A display can pass its own screenName to be signed that way
+ * instead, which is what the board composer does.
  */
 export default createEndpoint({
   description: 'Post a message to the live show chat (admins)',
@@ -29,6 +30,9 @@ export default createEndpoint({
     email: z.string().email().optional(),
     memberId: z.string().optional(),
     secret: z.string().max(200).optional(),
+    // A message sent from a stage display is signed by that display, so the
+    // cast reads "Stage left screen" and knows which corner it came from.
+    screenName: z.string().max(120).optional(),
   }),
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
@@ -54,6 +58,9 @@ export default createEndpoint({
       authorId = member.id;
       authorName = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || 'Admin';
     }
+
+    const screen = input.screenName?.trim().slice(0, 60);
+    if (screen) authorName = screen;
 
     const body = input.body.trim().slice(0, CHAT_MAX);
     if (!body) throw new Error('Write something first.');

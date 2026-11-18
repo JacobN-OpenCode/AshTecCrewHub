@@ -8,7 +8,7 @@ import {
 import { Button } from '@project/components/ui/button';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight,
+  KeyRound, Loader2, Play, Pause, RotateCcw, ChevronLeft, ChevronRight,
   ScrollText, Tv, Settings2, Users, Clapperboard, Lock, MessageSquare, Megaphone, ShieldAlert,
   Send, Monitor, Smartphone, Tablet, X, UserPlus, Pencil, Package,
 } from 'lucide-react';
@@ -335,22 +335,34 @@ function BoardView({
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(135% 90% at 50% -30%, #241b21 0%, #141016 45%, #08070a 100%)' }} />
       <div aria-hidden className="pointer-events-none absolute inset-3 hidden rounded-[26px] lg:block border border-[#f3ece1]/10 md:inset-5 md:rounded-[34px]" />
 
-      <div className="relative mx-auto flex min-h-full w-full max-w-[1900px] flex-col gap-4 px-5 py-4 md:gap-6 md:px-10 md:py-6 lg:h-full">
-        <header className="flex flex-wrap items-end gap-x-6 gap-y-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <span className={cn('h-2.5 w-2.5 rounded-full', live && 'animate-pulse')} style={{ background: meta.dot, boxShadow: live ? `0 0 18px ${meta.dot}` : 'none' }} />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.42em]" style={{ color: meta.dot }}>{meta.label}</span>
-            </div>
-            <h1 className="mt-1.5 truncate text-xl font-semibold tracking-tight text-[#f6f0e6] md:text-2xl">{board.name}</h1>
-            <p className="mt-0.5 text-[11px] uppercase tracking-[0.32em] text-[#7e7a86]">
-              {board.areaName}{total > 0 ? ` · Scene ${Math.max(1, sceneNo)} of ${total}` : ''}
-            </p>
+      <div className="relative mx-auto flex min-h-full w-full max-w-[1900px] flex-col gap-3 px-5 py-3 pb-6 md:gap-4 md:px-10 md:py-4 md:pb-7 lg:h-full">
+        {/* The status owns this band. From the wings you should be able to tell
+            whether the show is live or in the interval from the colour alone,
+            without reading a word of it. */}
+        <header
+          className="relative -mx-5 -mt-4 border-b px-5 py-3 md:-mx-10 md:-mt-6 md:px-10 md:py-4"
+          style={{
+            borderColor: `${meta.dot}55`,
+            background: `linear-gradient(180deg, ${meta.dot}59 0%, ${meta.dot}1f 58%, rgba(8,7,10,0) 100%)`,
+            boxShadow: live ? `inset 0 -2px 0 ${meta.dot}, 0 0 90px -20px ${meta.dot}99` : `inset 0 -2px 0 ${meta.dot}cc`,
+          }}
+        >
+          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[3px]" style={{ background: meta.dot }} />
+
+          <div className="relative flex items-center justify-center gap-3">
+            <span className={cn('h-3 w-3 rounded-full', live && 'animate-pulse')} style={{ background: meta.dot, boxShadow: `0 0 26px ${meta.dot}` }} />
+            <span className="text-base font-black uppercase tracking-[0.55em] md:text-2xl" style={{ color: meta.dot, textShadow: `0 0 40px ${meta.dot}80` }}>{meta.label}</span>
           </div>
-          <div className="ml-auto shrink-0 text-right">
+
+          <h1 className="relative mt-1 truncate text-center text-xl font-semibold tracking-tight text-[#f8f3ea] md:text-3xl">{board.name}</h1>
+          <p className="relative mt-0.5 text-center text-[11px] uppercase tracking-[0.34em] text-[#948e9c] md:text-xs">
+            {board.areaName}{total > 0 ? ` · Scene ${Math.max(1, sceneNo)} of ${total}` : ''}
+          </p>
+
+          <div className="relative mt-2 flex items-center justify-center gap-3 lg:absolute lg:right-8 lg:top-1/2 lg:mt-0 lg:block lg:-translate-y-1/2 lg:pr-2 lg:text-right">
             <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">Show clock</p>
-            <p key={board.timerMode} className={cn('font-mono text-5xl leading-none tabular-nums md:text-7xl', board.timerMode === 'running' ? 'text-[#f8f3ea]' : 'text-[#9b96a3]')}>{fmt(elapsedOf(board, now))}</p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.32em] text-[#5d5964]">{board.timerMode === 'running' ? 'Running' : 'Stopped'}</p>
+            <p key={board.timerMode} className={cn('font-mono text-4xl leading-none tabular-nums md:text-6xl', board.timerMode === 'running' ? 'text-[#f8f3ea]' : 'text-[#9b96a3]')}>{fmt(elapsedOf(board, now))}</p>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-[#5d5964] lg:mt-1">{board.timerMode === 'running' ? 'Running' : 'Stopped'}</p>
           </div>
         </header>
 
@@ -370,7 +382,7 @@ function BoardView({
                   <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#7e7a86]">{current.minutes} min</span>
                 </div>
                 {/* Keyed on the scene so switching scenes animates the title in. */}
-                <h2 key={current.id} className="relative mt-2 text-[clamp(2.25rem,min(6.4vw,8.5vh),6rem)] font-black leading-[0.92] tracking-[-0.02em] text-[#f8f3ea] animate-in fade-in slide-in-from-bottom-1 duration-500">
+                <h2 key={current.id} className="relative mt-2 text-[clamp(1.9rem,min(4.6vw,6.4vh),4.75rem)] font-black leading-[0.94] tracking-[-0.02em] text-[#f8f3ea] animate-in fade-in slide-in-from-bottom-1 duration-500">
                   {current.title || 'Untitled scene'}
                 </h2>
 
@@ -416,9 +428,29 @@ function BoardView({
               </p>
             )}
 
-            {/* Faint footlights where the stage meets the front of the house, so
-                a short scene still fills the glass instead of hanging in space. */}
-            <div aria-hidden className="min-h-6 flex-1" style={{ background: 'radial-gradient(70% 130% at 18% 130%, rgba(217,171,108,0.10) 0%, rgba(217,171,108,0) 72%)' }} />
+            {/* The glass is tall, so the space under a short scene earns its
+                keep: the next few scenes, readable at a glance from the wings. */}
+            {scenes.length > Math.max(1, sceneNo) ? (
+              <div className="mt-auto pt-4">
+                <div className="flex items-baseline justify-between border-t border-[#f3ece1]/10 pt-3">
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">After this</p>
+                  <p className="font-mono text-[10px] tracking-[0.2em] text-[#5d5964]">
+                    {scenes.length - Math.max(1, sceneNo)} to go
+                  </p>
+                </div>
+                <ul className="mt-2 grid gap-x-10 sm:grid-cols-2">
+                  {scenes.slice(Math.max(1, sceneNo), Math.max(1, sceneNo) + 6).map((sc, i) => (
+                    <li key={sc.id} className="flex items-baseline gap-3 border-b border-[#f3ece1]/5 py-1.5">
+                      <span className="font-mono text-xs tabular-nums text-[#5d5964]">{String(Math.max(1, sceneNo) + i + 1).padStart(2, '0')}</span>
+                      <span className="min-w-0 flex-1 truncate text-[0.95rem] text-[#d3ccd8] md:text-base">{sc.title || 'Untitled scene'}</span>
+                      <span className="font-mono text-[11px] text-[#5d5964]">{sc.minutes}m</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="min-h-6 flex-1" />
+            )}
 
             {/* Where we are in the evening, at a glance from across the wings. */}
             {scenes.length > 1 && (
@@ -680,19 +712,17 @@ function ControlPanel({
 // ---------------------------------------------------------------- top bar
 
 function DashTopBar({ title, subtitle, right }: { title: string; subtitle: string; right?: ReactNode }) {
-  const navigate = useNavigate();
+  // No back button: these screens are displays, and a stray tap on a back arrow
+  // used to walk someone out of the board mid-show. The title sits in the middle.
   return (
     <header className="dash-topbar sticky top-0 z-30 border-b border-[#f3ece1]/10 bg-[#07060a]/95 backdrop-blur">
-      <div className="max-w-[1800px] mx-auto px-4 h-14 flex items-center gap-3">
-        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => (window.history.state?.idx ? navigate(-1) : navigate('/'))}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-baseline gap-2 min-w-0">
-          <Tv className="h-4 w-4 shrink-0 text-[#d9ab6c]" />
+      <div className="relative mx-auto flex h-14 max-w-[1800px] items-center justify-center gap-2 px-4">
+        <div className="flex min-w-0 items-baseline justify-center gap-2">
+          <Tv className="h-4 w-4 shrink-0 self-center text-[#d9ab6c]" />
           <h1 className="truncate text-sm font-bold uppercase tracking-[0.22em] text-[#f3ece1]">{title}</h1>
           <span className="truncate text-[11px] uppercase tracking-[0.3em] text-[#7e7a86]">{subtitle}</span>
         </div>
-        <div className="ml-auto flex items-center gap-2 shrink-0">{right}</div>
+        {right && <div className="absolute right-4 flex shrink-0 items-center gap-2">{right}</div>}
       </div>
     </header>
   );
@@ -736,9 +766,16 @@ export default function LiveShowDash() {
   const refreshRef = useRef<() => Promise<unknown>>(async () => null);
   const sendBoardChat = useCallback(async (body: string) => {
     if (!board) return;
-    await liveShowChat({ liveShowId: board.id, body, ...(cred ? { memberId: cred.memberId, secret: cred.secret } : {}) });
+    await liveShowChat({
+      liveShowId: board.id,
+      body,
+      // A message typed on a display is signed by that display, so the cast
+      // sees "Stage left screen" instead of the admin's name.
+      screenName: device?.name || sessionName() || platformOf(),
+      ...(cred ? { memberId: cred.memberId, secret: cred.secret } : {}),
+    });
     await refreshRef.current();
-  }, [board, cred]);
+  }, [board, cred, device]);
 
   const refresh = useCallback(async () => {
     try {
@@ -905,7 +942,7 @@ export default function LiveShowDash() {
           page with no top bar competing with it. */}
       {phase === 'idle' && <ShowIdle />}
 
-      {phase !== 'idle' && (
+      {phase === 'enable' && (
         <DashTopBar title={title} subtitle={subtitle} right={
           isAdmin && phase === 'enable' ? (
             <Button size="sm" variant="outline" onClick={() => navigate('/admin/live-show')}>
