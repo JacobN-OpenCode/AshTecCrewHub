@@ -218,7 +218,7 @@ export default function Support() {
                 return (
                   <span className="text-orange-400 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    waiting on a reply{ageStr ? ` · ${ageStr}` : ''}
+                    waiting on the reporter{ageStr ? ` · ${ageStr}` : ''}
                   </span>
                 );
               })()
@@ -280,6 +280,38 @@ export default function Support() {
   // One file with every open ticket and its whole thread, so the backlog can be
   // handed over without opening each ticket. Built in the browser from the
   // endpoint's JSON, so nothing is stored server-side.
+  // Same tickets as the JSON export, flattened to one row each, because a
+  // spreadsheet is what most people actually want to sort and hand over.
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const r = await adminExportTickets({});
+      const rowsData = (r.tickets ?? []) as Array<Record<string, any>>;
+      const head = ['Subject', 'Type', 'Severity', 'Status', 'Page', 'Submitted by', 'Submitted', 'Assigned to', 'Replies'];
+      const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+      const rows = rowsData.map((t) => [
+        t.subject, t.type, t.severity, t.status, t.page,
+        t.submitter?.name ?? '', t.submittedAt ?? '',
+        (t.assigned ?? []).map((a: any) => a.name).join('; '),
+        (t.replies ?? []).length,
+      ]);
+      const csv = [head, ...rows].map((r2) => r2.map(cell).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ashtec-open-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(r.count === 0 ? 'No open tickets to download' : `Downloaded ${r.count} open ticket${r.count === 1 ? '' : 's'}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not build the export.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const exportOpen = async () => {
     setExporting(true);
     try {
@@ -309,10 +341,13 @@ export default function Support() {
             <h1 className="text-3xl font-bold tracking-tight">Support</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {count('Open')} open · {count('In Progress')} in progress · {count('Resolved')} resolved
-              {awaiting > 0 && <span className="text-orange-400"> · {awaiting} awaiting a reply</span>}
+              {awaiting > 0 && <span className="text-orange-400"> · {awaiting} waiting on the reporter</span>}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={exportCsv} disabled={exporting} title="One row per open ticket, for a spreadsheet">
+              <Download className="h-4 w-4 mr-2" />CSV
+            </Button>
             <Button variant="outline" onClick={exportOpen} disabled={exporting} title="Download every open ticket, with its full thread, as one JSON file">
               {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
               Download open tickets
@@ -344,7 +379,7 @@ export default function Support() {
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <Checkbox checked={onlyMaintainerTurn} onCheckedChange={(c) => setOnlyMaintainerTurn(!!c)} />
-            Only tickets waiting on a maintainer
+            Only tickets waiting on us
           </label>
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <Checkbox data-tour="support-referred" checked={onlyReferred} onCheckedChange={(c) => setOnlyReferred(!!c)} />

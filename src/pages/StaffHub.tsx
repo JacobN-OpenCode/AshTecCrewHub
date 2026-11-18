@@ -87,7 +87,8 @@ export default function StaffHub() {
   return (
     <div className="space-y-6 hc-stagger">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Hi {who} 👋</h1>
+        <h1 className="text-3xl font-bold tracking-tight">The team</h1>
+        <p className="text-sm text-muted-foreground">Hi {who} 👋</p>
         <p className="text-muted-foreground mt-1">{busy ? 'Loading roster…' : `${data.students.length} students on the roster.`}</p>
       </div>
 

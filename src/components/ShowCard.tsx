@@ -28,7 +28,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
 
   const respond = async (r: 'Yes' | 'No' | 'Maybe') => {
     setBusy(true);
-    try { await setShowResponse({ showId: show.id, response: r, memberId: previewId() }); await reload(); }
+    try { await setShowResponse({ showId: show.id, response: r, memberId: previewId() }); toast.success(r === 'Yes' ? 'You are marked as in.' : r === 'Maybe' ? 'Saved as maybe.' : 'You are marked as not taking part.'); await reload(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -88,7 +88,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
             <button key={r} disabled={busy || locked} onClick={() => respond(r)}
               className={cn('px-4 py-2 rounded-lg border font-medium text-sm transition-colors disabled:opacity-50',
                 show.response === r ? (r === 'Yes' ? 'bg-emerald-500 text-white border-emerald-500' : r === 'No' ? 'bg-red-500 text-white border-red-500' : 'bg-yellow-500 text-black border-yellow-500') : 'hover:bg-muted')}>
-              {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Not taking part' : 'Maybe'}
+              {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Can’t go' : 'Maybe'}
             </button>
           ))}
         </div>
