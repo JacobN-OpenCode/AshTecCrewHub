@@ -190,41 +190,48 @@ function EnableScreen({ showName, onEnabled }: { showName: string; onEnabled: (r
     } catch (e2) { setErr((e2 as Error).message); setBusy(false); }
   };
 
+  const field = 'w-full rounded-lg border border-[#f3ece1]/12 bg-[#0b0a0e] px-3 py-2.5 text-sm text-[#f3ece1] outline-none transition-colors focus:border-[#d9ab6c]/60';
+  const label = 'text-[10px] uppercase tracking-[0.35em] text-[#7e7a86]';
+
   return (
-    <div className="flex-1 flex items-center justify-center p-6">
-      <form onSubmit={submit} className="w-full max-w-md space-y-5">
-        <div className="text-center space-y-3">
-          <div className="mx-auto h-14 w-14 rounded-2xl border border-[#2a3040] bg-[#10131a] flex items-center justify-center">
-            <Lock className="h-6 w-6 text-cream/60" />
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden p-6">
+      <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 50% -20%, #241b21 0%, #141016 45%, #07060a 100%)' }} />
+      <div aria-hidden className="pointer-events-none absolute inset-3 rounded-[26px] border border-[#f3ece1]/10 md:inset-5 md:rounded-[34px]" />
+      <form onSubmit={submit} className="relative w-full max-w-md space-y-6">
+        <div className="space-y-3 text-center">
+          <p className="text-[10px] uppercase tracking-[0.5em] text-[#d9ab6c]">AshTec crew</p>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#d9ab6c]/40 bg-[#d9ab6c]/10">
+            <Lock className="h-6 w-6 text-[#d9ab6c]" />
           </div>
-          <h2 className="text-2xl font-bold text-cream">Set up this screen</h2>
-          <p className="text-sm text-[#9aa3b2]">Enable this device to show the live board{showName ? ` for ${showName}` : ''}. An admin must confirm with their cat-login PIN.</p>
+          <h2 className="text-3xl font-black leading-tight tracking-[-0.01em] text-[#f8f3ea]">Set up this screen</h2>
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-[#9a94a1]">
+            This device will show the live board{showName ? ` for ${showName}` : ''}. An admin confirms it with their cat-login PIN.
+          </p>
         </div>
-        <div className="rounded-2xl border border-[#2a3040] bg-[#0f1219] p-4 space-y-3">
-          <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-widest text-[#9aa3b2]">Admin</span>
-            <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }}
-              className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none">
+
+        <div className="space-y-4 border-t border-[#f3ece1]/10 pt-5">
+          <label className="block space-y-1.5">
+            <span className={label}>Admin</span>
+            <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }} className={field}>
               <option value="">Select an admin…</option>
               {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-widest text-[#9aa3b2]">Cat-login PIN</span>
+          <label className="block space-y-1.5">
+            <span className={label}>Cat-login PIN</span>
             <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setErr(''); }} autoComplete="off"
-              placeholder="The admin's cat-login PIN"
-              className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none focus:border-[#3a4356]" />
+              placeholder="The admin's cat-login PIN" className={field} />
           </label>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-widest text-[#9aa3b2]">Screen name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="e.g. Stage Left"
-              className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none focus:border-[#3a4356]" />
+          <label className="block space-y-1.5">
+            <span className={label}>Screen name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="e.g. Stage Left" className={field} />
           </label>
-          {err && <p className="text-sm text-red-400">{err}</p>}
-          <Button type="submit" disabled={busy} className="w-full">
-            {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Lock className="h-4 w-4 mr-2" />}Enable this screen
-          </Button>
-          {admins.length === 0 && <p className="text-[11px] text-[#525b6c]">No admins with a cat-login PIN could be found.</p>}
+          {err && <p className="text-sm text-[#ff8a7a]">{err}</p>}
+          <button type="submit" disabled={busy}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#d9ab6c] px-4 py-2.5 text-sm font-bold uppercase tracking-[0.2em] text-[#1a1208] transition-opacity hover:opacity-90 disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}Enable this screen
+          </button>
+          {admins.length === 0 && <p className="text-[11px] text-[#5d5964]">No admins with a cat-login PIN could be found.</p>}
         </div>
       </form>
     </div>
@@ -246,25 +253,25 @@ function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked:
       onUnlocked({ memberId, secret: pin, name: r.admin.name });
     } catch (e) { setErr((e as Error).message || 'Those details are not right.'); setBusy(false); }
   };
+  const field = 'w-full rounded-lg border border-[#f3ece1]/12 bg-[#0b0a0e] px-3 py-2.5 text-sm text-[#f3ece1] outline-none transition-colors focus:border-[#d9ab6c]/60';
   return (
-    <div className="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl border border-[#2a3040] bg-[#10131a] p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <KeyRound className="h-4 w-4 text-cream/60" />
-          <h2 className="font-bold text-cream">Unlock the controls</h2>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/75 p-6 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-sm space-y-4 rounded-2xl border border-[#f3ece1]/12 bg-[#141017] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2.5">
+          <KeyRound className="h-4 w-4 text-[#d9ab6c]" />
+          <p className="text-[10px] uppercase tracking-[0.4em] text-[#d9ab6c]">Controls</p>
         </div>
-        <p className="text-xs text-[#9aa3b2]">Pick an admin and enter their cat-login PIN. A second admin can unlock too.</p>
-        <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }} autoFocus
-          className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none">
+        <h2 className="text-xl font-black text-[#f8f3ea]">Unlock the controls</h2>
+        <p className="text-xs leading-relaxed text-[#9a94a1]">Pick an admin and enter their cat-login PIN. A second admin can unlock too.</p>
+        <select value={memberId} onChange={(e) => { setMemberId(e.target.value); setErr(''); }} autoFocus className={field}>
           <option value="">Select an admin…</option>
           {admins.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
         <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setErr(''); }} autoComplete="off"
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); if (e.key === 'Escape') onClose(); }}
-          placeholder="Cat-login PIN"
-          className="w-full bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none focus:border-[#3a4356]" />
-        {err && <p className="text-xs text-red-400">{err}</p>}
-        <div className="flex justify-end gap-2">
+          placeholder="Cat-login PIN" className={field} />
+        {err && <p className="text-xs text-[#ff8a7a]">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={busy || !memberId || !pin} onClick={() => void submit()}>
             {busy && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Unlock controls
@@ -321,14 +328,14 @@ function BoardView({
   const ordered = useMemo(() => [...messages].reverse(), [messages]);
 
   return (
-    <main className="relative flex-1 min-h-0 overflow-hidden">
+    <main className="relative min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
       {/* One painted layer rather than a stack of cards: a warm pool of light
           from above the pros arch, falling off to ink. These screens are looked
           at from the wings, so the light does the sectioning, not borders. */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(135% 90% at 50% -30%, #241b21 0%, #141016 45%, #08070a 100%)' }} />
-      <div aria-hidden className="pointer-events-none absolute inset-3 rounded-[26px] border border-[#f3ece1]/10 md:inset-5 md:rounded-[34px]" />
+      <div aria-hidden className="pointer-events-none absolute inset-3 hidden rounded-[26px] lg:block border border-[#f3ece1]/10 md:inset-5 md:rounded-[34px]" />
 
-      <div className="relative mx-auto flex h-full w-full max-w-[1900px] flex-col gap-4 px-5 py-4 md:gap-6 md:px-10 md:py-6">
+      <div className="relative mx-auto flex min-h-full w-full max-w-[1900px] flex-col gap-4 px-5 py-4 md:gap-6 md:px-10 md:py-6 lg:h-full">
         <header className="flex flex-wrap items-end gap-x-6 gap-y-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
@@ -347,7 +354,7 @@ function BoardView({
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-5 md:gap-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="grid gap-5 md:gap-8 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
           {/* ---- the scene, as big as the glass allows ---- */}
           <section className="relative flex min-h-0 flex-col">
             {sceneNo > 0 && (
@@ -363,7 +370,7 @@ function BoardView({
                   <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#7e7a86]">{current.minutes} min</span>
                 </div>
                 {/* Keyed on the scene so switching scenes animates the title in. */}
-                <h2 key={current.id} className="relative mt-2 text-[clamp(2rem,5.4vw,4.5rem)] font-black leading-[0.94] tracking-[-0.02em] text-[#f8f3ea] animate-in fade-in slide-in-from-bottom-1 duration-500">
+                <h2 key={current.id} className="relative mt-2 text-[clamp(2.25rem,min(6.4vw,8.5vh),6rem)] font-black leading-[0.92] tracking-[-0.02em] text-[#f8f3ea] animate-in fade-in slide-in-from-bottom-1 duration-500">
                   {current.title || 'Untitled scene'}
                 </h2>
 
@@ -372,7 +379,7 @@ function BoardView({
                     <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">On stage</p>
                     <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1.5">
                       {current.cast.map((c) => (
-                        <span key={c} className="rounded-full border border-[#f3ece1]/20 px-3 py-1 text-sm font-medium text-[#efe6d8] md:text-base">{c}</span>
+                        <span key={c} className="rounded-full border border-[#f3ece1]/20 px-3.5 py-1 text-[0.95rem] font-medium text-[#efe6d8] md:text-lg">{c}</span>
                       ))}
                     </div>
                   </div>
@@ -395,7 +402,7 @@ function BoardView({
                 {current.notes.length > 0 && (
                   <ul className="mt-5 space-y-1.5 border-t border-[#f3ece1]/10 pt-3">
                     {current.notes.map((n, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm leading-snug text-[#c8c2cd] md:text-base">
+                      <li key={i} className="flex gap-2.5 text-[0.95rem] leading-snug text-[#c8c2cd] md:text-lg">
                         <span aria-hidden className="mt-[0.55em] h-1 w-1 shrink-0 rotate-45 bg-[#d9ab6c]/70" />
                         <span>{n}</span>
                       </li>
@@ -409,9 +416,13 @@ function BoardView({
               </p>
             )}
 
+            {/* Faint footlights where the stage meets the front of the house, so
+                a short scene still fills the glass instead of hanging in space. */}
+            <div aria-hidden className="min-h-6 flex-1" style={{ background: 'radial-gradient(70% 130% at 18% 130%, rgba(217,171,108,0.10) 0%, rgba(217,171,108,0) 72%)' }} />
+
             {/* Where we are in the evening, at a glance from across the wings. */}
             {scenes.length > 1 && (
-              <div className="mt-auto pt-5">
+              <div className="pt-2">
                 <div className="flex items-baseline justify-between">
                   <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">Running order</p>
                   <p className="font-mono text-[10px] tracking-[0.2em] text-[#5d5964]">{Math.max(1, sceneNo)} / {total}</p>
@@ -432,7 +443,7 @@ function BoardView({
             )}
           </section>
 
-          <aside className="flex min-h-0 flex-col gap-4">
+          <aside className="flex min-h-0 flex-col gap-4 border-t border-[#f3ece1]/10 pt-4 lg:border-0 lg:pt-0">
             <div className="border-l-2 border-[#d9ab6c]/50 pl-3.5">
               <div className="flex items-center gap-2 text-[#7e7a86]">
                 <Clapperboard className="h-3.5 w-3.5" />
@@ -449,7 +460,7 @@ function BoardView({
               )}
             </div>
 
-            <div className="flex min-h-[8rem] flex-1 flex-col border-t border-[#f3ece1]/10 pt-3">
+            <div className="flex min-h-[10rem] flex-1 flex-col border-t border-[#f3ece1]/10 pt-3">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-3.5 w-3.5 text-[#7e7a86]" />
                 <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">Crew channel</p>
@@ -671,15 +682,15 @@ function ControlPanel({
 function DashTopBar({ title, subtitle, right }: { title: string; subtitle: string; right?: ReactNode }) {
   const navigate = useNavigate();
   return (
-    <header className="dash-topbar sticky top-0 z-30 border-b border-[#1e232d] bg-[#07080a]/90 backdrop-blur">
+    <header className="dash-topbar sticky top-0 z-30 border-b border-[#f3ece1]/10 bg-[#07060a]/95 backdrop-blur">
       <div className="max-w-[1800px] mx-auto px-4 h-14 flex items-center gap-3">
         <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => (window.history.state?.idx ? navigate(-1) : navigate('/'))}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex items-baseline gap-2 min-w-0">
-          <Tv className="h-4 w-4 text-cream/50 shrink-0" />
-          <h1 className="font-bold truncate text-cream">{title}</h1>
-          <span className="text-xs text-[#9aa3b2] truncate">{subtitle}</span>
+          <Tv className="h-4 w-4 shrink-0 text-[#d9ab6c]" />
+          <h1 className="truncate text-sm font-bold uppercase tracking-[0.22em] text-[#f3ece1]">{title}</h1>
+          <span className="truncate text-[11px] uppercase tracking-[0.3em] text-[#7e7a86]">{subtitle}</span>
         </div>
         <div className="ml-auto flex items-center gap-2 shrink-0">{right}</div>
       </div>
@@ -878,7 +889,7 @@ export default function LiveShowDash() {
 
   if (phase === 'boot') {
     return (
-      <div className="min-h-screen bg-[#07080a] text-cream flex items-center justify-center">
+      <div className="flex h-[100dvh] items-center justify-center bg-[#07060a] text-cream">
         <Loader2 className="h-6 w-6 animate-spin text-cream/60" />
       </div>
     );
@@ -889,7 +900,7 @@ export default function LiveShowDash() {
   const visibleAnnouncements = announcements.filter((a) => !dismissed.includes(a.id));
 
   return (
-    <div className="min-h-screen bg-[#07080a] text-cream flex flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#07080a] text-cream">
       {/* No show running: the idle screen is all there is, so it gets the whole
           page with no top bar competing with it. */}
       {phase === 'idle' && <ShowIdle />}
@@ -917,7 +928,7 @@ export default function LiveShowDash() {
       )}
 
       {board && !board.open && phase === 'board' && (
-        <div className="border-t border-[#1e232d] bg-[#0b0d12]/80 px-4 py-1.5 text-center text-[11px] text-[#9aa3b2]">Show not started yet</div>
+        <div className="border-t border-[#d9ab6c]/25 bg-[#0b0a0e]/90 px-4 py-1.5 text-center text-[10px] uppercase tracking-[0.4em] text-[#d9ab6c]">Show not started yet</div>
       )}
 
       {visibleAnnouncements.length > 0 && (
