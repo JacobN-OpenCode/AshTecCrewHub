@@ -14,7 +14,7 @@ import PublicLayout from '../../components/public/PublicLayout';
  * Linked only from the public footer, never from inside the signed-in app.
  */
 
-const UPDATED = '15 November 2026';
+const UPDATED = '18 November 2026';
 
 const TOC = [
   'What information do we collect?',
@@ -120,15 +120,15 @@ export default function Privacy() {
             <p><strong>Information created by using the crew hub.</strong> When you use the service we record:</p>
             <ul>
               <li>your answers to event and show forms (coming, maybe, or not attending);</li>
-              <li>attendance and venue check-in records for rehearsals and shows;</li>
-              <li>anything you post in the crew hub, such as rehearsal notes, show debriefs, green-room messages and lost-property entries;</li>
+              <li>attendance and venue check-in records for rehearsals and shows, including the marks an admin puts on the register (in, away, or not in) and a short reason chosen from a list for anyone marked away or not in;</li>
+              <li>anything you post in the crew hub, such as rehearsal notes, show debriefs, green-room messages, lost-property entries and messages sent to the crew channel from a backstage screen. The backstage screens show the running order, who is on stage and that channel on a display in the room, so treat them as visible to anyone standing there;</li>
               <li>support tickets and feedback you submit, the replies on them, and any <strong>pictures you attach to a ticket</strong> (stored on our own server, like profile pictures);</li>
               <li>notifications sent to you, and when;</li>
               <li>sign-in and session details (the device and the time), kept so you can see and sign out your devices;</li>
-              <li>coarse page-view counts, so we can see which parts of the hub are used. These are recorded on our own server, not by a third-party analytics service.</li>
+              <li>a technical log of requests and pages opened, so we can see which parts of the hub are used and work out what went wrong when something breaks. A log line holds the page or endpoint, the time, how long it took, whether you were signed in, your email if you were, the network address the request came from, and your browser&rsquo;s own description of itself. It is held on our own server for 30 days and then deleted, and it is never used to build a profile of you or shared with anyone.</li>
             </ul>
-            <p><strong>Cookies and local storage.</strong> We use one essential cookie, <code className="rounded bg-muted px-1.5 py-0.5 text-xs">crew_session</code>, to keep you signed in. It is set only when you sign in, it is not readable by scripts, and it is not used for advertising. We also use your browser&rsquo;s local storage for your own preferences on that device (for example your theme, your layout choice, and whether you have turned notifications on). We use no advertising cookies and no third-party tracking cookies.</p>
-            <p><strong>Sensitive information.</strong> We do not ask for, or process, special-category personal information. Please do not put it in free-text fields such as notes or support tickets.</p>
+            <p><strong>Cookies and local storage.</strong> We use two essential cookies, neither of which is readable by scripts and neither of which is used for advertising. <code className="rounded bg-muted px-1.5 py-0.5 text-xs">crew_session</code> keeps you signed in and is set when you sign in. <code className="rounded bg-muted px-1.5 py-0.5 text-xs">crew_act_as</code> is set only on an admin&rsquo;s own browser when they sign in as a crew member to help with a problem, and is cleared when they press Leave or sign out. We also use your browser&rsquo;s local storage for preferences on that device only: your theme, your layout choice, whether you have turned notifications on, whether you have hidden the admin pages with Member view, the name of a screen you set up for the backstage board, and whether you have closed the check-in help. We use no advertising cookies and no third-party tracking cookies.</p>
+            <p><strong>Sensitive information.</strong> We do not ask for special-category information such as health, religion or ethnicity, and nothing in the hub is designed to record it. Two honest exceptions: a register reason picked from our list can be &ldquo;Unwell&rdquo; or &ldquo;External appointment&rdquo;, which does say something about someone&rsquo;s health, and someone may mention it in a free-text note. Those reasons are visible only to admins, are kept with the attendance record for safety, and are not used for anything else. Please keep free-text fields such as notes and support tickets to what is needed.</p>
             <p>Please keep the information you give us accurate, and tell us (or edit it in Settings) if it changes.</p>
           </Section>
 
@@ -158,7 +158,7 @@ export default function Privacy() {
             <p>We do not sell, rent or trade your personal information, and we do not share it for advertising or marketing.</p>
             <p>We share it only in these situations:</p>
             <ul>
-              <li><strong>With crew admins</strong>, who run the club and can see the crew information they need to do so.</li>
+              <li><strong>With crew admins</strong>, who run the club and can see the crew information they need to do so, including the log of emails the hub has sent you and the register reasons above.</li>
               <li><strong>With the providers that run the service</strong>, acting on our instructions: our email provider (to send sign-in links and notifications), our push-notification service (to deliver notifications to your devices), and our hosting provider (which stores the data). Each is only given what it needs to do its job.</li>
               <li><strong>With a parent or guardian, if you add their email.</strong> Anyone who types that address on the public For parents page sees your first name, the dates you are involved in, and a private calendar link for those dates. Nothing else: no surname, no school email, no attendance, no responses. Nothing is ever sent to the address, and there is no verification step, so only add an address you are happy for someone to type in. You can clear it on your profile at any time.</li>
               <li><strong>With an admin, who can sign in as you</strong> to see exactly what you see when something is broken or a setting needs checking. They can only do it from their own admin account, a bar across the top says so the whole time, and anything they change is saved as if you had made it. It is not used to read your messages or pass anything on.</li>
