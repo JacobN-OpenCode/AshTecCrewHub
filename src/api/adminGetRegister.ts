@@ -17,6 +17,9 @@ import { activeSession, one } from '../lib/presence';
  * register. Anything hanging off a show (a rehearsal, a performance) is a
  * "who is in the building for this" question, so scanning is offered too.
  */
+/** Unmarked names first, then recorded rows grouped by colour. */
+const rank = (state: string) => ({ '': 0, green: 1, yellow: 2, red: 3 } as Record<string, number>)[state] ?? 4;
+
 export default createEndpoint({
   description: 'The picker, or one event roster, for taking a register (admins)',
   authenticated: true,
@@ -71,10 +74,20 @@ export default createEndpoint({
       showIds.length ? zite.showResponses.findAll({ limit: 4000 }) : Promise.resolve({ records: [] }),
     ]);
 
-    const attByMember = new Map<string, { status: string; byAdmin: boolean }>();
+    const attByMember = new Map<string, { status: string; byAdmin: boolean; state: string; reason: string }>();
     for (const a of attRecords.records) {
       const mid = ids(a.member)[0];
-      if (mid) attByMember.set(mid, { status: a.status ?? '', byAdmin: !!a.enteredByAdmin });
+      if (!mid) continue;
+      const mark = (a as unknown as { registerState?: string }).registerState ?? '';
+      attByMember.set(mid, {
+        status: a.status ?? '',
+        byAdmin: !!a.enteredByAdmin,
+        // Rows written before the register had colours read as a plain tick.
+        state: 'green|yellow|red'.split('|').includes(mark)
+          ? mark
+          : a.status === 'Expected Arrival' && a.enteredByAdmin ? 'green' : '',
+        reason: a.reason ?? '',
+      });
     }
 
     const expected = new Set<string>();
@@ -103,6 +116,9 @@ export default createEndpoint({
           // member said beforehand. They read very differently on a register,
           // so they stay separate here instead of both looking "present".
           ticked: !!att && att.status === 'Expected Arrival' && att.byAdmin,
+          // The register colour, and the reason that came with it.
+          state: att?.state ?? '',
+          reason: att?.state ? att.reason : '',
           rsvp: att
             ? att.status === 'Expected Arrival' && !att.byAdmin
               ? 'Coming'
@@ -111,14 +127,23 @@ export default createEndpoint({
           expected: expected.has(m.id) || !!att,
         };
       })
-      .sort((a, b) => Number(b.ticked) - Number(a.ticked) || Number(b.expected) - Number(a.expected) || a.name.localeCompare(b.name));
+      // Whoever still needs marking sits at the top, then the people already
+      // recorded, grouped by colour, so the next name to deal with is always
+      // the first one on the screen.
+      .sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
 
     return {
       mode: 'roster' as const,
       event,
       openSession: session ? { id: session.id, title: openTitle, subEventId: one(session.subEvent) ?? '' } : null,
       members,
-      ticked: members.filter((m) => m.ticked).length,
+      ticked: members.filter((m) => m.state === 'green').length,
+      counts: {
+        green: members.filter((m) => m.state === 'green').length,
+        yellow: members.filter((m) => m.state === 'yellow').length,
+        red: members.filter((m) => m.state === 'red').length,
+        none: members.filter((m) => !m.state).length,
+      },
       total: members.length,
       expectedCount: members.filter((m) => m.expected).length,
       sessionFor: sessionFor(sub.id),

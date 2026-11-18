@@ -210,7 +210,7 @@ export const mapMember = (m: CrewMembersRecordType) => ({
 const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
 export async function upsertAttendance(
-  rows: { memberId: string; subEventId: string; status: string; reason?: string; byAdmin?: boolean }[],
+  rows: { memberId: string; subEventId: string; status: string; reason?: string; byAdmin?: boolean; registerState?: string }[],
 ) {
   for (const batch of chunk(rows)) {
     await zite.attendance.bulkCreate({
@@ -221,6 +221,9 @@ export async function upsertAttendance(
         status: r.status,
         reason: r.reason ?? '',
         enteredByAdmin: !!r.byAdmin,
+        // Green / yellow / red on the venue register, so a half-taken register
+        // reopens with the same colours. '' means nobody has marked this row.
+        registerState: r.registerState ?? '',
       })) as never,
       matchOn: ['attendanceKey'],
     });
