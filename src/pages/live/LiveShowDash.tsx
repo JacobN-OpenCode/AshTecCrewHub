@@ -261,7 +261,26 @@ function UnlockModal({ onClose, onUnlocked }: { onClose: () => void; onUnlocked:
 
 // ---------------------------------------------------------------- board
 
-function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[]; messages: ChatMessage[] }) {
+function BoardView({
+  board, scenes, messages, canSend, onSend,
+}: {
+  board: Board;
+  scenes: Scene[];
+  messages: ChatMessage[];
+  canSend: boolean;
+  onSend: (body: string) => Promise<void>;
+}) {
+  // Ticket a7bb2d2c: admins wanted to type from the board itself instead of
+  // unlocking the control panel, which hides half the screen mid-show.
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const send = async () => {
+    const body = draft.trim();
+    if (!body || sending) return;
+    setSending(true);
+    try { await onSend(body); setDraft(''); } catch (e) { toast.error((e as Error).message); }
+    finally { setSending(false); }
+  };
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
   const meta = statusOf(board.status);
@@ -386,6 +405,22 @@ function BoardView({ board, scenes, messages }: { board: Board; scenes: Scene[];
             </div>
           ))}
         </div>
+        {canSend && (
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={500}
+              placeholder="Message the cast…"
+              aria-label="Send a chat message"
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
+              className="flex-1 rounded-lg border border-[#1e232d] bg-[#0b0d12] px-3 py-2 text-sm text-cream outline-none placeholder:text-[#525b6c]"
+            />
+            <Button size="sm" disabled={sending || !draft.trim()} onClick={() => void send()} aria-label="Send">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </Panel>
     </main>
   );
@@ -614,12 +649,24 @@ export default function LiveShowDash() {
     setPhase('board');
   }, []);
 
+  // Chat straight from the board: the unlocked device credentials if the panel
+  // is open, otherwise the signed-in admin session (the server rejects anyone
+  // who is not an admin, so a crew phone simply gets the error).
+  const refreshRef = useRef<() => Promise<unknown>>(async () => null);
+  const sendBoardChat = useCallback(async (body: string) => {
+    if (!board) return;
+    await liveShowChat({ liveShowId: board.id, body, ...(cred ? { memberId: cred.memberId, secret: cred.secret } : {}) });
+    await refreshRef.current();
+  }, [board, cred]);
+
   const refresh = useCallback(async () => {
     try {
       const r = await getLiveShowState({ deviceKey: deviceKey(), platform: platformOf(), userAgent: navigator.userAgent });
       apply(r as StatePayload);
     } catch { return null; }
   }, [apply]);
+
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
   const control = useCallback(async (action: string, extra?: { status?: string; sceneIndex?: number }) => {
     if (!cred || !board) return;
@@ -789,7 +836,15 @@ export default function LiveShowDash() {
 
       {phase === 'enable' && <EnableScreen showName={board?.name ?? ''} onEnabled={onEnabled} />}
 
-      {phase === 'board' && board && <BoardView board={board} scenes={scenes} messages={messages} />}
+      {phase === 'board' && board && (
+        <BoardView
+          board={board}
+          scenes={scenes}
+          messages={messages}
+          canSend={!!cred || isAdmin}
+          onSend={sendBoardChat}
+        />
+      )}
 
       {board && !board.open && phase === 'board' && (
         <div className="border-t border-[#1e232d] bg-[#0b0d12]/80 px-4 py-1.5 text-center text-[11px] text-[#9aa3b2]">Show not started yet</div>

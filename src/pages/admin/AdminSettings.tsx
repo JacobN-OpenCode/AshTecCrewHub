@@ -94,7 +94,7 @@ export default function AdminSettings() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-          <Settings2 className="h-7 w-7 text-primary" /> ATCMS settings
+          <Settings2 className="h-7 w-7 text-primary" /> ATCMS Settings
         </h1>
         <p className="mt-1 text-muted-foreground">The knobs for the whole crew hub, in one place.</p>
       </div>
@@ -218,13 +218,13 @@ export default function AdminSettings() {
         {forms.map((f, i) => (
           <div key={i} className="space-y-2 rounded-xl border p-3">
             <div className="flex flex-wrap items-end gap-2">
-              <div className="space-y-1">
+              <div className="w-full space-y-1 sm:w-auto">
                 <Label>Title</Label>
-                <Input value={f.title} onChange={(e) => patchForm(i, { title: e.target.value })} className="w-64" />
+                <Input value={f.title} onChange={(e) => patchForm(i, { title: e.target.value })} className="w-full sm:w-64" />
               </div>
-              <div className="space-y-1">
+              <div className="w-full space-y-1 sm:w-auto">
                 <Label>Link id</Label>
-                <Input value={f.id} onChange={(e) => patchForm(i, { id: e.target.value })} placeholder="auto from title" className="w-40 font-mono" />
+                <Input value={f.id} onChange={(e) => patchForm(i, { id: e.target.value })} placeholder="auto from title" className="w-full font-mono sm:w-40" />
               </div>
               <Button size="icon" variant="ghost" className="ml-auto" onClick={() => setForms((prev) => prev.filter((_, idx) => idx !== i))} title="Remove form">
                 <Trash2 className="h-4 w-4" />

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { resolveTarget, isPastDue, wordCount, ids, upsertAttendance } from '../lib/server';
+import { resolveTarget, requireMember, isPastDue, wordCount, ids, upsertAttendance } from '../lib/server';
 
 const NOT = ['Not Attending', 'Not Attending Event'];
 const AUTO_REASON = 'Automatic: not attending any performances, so cannot attend rehearsals.';
@@ -26,7 +26,13 @@ export default createEndpoint({
     // closing date. resolveTarget only reports byAdmin when the target differs
     // from the caller, so an admin fixing their OWN row was blocked by the
     // deadline they can otherwise override.
-    const override = byAdmin || !!member.isAdmin;
+    //
+    // The caller has to be resolved too, not just the target. While an admin is
+    // previewing as a member, resolveTarget treats the preview account as an
+    // ordinary member and member.isAdmin is false, so the admin got the
+    // member's 8-word reason rule for a change they are allowed to make.
+    const caller = await requireMember(context.user.email);
+    const override = byAdmin || !!caller.isAdmin || !!member.isAdmin;
     if (!override && member.memberType === 'Actor') throw new Error('Actors don’t sign up for crew events.');
     const subs = (await zite.subEvents.findAll({ limit: 2000 })).records;
     const byId = new Map(subs.map((s) => [s.id, s]));

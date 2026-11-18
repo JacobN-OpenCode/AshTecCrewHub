@@ -87,6 +87,9 @@ export default createEndpoint({
         signedInAt: r.signedInAt ?? null,
         signedOutAt: r.signedOutAt ?? null,
         pendingAction: r.pendingAction ?? null,
+        // The approval code, so the check-in page can approve a waiting
+        // request in place instead of sending the admin to /a/:token.
+        token: r.approvalToken ?? null,
       };
     });
 

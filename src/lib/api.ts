@@ -10,6 +10,13 @@ export type AckCueCallInputType = NonNullable<_AckCueCallCfg['inputSchema']> ext
 export type AckCueCallOutputType = Awaited<ReturnType<_AckCueCallCfg['execute']>>;
 export const ackCueCall = createCaller<AckCueCallInputType, AckCueCallOutputType>('ackCueCall');
 
+import type { default as _AdminCheckInScanEp } from '../api/adminCheckInScan';
+
+type _AdminCheckInScanCfg = typeof _AdminCheckInScanEp;
+export type AdminCheckInScanInputType = NonNullable<_AdminCheckInScanCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminCheckInScanCfg['execute']>[0]['input'];
+export type AdminCheckInScanOutputType = Awaited<ReturnType<_AdminCheckInScanCfg['execute']>>;
+export const adminCheckInScan = createCaller<AdminCheckInScanInputType, AdminCheckInScanOutputType>('adminCheckInScan');
+
 import type { default as _AdminClearSessionHistoryEp } from '../api/adminClearSessionHistory';
 
 type _AdminClearSessionHistoryCfg = typeof _AdminClearSessionHistoryEp;
@@ -93,6 +100,13 @@ type _AdminGetPresenceHistoryCfg = typeof _AdminGetPresenceHistoryEp;
 export type AdminGetPresenceHistoryInputType = NonNullable<_AdminGetPresenceHistoryCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetPresenceHistoryCfg['execute']>[0]['input'];
 export type AdminGetPresenceHistoryOutputType = Awaited<ReturnType<_AdminGetPresenceHistoryCfg['execute']>>;
 export const adminGetPresenceHistory = createCaller<AdminGetPresenceHistoryInputType, AdminGetPresenceHistoryOutputType>('adminGetPresenceHistory');
+
+import type { default as _AdminGetRegisterEp } from '../api/adminGetRegister';
+
+type _AdminGetRegisterCfg = typeof _AdminGetRegisterEp;
+export type AdminGetRegisterInputType = NonNullable<_AdminGetRegisterCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetRegisterCfg['execute']>[0]['input'];
+export type AdminGetRegisterOutputType = Awaited<ReturnType<_AdminGetRegisterCfg['execute']>>;
+export const adminGetRegister = createCaller<AdminGetRegisterInputType, AdminGetRegisterOutputType>('adminGetRegister');
 
 import type { default as _AdminGetSessionDetailEp } from '../api/adminGetSessionDetail';
 
@@ -884,6 +898,7 @@ export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLea
 /** Namespace object, kept for parity with the original generated client. */
 export const api = {
   ackCueCall,
+  adminCheckInScan,
   adminClearSessionHistory,
   adminDeleteSubEvent,
   adminExportTickets,
@@ -896,6 +911,7 @@ export const api = {
   adminGetMemberDetail,
   adminGetPresence,
   adminGetPresenceHistory,
+  adminGetRegister,
   adminGetSessionDetail,
   adminGetSupport,
   adminGetSupportSettings,

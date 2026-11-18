@@ -19,6 +19,7 @@ import { LivePresenceProvider, useLivePresence } from '../lib/livePresence';
 import { usePageView } from '../hooks/usePageView';
 import Tutorial from './Tutorial';
 import { previewId, exitPreview, pv } from '../lib/preview';
+import { memberViewOn, setMemberView } from '../lib/memberView';
 import { getActAs, stopActAs, type ActAsState } from '../lib/actAs';
 import { ACCENTS, useSidebarCollapsed, useAccent, useDensity } from '../lib/uiPrefs';
 import { cn } from '@project/components/lib/utils';
@@ -132,9 +133,19 @@ function Shell() {
   // An Actor's access is deliberately tiny: they get their one home page and
   // nothing else. Every group below is gated on this.
   const nonActor = me.memberType !== 'Actor';
+  // Member view hides the admin surfaces on this device. Read once on mount:
+  // turning it on or off reloads the page, so it never changes underneath us.
+  const memberView = memberViewOn();
+  const showAdmin = me.isAdmin && !memberView;
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setDrawer(false); }, [loc.pathname]);
+
+  // Member view is not a lock, but it should not leave someone stranded on an
+  // admin page they hid. Bounce to Home instead of showing a broken nav.
+  useEffect(() => {
+    if (memberView && loc.pathname.startsWith('/admin')) window.location.replace('/');
+  }, [memberView, loc.pathname]);
 
   // Cmd/Ctrl-K opens the jump-to-page search from anywhere.
   useEffect(() => {
@@ -207,8 +218,8 @@ function Shell() {
   // dropdown. Staff who are not admins only get the check-in controls.
   const admin: NavItem[] = [
     { to: '/admin', label: 'Overview', icon: ChartColumn },
-    { to: '/admin/settings', label: 'Settings', icon: Cog },
-    ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Venue Check-in', icon: DoorOpen }] : []),
+    { to: '/admin/settings', label: 'ATCMS Settings', icon: Cog },
+    ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Check-in', icon: DoorOpen }] : []),
     { to: '/admin/events', label: 'Manage Events', icon: Settings2 },
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
@@ -216,7 +227,7 @@ function Shell() {
     { to: '/admin/feedback', label: 'Feedback', icon: MessageSquareHeart },
     { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
-  ].filter((l) => me.isAdmin || l.to === '/admin/attendance') as NavItem[];
+  ].filter((l) => showAdmin || (!memberView && l.to === '/admin/attendance')) as NavItem[];
   if (admin.length) groups.push({ label: 'Admin', items: admin });
 
   const cycleAccent = () => {
@@ -315,6 +326,21 @@ function Shell() {
     </div>
   );
 
+  // Ticket 88ba38df: admins asked for a way to hand their phone to a crew
+  // member, or to stop mis-tapping admin buttons at the side of a stage, so the
+  // switch sits at the bottom of the nav where it is findable but not in the way.
+  const memberViewToggle = me.isAdmin ? (
+    <button
+      type="button"
+      onClick={() => setMemberView(!memberView)}
+      className="mt-1 flex w-full items-center gap-2 rounded-xl border border-dashed px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+      title={memberView ? 'Show the admin pages again' : 'Hide the admin pages on this device'}
+    >
+      <Eye className="h-4 w-4 shrink-0" />
+      <span className="truncate">{memberView ? 'Back to admin' : 'Member view'}</span>
+    </button>
+  ) : null;
+
   return (
     <div className="min-h-screen spotlight">
       {acting && (
@@ -329,6 +355,14 @@ function Shell() {
         <div className="relative z-40 bg-primary text-primary-foreground text-sm px-4 py-2 flex items-center justify-center gap-3">
           <Eye className="h-4 w-4" />Previewing as <strong>{me.firstName} {me.lastName}</strong> (pretend account)
           <Button size="sm" variant="secondary" className="h-7" onClick={exitPreview}>Exit preview</Button>
+        </div>
+      )}
+
+      {memberView && (
+        <div className="relative z-40 flex flex-wrap items-center justify-center gap-3 bg-sky-600 px-4 py-2 text-sm font-medium text-white">
+          <Eye className="h-4 w-4" />
+          <span>Member view is on. This device shows only the pages a crew member sees.</span>
+          <Button size="sm" variant="secondary" className="h-7" onClick={() => setMemberView(false)}>Back to admin</Button>
         </div>
       )}
 
@@ -380,6 +414,7 @@ function Shell() {
                 </div>
               </div>
             ))}
+            {!collapsed && memberViewToggle}
           </nav>
 
           <div className="border-t p-3">
@@ -528,6 +563,16 @@ function Shell() {
                   </div>
                 </div>
               ))}
+              {me.isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => { setDrawer(false); setMemberView(!memberView); }}
+                  className="flex w-full items-center gap-2 rounded-xl border border-dashed px-2.5 py-2 text-sm text-muted-foreground"
+                >
+                  <Eye className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{memberView ? 'Back to admin' : 'Member view'}</span>
+                </button>
+              ) : null}
             </nav>
             <div className="border-t p-3">
               {nonActor ? (
