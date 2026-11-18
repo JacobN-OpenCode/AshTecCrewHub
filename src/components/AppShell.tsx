@@ -127,16 +127,16 @@ function Shell() {
   // every page load, so the shell stays cheap.
   const [search, setSearch] = useState<GlobalSearchOutputType | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  // Staff get the roster read-only; only admins get the controls.
-  const canRunCheckIn = me.isAdmin || me.isStaff;
-  const isStaffUser = me.isStaff && me.memberType !== 'Actor';
-  // An Actor's access is deliberately tiny: they get their one home page and
-  // nothing else. Every group below is gated on this.
-  const nonActor = me.memberType !== 'Actor';
   // Member view hides the admin surfaces on this device. Read once on mount:
   // turning it on or off reloads the page, so it never changes underneath us.
   const memberView = memberViewOn();
   const showAdmin = me.isAdmin && !memberView;
+  // Staff get the roster read-only; only admins get the controls.
+  const canRunCheckIn = (me.isAdmin || me.isStaff) && !memberView;
+  const isStaffUser = me.isStaff && me.memberType !== 'Actor';
+  // An Actor's access is deliberately tiny: they get their one home page and
+  // nothing else. Every group below is gated on this.
+  const nonActor = me.memberType !== 'Actor';
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setDrawer(false); }, [loc.pathname]);
@@ -181,7 +181,7 @@ function Shell() {
     if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
     // Ticket c4d1e0f2: check-in only appears to normal crew while a session is
     // actually open. Admins and staff keep it so they can run one.
-    if (features.checkIn && (session !== null || me.isAdmin || me.isStaff)) {
+    if (features.checkIn && (session !== null || ((me.isAdmin || me.isStaff) && !memberView))) {
       main.push({ to: '/attendance', label: 'Check-in', icon: DoorOpen, live: session !== null });
     }
     main.push({ to: '/calendar', label: 'Calendar', icon: CalendarDays });

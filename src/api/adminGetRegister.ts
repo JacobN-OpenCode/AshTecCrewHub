@@ -78,10 +78,16 @@ export default createEndpoint({
     }
 
     const expected = new Set<string>();
+    // The show-wide answer, kept per member so the register can say "answered
+    // Yes" against a name even before anyone has touched that person's row.
+    const answered = new Map<string, string>();
     for (const r of responseRecords.records) {
       if (!ids(r.show).some((id) => showIds.includes(id))) continue;
       const mid = ids(r.member)[0];
-      if (mid && ['Yes', 'Maybe'].includes(r.response ?? '')) expected.add(mid);
+      const answer = r.response ?? '';
+      if (!mid || !answer) continue;
+      answered.set(mid, answer);
+      if (['Yes', 'Maybe'].includes(answer)) expected.add(mid);
     }
 
     const members = memberRecords.records
@@ -97,7 +103,11 @@ export default createEndpoint({
           // member said beforehand. They read very differently on a register,
           // so they stay separate here instead of both looking "present".
           ticked: !!att && att.status === 'Expected Arrival' && att.byAdmin,
-          rsvp: att && att.status === 'Expected Arrival' && !att.byAdmin ? 'Coming' : att?.status ?? '',
+          rsvp: att
+            ? att.status === 'Expected Arrival' && !att.byAdmin
+              ? 'Coming'
+              : att.status
+            : answered.get(m.id) ?? '',
           expected: expected.has(m.id) || !!att,
         };
       })

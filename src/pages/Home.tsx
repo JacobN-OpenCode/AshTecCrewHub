@@ -6,6 +6,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { pv } from '../lib/preview';
+import { memberViewOn } from '../lib/memberView';
 import { pendingForms } from '../lib/reminders';
 import {
   Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
@@ -139,7 +140,10 @@ export default function Home() {
     actions.push({ to: '/my-events', label: 'My events', icon: ClipboardList });
     actions.push(...baseActions);
   }
-  if (me.isAdmin) {
+  // Member view hides the admin surface on this device, so the dashboard stops
+  // offering admin-only shortcuts too.
+  const showAdmin = me.isAdmin && !memberViewOn();
+  if (showAdmin) {
     actions.push(
       { to: '/admin/support', label: 'Support queue', icon: LifeBuoy, badge: supportAwaiting },
       { to: '/admin', label: 'Admin', icon: LayoutGrid },
@@ -293,7 +297,7 @@ export default function Home() {
           )}
         </section>
 
-        {me.isAdmin && (
+        {showAdmin && (
           <section className="rounded-2xl border bg-card p-6 space-y-4 lg:col-span-2">
             <h2 className="font-semibold flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" />Admin</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

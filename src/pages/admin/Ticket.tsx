@@ -10,7 +10,7 @@ import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
 import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, Pin, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
-import { remindOutcome } from '../../lib/support';
+import { remindOutcome } from '../../lib/remindOutcome';
 import { useMe } from '../../lib/me';
 
 type Status = 'Open' | 'In Progress' | 'Resolved' | 'Closed';

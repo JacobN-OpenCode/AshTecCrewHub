@@ -13,7 +13,7 @@ import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
 import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
 import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
-import { remindOutcome } from '../../lib/support';
+import { remindOutcome } from '../../lib/remindOutcome';
 
 type Ticket = AdminGetSupportOutputType['tickets'][number];
 

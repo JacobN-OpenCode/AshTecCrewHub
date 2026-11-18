@@ -423,7 +423,7 @@ export default function AdminCheckIn() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{m.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {[m.year && `Year ${m.year}`, m.roles.join(', ')].filter(Boolean).join(' · ') || 'Crew member'}
+                  {[m.year, m.roles.join(', ')].filter(Boolean).join(' · ') || 'Crew member'}
                   {m.rsvp && !m.ticked ? ` · answered ${m.rsvp}` : ''}
                 </p>
               </div>
