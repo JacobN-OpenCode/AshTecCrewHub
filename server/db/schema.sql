@@ -150,6 +150,12 @@ CREATE INDEX IF NOT EXISTS "Attendance_subEvent_idx" ON "Attendance" ("subEvent"
 CREATE UNIQUE INDEX IF NOT EXISTS "Attendance_attendanceKey_uniq"
   ON "Attendance" ("attendanceKey") WHERE "attendanceKey" <> '';
 
+-- The venue register marks each person in one of three colours: green (in),
+-- yellow (away for a while, e.g. lunch or a meeting) or red (not in, e.g. an
+-- appointment). The colour is kept next to the reason so a register that was
+-- half-taken reopens exactly as it was left. '' means nobody has marked them.
+ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "registerState" text NOT NULL DEFAULT '';
+
 CREATE TABLE IF NOT EXISTS "PresenceSessions" (
   "id"           uuid PRIMARY KEY,
   "sessionKey"   text NOT NULL DEFAULT '',

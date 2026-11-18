@@ -7,6 +7,9 @@ import {
 } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@project/components/ui/dialog';
 import QrScanner from '../../components/admin/QrScanner';
 import {
   ArrowLeft, Camera, Check, ChevronRight, Clock, DoorOpen, Loader2, Search, Users, X,
@@ -34,10 +37,32 @@ type EventOption = {
   showNames: string[]; mode: Mode;
 };
 
+type Mark = '' | 'green' | 'yellow' | 'red';
+
 type Row = {
   id: string; name: string; year: string; roles: string[];
   ticked: boolean; rsvp: string; expected: boolean;
+  // The register colour, and the reason that came with it.
+  state: Mark; reason: string;
 };
+
+/** Green is in, yellow is away for a while, red is not in at all. */
+const MARKS = [
+  { key: 'green' as const, label: 'In', icon: Check, on: 'border-emerald-500 bg-emerald-500 text-white', off: 'border-emerald-500/40 text-emerald-500' },
+  { key: 'yellow' as const, label: 'Away', icon: Clock, on: 'border-amber-500 bg-amber-500 text-white', off: 'border-amber-500/40 text-amber-500' },
+  { key: 'red' as const, label: 'Not in', icon: X, on: 'border-rose-500 bg-rose-500 text-white', off: 'border-rose-500/40 text-rose-500' },
+];
+
+// A school register wants the same handful of reasons every time, so they are
+// taps first and typing only if none of them fit.
+const AWAY_REASONS = ['Lunch', 'Dinner', 'Meeting with someone', 'Called to the office', 'In another lesson'];
+const OUT_REASONS = ['External appointment', 'Unwell', 'Not in school today', 'Left early'];
+
+const tint = (state: Mark) =>
+  state === 'green' ? 'bg-emerald-500/5'
+    : state === 'yellow' ? 'bg-amber-500/5'
+      : state === 'red' ? 'bg-rose-500/5'
+        : '';
 
 type PresenceRow = {
   id: string; memberId: string; name: string; year: string; roles: string[];
@@ -68,10 +93,16 @@ export default function AdminCheckIn() {
   const [params, setParams] = useSearchParams();
   const [pick, setPick] = useState<{ events: EventOption[]; openSession: { title: string; subEventId: string } | null } | null>(null);
   const [chosen, setChosen] = useState('');
-  const [roster, setRoster] = useState<{ event: EventOption; members: Row[]; ticked: number; sessionFor: { thisEvent: boolean; open: boolean } } | null>(null);
+  const [roster, setRoster] = useState<{
+    event: EventOption; members: Row[]; ticked: number;
+    counts: { green: number; yellow: number; red: number; none: number };
+    sessionFor: { thisEvent: boolean; open: boolean };
+  } | null>(null);
   const [presence, setPresence] = useState<{ session: { id: string; title: string } | null; roster: PresenceRow[] } | null>(null);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState('');
+  const [reasonFor, setReasonFor] = useState<{ member: Row; colour: 'yellow' | 'red' } | null>(null);
+  const [reasonText, setReasonText] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState('');
@@ -156,13 +187,14 @@ export default function AdminCheckIn() {
     void loadPick();
   };
 
-  const tick = async (m: Row) => {
+  /** Write one colour straight away. Every tap lands on the attendance record. */
+  const write = async (m: Row, state: Mark, reason = '') => {
     if (busy) return;
     setBusy(m.id);
-    // Optimistic: a door queue should not wait on a round trip to show a tick.
-    setRoster((r) => (r ? { ...r, members: r.members.map((x) => (x.id === m.id ? { ...x, ticked: !x.ticked } : x)) } : r));
+    // Optimistic: a door queue should not wait on a round trip to show a colour.
+    setRoster((r) => (r ? { ...r, members: r.members.map((x) => (x.id === m.id ? { ...x, state, reason, ticked: state === 'green' } : x)) } : r));
     try {
-      await adminRegisterAttendance({ subEventId: chosen, memberId: m.id, present: !m.ticked });
+      await adminRegisterAttendance({ subEventId: chosen, memberId: m.id, state, ...(reason ? { reason } : {}) });
       await loadRoster(chosen, true);
     } catch (e) {
       toast.error((e as Error).message);
@@ -170,6 +202,28 @@ export default function AdminCheckIn() {
     } finally {
       setBusy('');
     }
+  };
+
+  /**
+   * One tap sets the colour. Tapping the colour that is already set clears it,
+   * so a wrong tap is one tap to undo. Yellow and red stop to ask why: a school
+   * needs the reason on the record, not just the fact someone was not there.
+   */
+  const mark = (m: Row, colour: 'green' | 'yellow' | 'red') => {
+    if (busy) return;
+    if (m.state === colour) { void write(m, ''); return; }
+    if (colour === 'green') { void write(m, 'green'); return; }
+    setReasonFor({ member: m, colour });
+    setReasonText(m.reason || '');
+  };
+
+  const saveReason = (colour: 'yellow' | 'red') => {
+    const target = reasonFor;
+    const reason = reasonText.trim().replace(/\s+/g, ' ');
+    if (!target || reason.length < 2) return;
+    setReasonFor(null);
+    setReasonText('');
+    void write(target.member, colour, reason);
   };
 
   const startDoor = async () => {
@@ -324,9 +378,16 @@ export default function AdminCheckIn() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-            {roster.ticked} of {roster.members.length} ticked
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-500">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />{roster.counts.green} in
           </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />{roster.counts.yellow} away
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">
+            <span className="h-2 w-2 rounded-full bg-rose-500" />{roster.counts.red} not in
+          </span>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{roster.counts.none} to mark</span>
           {event.mode === 'register' && (
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Register only</span>
           )}
@@ -402,33 +463,49 @@ export default function AdminCheckIn() {
           )}
         </div>
       </div>
-
       <ul className="divide-y overflow-hidden rounded-xl border">
         {filtered.map((m) => (
-          <li key={m.id}>
-            <button
-              onClick={() => tick(m)}
-              disabled={busy === m.id}
-              className={cn(
-                'flex w-full items-center gap-3 px-3 py-3 text-left transition active:bg-muted',
-                m.ticked ? 'bg-emerald-500/5' : 'hover:bg-muted/40',
-              )}
-            >
-              <span className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
-                m.ticked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-muted-foreground/30 text-transparent',
-              )}>
-                <Check className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{m.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[m.year, m.roles.join(', ')].filter(Boolean).join(' · ') || 'Crew member'}
-                  {m.rsvp && !m.ticked ? ` · answered ${m.rsvp}` : ''}
+          <li key={m.id} className={cn('flex items-center gap-2 px-3 py-2.5 transition', tint(m.state))}>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{m.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {[m.year, m.roles.join(', ')].filter(Boolean).join(' · ') || 'Crew member'}
+                {m.rsvp && !m.state ? ` · answered ${m.rsvp}` : ''}
+              </p>
+              {m.reason && (
+                <p className={cn(
+                  'mt-0.5 truncate text-xs font-medium',
+                  m.state === 'yellow' ? 'text-amber-500' : m.state === 'red' ? 'text-rose-500' : 'text-muted-foreground',
+                )}>
+                  {m.reason}
                 </p>
-              </div>
-              {busy === m.id && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            </button>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {MARKS.map((c) => {
+                const active = m.state === c.key;
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => mark(m, c.key)}
+                    disabled={busy === m.id}
+                    aria-pressed={active}
+                    aria-label={`${m.name}: ${c.label}`}
+                    title={active ? `${c.label} (tap again to clear)` : c.label}
+                    className={cn(
+                      'flex h-11 w-11 items-center justify-center rounded-full border-2 transition active:scale-95 disabled:opacity-60',
+                      active ? c.on : c.off,
+                    )}
+                  >
+                    {busy === m.id && active
+                      ? <Loader2 className="h-5 w-5 animate-spin" />
+                      : <Icon className="h-5 w-5" />}
+                  </button>
+                );
+              })}
+            </div>
           </li>
         ))}
         {!filtered.length && (
@@ -442,6 +519,65 @@ export default function AdminCheckIn() {
           <p className="mt-1 text-xs text-muted-foreground">{inRoom.map((r) => r.name).join(', ')}</p>
         </section>
       )}
+
+      <Dialog open={!!reasonFor} onOpenChange={(open) => { if (!open) { setReasonFor(null); setReasonText(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {reasonFor?.colour === 'yellow'
+                ? `Why is ${reasonFor?.member.name.split(' ')[0]} away?`
+                : `Why is ${reasonFor?.member.name.split(' ')[0]} not in?`}
+            </DialogTitle>
+            <DialogDescription>
+              {reasonFor?.colour === 'yellow'
+                ? 'Away for a while. The register keeps this reason next to their name.'
+                : 'Not in for this session. The register keeps this reason next to their name.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            {(reasonFor?.colour === 'red' ? OUT_REASONS : AWAY_REASONS).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setReasonText(r)}
+                className={cn(
+                  'rounded-full border px-3 py-2 text-sm transition active:scale-95',
+                  reasonText === r ? 'border-primary bg-primary/10 font-semibold text-foreground' : 'text-muted-foreground hover:border-foreground/30',
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <Input
+            value={reasonText}
+            onChange={(e) => setReasonText(e.target.value)}
+            maxLength={200}
+            placeholder="Or type the reason"
+            className="h-11"
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const target = reasonFor;
+                setReasonFor(null);
+                setReasonText('');
+                if (target) void write(target.member, '');
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              disabled={reasonText.trim().length < 2}
+              onClick={() => { if (reasonFor) saveReason(reasonFor.colour); }}
+              className={reasonFor?.colour === 'yellow' ? 'bg-amber-500 hover:bg-amber-500/90' : 'bg-rose-500 hover:bg-rose-500/90'}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <QrScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onToken={(t) => void onToken(t)} />
     </div>
