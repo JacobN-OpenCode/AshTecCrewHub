@@ -302,9 +302,34 @@ Then point a client at it:
 }
 ```
 
-Tools it exposes: `crew_hub_overview`, `list_sessions`, `get_register`, `list_tickets`, `find_member`, `live_show`, `send_live_show_chat`, `clear_live_show_chat`, `reply_to_ticket`, `close_ticket`.
+Tools it exposes:
 
-**What keeps it honest.** Without `MCP_TOKEN` the route answers `503`; a wrong token gets `401` (compared in constant time, so a guess gets no hint). No tool can call an arbitrary endpoint, there is no way to create or delete people, change settings or email the whole crew, replies stay under 16 kB, and every call is rate limited and logged. Writes are limited to the live show chat, replying to a ticket and closing one. Tools run as a named admin, so anything they read is something that admin could already read.
+| Tool | What it does |
+| --- | --- |
+| `crew_hub_overview` | The open show, the next sessions, how many tickets are waiting |
+| `list_sessions` | Every session you can check in to |
+| `get_register` | One session's register: in, away with a reason, not in |
+| `set_register` | Mark one person green, yellow or red |
+| `list_tickets` | Support tickets, newest first |
+| `get_ticket` | One ticket with its whole thread |
+| `reply_to_ticket` | Reply to the reporter, by email |
+| `update_ticket` | Severity, assignee, pinned, or a private note |
+| `close_ticket` | Close or resolve a ticket |
+| `find_member` | Look a crew member up by name |
+| `live_show` | The board: status, scene, running order, chat |
+| `control_live_show` | Clock, scene, status, movement alert |
+| `send_live_show_chat` | Post to the crew chat |
+| `clear_live_show_chat` | Empty the crew chat |
+| `list_documents` | The links on the Documents page |
+| `add_document` | Add, edit or remove one of those links |
+| `post_announcement` | Post, edit or delete a crew announcement |
+| `search` | Search shows, sessions and crew |
+| `schedule` | The schedule between two dates |
+| `deploy` | Fetch, fast-forward, schema, build, restart |
+
+`deploy` runs one fixed script in the repo directory: `git fetch`, `git merge --ff-only`, `npm run schema`, `npm run build`, then a restart a second later (so the reply gets out before the process goes down). It takes no arguments, so it cannot be pointed at another directory or another command. `DEPLOY_DIR` and `DEPLOY_RESTART` in `.env` change where it runs and what restarts the service.
+
+**What keeps it honest.** With no key and no `MCP_TOKEN` the route answers `503`; a wrong or paused key gets `401` (compared in constant time, so a guess gets no hint). No tool can call an arbitrary endpoint or run an arbitrary command, there is no way to create or delete people, change settings, manage keys or email the whole crew, replies stay under 16 kB, and every call is rate limited and logged in **Admin -> MCP**. Tools run as a named admin, so anything they read is something that admin could already read, and anything they write is recorded under that admin's name.
 
 ## Data and privacy
 
