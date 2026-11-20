@@ -38,6 +38,8 @@ import Ticket from './pages/admin/Ticket';
 import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
 import Announcements from './pages/Announcements';
+import Documents from './pages/Documents';
+import AdminMcp from './pages/admin/AdminMcp';
 import Mascot from './pages/Mascot';
 import Memories from './pages/Memories';
 import OpenCode from './pages/OpenCode';
@@ -118,8 +120,8 @@ function SignedIn() {
           <Route path="/my-events" element={<MyEvents />} />
           {/* The team roster: staff see it, admins asked for it too. `/roster`
               is kept as an alias so old links keep working. */}
-          {(me.isStaff || me.isAdmin) && <Route path="/team" element={<StaffHub />} />}
-          {me.isAdmin && <Route path="/roster" element={<StaffHub />} />}
+          {(me.isStaff || me.isAdmin) && !me.isContractor && <Route path="/team" element={<StaffHub />} />}
+          {me.isAdmin && !me.isContractor && <Route path="/roster" element={<StaffHub />} />}
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/profile" element={<Profile />} />
           {/* Ticket 00c0715c: contractors never get the stage layout. */}
@@ -129,6 +131,8 @@ function SignedIn() {
           {/* The parents page is public, but crew need to open it too (sidebar). */}
           <Route path="/parents" element={<PublicParents inShell />} />
           <Route path="/announcements" element={<Announcements />} />
+          {/* Ticket 7958eb6c: links shared with the crew, or with named people. */}
+          <Route path="/documents" element={<Documents />} />
           {/* Batch 8: the mascot and the show memories wall. */}
           <Route path="/mascot" element={<Mascot />} />
           <Route path="/memories" element={<Memories />} />
@@ -146,6 +150,7 @@ function SignedIn() {
           {me.isAdmin && <Route path="/admin/feedback" element={<AdminFeedback />} />}
           {(me.isAdmin || me.isStaff) && <Route path="/admin/attendance" element={<AdminPresence />} />}
           {me.isAdmin && <Route path="/admin/diagnostics" element={<ServerDiagnostics />} />}
+          {me.isAdmin && <Route path="/admin/mcp" element={<AdminMcp />} />}
           {me.isAdmin && <Route path="/admin/live-show" element={<LiveShowAdmin />} />}
           {me.isAdmin && <Route path="/admin/support/:ticketId" element={<Ticket />} />}
           <Route path="*" element={<Navigate to="/" replace />} />

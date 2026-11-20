@@ -315,17 +315,15 @@ function BoardView({
   const sceneNo = board.currentSceneIndex + 1;
   const total = scenes.length;
 
-  // Ticket f873ba01: the on-screen chat is newest-first, so a new message lands
-  // at the top instead of pushing everything down. When one arrives, ease back
-  // to the top; older messages stay reachable by scrolling down.
+  // Ticket b4462a8b: newest at the bottom, the way every other chat reads. The
+  // list holds its own scroll and keeps itself pinned to the newest line, so a
+  // long show never pushes the running order off the screen.
   const listRef = useRef<HTMLDivElement | null>(null);
   const newestId = messages.length ? messages[messages.length - 1].id : null;
-  const seenFirst = useRef(false);
   useEffect(() => {
-    if (!seenFirst.current) { seenFirst.current = true; return; }
-    listRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [newestId]);
-  const ordered = useMemo(() => [...messages].reverse(), [messages]);
 
   return (
     <main className="relative min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
@@ -497,14 +495,14 @@ function BoardView({
                 <MessageSquare className="h-3.5 w-3.5 text-[#7e7a86]" />
                 <p className="text-[10px] uppercase tracking-[0.4em] text-[#7e7a86]">Crew channel</p>
                 {live && <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />}
-                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.2em] text-[#5d5964]">Newest first</span>
+                <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.2em] text-[#5d5964]">Newest at the bottom</span>
               </div>
-              <div ref={listRef} className="mt-2 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-                {ordered.length === 0 && <p className="text-sm text-[#6f6a77]">Nothing said yet.</p>}
-                {ordered.map((m) => (
+              <div ref={listRef} className="mt-2 max-h-[38vh] flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1 lg:max-h-none">
+                {messages.length === 0 && <p className="text-sm text-[#6f6a77]">Nothing said yet.</p>}
+                {messages.map((m) => (
                   <div
                     key={m.id}
-                    className={cn('border-l-2 pl-2.5 animate-in fade-in slide-in-from-top-1 duration-300', m.kind === 'announcement' ? 'border-[#d9ab6c]' : 'border-[#f3ece1]/12')}
+                    className={cn('border-l-2 pl-2.5 animate-in fade-in slide-in-from-bottom-1 duration-300', m.kind === 'announcement' ? 'border-[#d9ab6c]' : 'border-[#f3ece1]/12')}
                   >
                     <div className="flex items-baseline gap-2">
                       {m.kind === 'announcement' && <Megaphone className="h-3 w-3 shrink-0 text-[#d9ab6c]" />}
@@ -554,6 +552,12 @@ function ControlPanel({
   onRefresh: () => void;
 }) {
   const [text, setText] = useState('');
+  const chatRef = useRef<HTMLDivElement | null>(null);
+  const newestChat = messages.length ? messages[messages.length - 1].id : null;
+  useEffect(() => {
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [newestChat]);
   const [clearAsk, setClearAsk] = useState(false);
   const [annText, setAnnText] = useState('');
   const [annSeconds, setAnnSeconds] = useState(30);
@@ -676,7 +680,7 @@ function ControlPanel({
                 className="flex-1 bg-[#0b0d12] border border-[#1e232d] rounded-lg px-3 py-2 text-sm text-cream outline-none placeholder:text-[#525b6c]" />
               <Button size="sm" disabled={busy || !text.trim()} onClick={() => void sendChat()}><Send className="h-4 w-4" /></Button>
             </div>
-            <div className="max-h-40 overflow-y-auto space-y-1">
+            <div ref={chatRef} className="max-h-40 space-y-1 overflow-y-auto">
               {messages.slice(-8).map((m) => <p key={m.id} className="text-xs text-[#9aa3b2]"><span className="text-cream/70">{m.authorName}:</span> {m.body}</p>)}
             </div>
             {/* Clearing the chat is admin-only and one of the few things here that

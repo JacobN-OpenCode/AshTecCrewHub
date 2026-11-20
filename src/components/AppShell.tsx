@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
-  PanelLeftOpen, Search, Settings2, Sparkles, Tv, Users, Wrench, X,
+  PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Wrench, X, FileText,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -180,9 +180,11 @@ function Shell() {
   // (and admins), while actors keep the stage board one tap away.
   const main: NavItem[] = [{ to: '/', label: 'Home', icon: HomeIcon }];
   if (nonActor) {
-    main.push(isStaffUser ? { to: '/team', label: 'The team', icon: Users } : { to: '/my-events', label: 'My Events', icon: CalendarCheck });
+    // Ticket d9cdd38a: contractors get neither the team page nor the roster.
+    if (isStaffUser && !me.isContractor) main.push({ to: '/team', label: 'The team', icon: Users });
+    else if (!isStaffUser) main.push({ to: '/my-events', label: 'My Events', icon: CalendarCheck });
     // Ticket f455bb8c: non-staff admins asked for the roster too.
-    if (me.isAdmin && !isStaffUser) main.push({ to: '/roster', label: 'Roster', icon: Users });
+    if (me.isAdmin && !isStaffUser && !me.isContractor) main.push({ to: '/roster', label: 'Roster', icon: Users });
     // Ticket c4d1e0f2: check-in only appears to normal crew while a session is
     // actually open. Admins and staff keep it so they can run one.
     if (features.checkIn && (session !== null || ((me.isAdmin || me.isStaff) && !memberView))) {
@@ -213,6 +215,8 @@ function Shell() {
   if (nonActor) {
     const club: NavItem[] = [];
     if (features.parents && (me.isAdmin || me.isStaff)) club.push({ to: '/parents', label: 'For parents', icon: HeartHandshake });
+    // Ticket 7958eb6c: the crew's shared documents.
+    club.push({ to: '/documents', label: 'Documents', icon: FileText });
     if (features.tools) club.push({ to: '/tools', label: 'Tools', icon: Wrench });
     // Batch 8: the fun ones.
     if (features.memories) club.push({ to: '/memories', label: 'Memories', icon: Images });
@@ -233,6 +237,7 @@ function Shell() {
     { to: '/admin/feedback', label: 'Feedback', icon: MessageSquareHeart },
     { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
+    { to: '/admin/mcp', label: 'MCP', icon: Plug },
   ].filter((l) => showAdmin || (!memberView && l.to === '/admin/attendance')) as NavItem[];
   if (admin.length) groups.push({ label: 'Admin', items: admin });
 
