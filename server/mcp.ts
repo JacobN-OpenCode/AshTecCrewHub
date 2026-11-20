@@ -624,21 +624,26 @@ const TOOLS = [
   },
   {
     name: 'schedule',
-    description: 'The schedule between two dates: sessions, who is in, and anything clashing.',
+    description: 'Everything on the calendar between two dates, oldest first: shows, rehearsals and club sessions.',
     inputSchema: {
       type: 'object',
       properties: {
         from: str('YYYY-MM-DD. Defaults to today.'),
-        to: str('YYYY-MM-DD. Defaults to 30 days from now.'),
+        to: str('YYYY-MM-DD. Defaults to 30 days after from.'),
       },
       additionalProperties: false,
     },
     run: async (byName: Endpoints, args: any) => {
-      const r: any = await call(byName, 'getSchedule', {
-        ...(args.from ? { from: String(args.from) } : {}),
-        ...(args.to ? { to: String(args.to) } : {}),
-      });
-      return r ?? null;
+      const today = new Date();
+      const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const from = String(args.from ?? '').trim() || iso(today);
+      const to = String(args.to ?? '').trim() || iso(new Date(today.getTime() + 30 * 86400000));
+      const r: any = await call(byName, 'adminGetRegister', {});
+      const events = ((r?.events ?? []) as any[])
+        .filter((e) => !!e.date && !e.dateTbc && e.date >= from && e.date <= to)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.startTime ?? '').localeCompare(String(b.startTime ?? '')))
+        .map((e) => ({ id: e.id, title: e.title, date: e.date, startTime: e.startTime, type: e.type, shows: e.shows, mode: e.mode }));
+      return { from, to, count: events.length, events };
     },
   },
   {
