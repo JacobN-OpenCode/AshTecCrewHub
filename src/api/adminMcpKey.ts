@@ -26,13 +26,22 @@ export default createEndpoint({
     const me = await requireAdmin(context.user!.email);
 
     const list = async () => {
-      const r = await zite.mcpKeys.findAll({ limit: 100 });
+      const [r, crew] = await Promise.all([
+        zite.mcpKeys.findAll({ limit: 100 }),
+        zite.crewMembers.findAll({ limit: 2000 }),
+      ]);
+      const nameOf = (id: string) => {
+        const m = crew.records.find((x) => String(x.id) === id);
+        return m ? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() : '';
+      };
       return r.records
         .map((k) => ({
           id: String(k.id),
           name: String(k.name ?? ''),
           prefix: String(k.prefix ?? ''),
           enabled: !!k.enabled,
+          memberId: String(k.memberId ?? ''),
+          actorName: nameOf(String(k.memberId ?? '')),
           createdAt: String(k.createdAt ?? ''),
           lastUsedAt: String(k.lastUsedAt ?? ''),
         }))
@@ -49,6 +58,8 @@ export default createEndpoint({
           tokenHash: createHash('sha256').update(token).digest('hex'),
           enabled: true,
           createdBy: me.id,
+          // The key acts as whoever made it, not as a server-wide MCP_EMAIL.
+          memberId: me.id,
         },
       });
       return { ok: true, token, keys: await list() };

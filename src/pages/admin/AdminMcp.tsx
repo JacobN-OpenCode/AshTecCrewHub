@@ -161,7 +161,8 @@ export default function AdminMcp() {
                     <Badge variant={k.enabled ? 'default' : 'secondary'} className="text-xs">{k.enabled ? 'On' : 'Paused'}</Badge>
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Starts <code className="rounded bg-muted px-1 py-0.5">atc_{k.prefix}…</code> · made {when(k.createdAt)} · last used {when(k.lastUsedAt)}
+                    Acts as {k.actorName || 'the server default admin'} · starts{' '}
+                    <code className="rounded bg-muted px-1 py-0.5">atc_{k.prefix}…</code> · made {when(k.createdAt)} · last used {when(k.lastUsedAt)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

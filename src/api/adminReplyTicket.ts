@@ -9,11 +9,17 @@ import { SUPPORT_MESSAGE_MAX, noReplyNotice, automatedFooter } from '../lib/emai
 export default createEndpoint({
   description: 'Emails a support reply to the person who raised a ticket and records it on the thread (admins)',
   authenticated: true,
-  inputSchema: z.object({ id: z.string(), message: z.string().min(1).max(SUPPORT_MESSAGE_MAX) }),
+  inputSchema: z.object({
+    id: z.string(),
+    message: z.string().min(1).max(SUPPORT_MESSAGE_MAX),
+    // Used by the MCP server so an agent's reply is signed as the agent, not as
+    // whichever admin the key belongs to. The email still comes from that admin.
+    asName: z.string().max(80).optional(),
+  }),
   outputSchema: z.object({ sent: z.boolean(), messageId: z.string() }),
   execute: async ({ input, context }) => {
     const admin = await requireAdmin(context.user.email);
-    const adminName = fullName(admin);
+    const adminName = (input.asName ?? '').trim() || fullName(admin);
     const adminEmail = admin.schoolEmail ?? context.user.email;
 
     const { records: tickets } = await zite.supportTickets.findAll({ limit: 2000 });

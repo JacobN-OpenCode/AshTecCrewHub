@@ -1019,6 +1019,7 @@ CREATE TABLE IF NOT EXISTS "McpKeys" (
   "tokenHash"  text NOT NULL DEFAULT '',
   "enabled"    boolean NOT NULL DEFAULT true,
   "createdBy"  uuid,
+  "memberId"   uuid,
   "createdAt"  timestamptz NOT NULL DEFAULT now(),
   "updatedAt"  timestamptz NOT NULL DEFAULT now(),
   "lastUsedAt" timestamptz
@@ -1026,6 +1027,8 @@ CREATE TABLE IF NOT EXISTS "McpKeys" (
 CREATE INDEX IF NOT EXISTS "McpKeys_hash_idx" ON "McpKeys" ("tokenHash");
 -- Added after the first cut of this table: zite.update always stamps updatedAt.
 ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+-- Which crew member a key acts as. Empty falls back to MCP_EMAIL, then the first admin.
+ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "memberId" uuid;
 
 CREATE TABLE IF NOT EXISTS "McpCallLog" (
   "id"        uuid PRIMARY KEY,
