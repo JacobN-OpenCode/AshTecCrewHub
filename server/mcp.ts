@@ -48,13 +48,76 @@ function digest(s: string) {
   return createHash('sha256').update(s).digest();
 }
 
-function tokenMatches(req: Request) {
-  const configured = token();
-  if (!configured) return false;
+/** Bearer token from the request, or '' when there isn't one. */
+function bearer(req: Request) {
   const header = String(req.headers.authorization ?? '');
-  const given = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
-  if (!given) return false;
-  return timingSafeEqual(digest(given), digest(configured));
+  return header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+}
+
+/** Compare two hex digests without leaking where they differ. */
+function sameHash(a: string, b: string) {
+  return timingSafeEqual(digest(a), digest(b));
+}
+
+/**
+ * Keys made in Admin -> MCP (table McpKeys) are the normal way in. The
+ * MCP_TOKEN environment variable still works, so a server set up before the tab
+ * existed keeps going.
+ *
+ * Returns the name to log the call under, or null when nothing matches.
+ */
+async function matchKey(req: Request): Promise<{ name: string; id: string } | null> {
+  const given = bearer(req);
+  if (!given) return null;
+
+  const env = token();
+  if (env && timingSafeEqual(digest(given), digest(env))) return { name: 'environment token', id: '' };
+
+  let keys: any[] = [];
+  try {
+    keys = (await zite.mcpKeys.findAll({ filters: { enabled: true }, limit: 200 })).records;
+  } catch {
+    return null;
+  }
+  const hash = createHash('sha256').update(given).digest('hex');
+  for (const k of keys) {
+    const stored = String(k.tokenHash ?? '');
+    if (!stored || stored.length !== hash.length) continue;
+    if (!sameHash(hash, stored)) continue;
+    // Awaited, so the admin tab shows the use it just had rather than trailing one call behind.
+    await zite.mcpKeys.update({ id: String(k.id), record: { lastUsedAt: new Date().toISOString() } }).catch(() => {});
+    return { name: String(k.name ?? 'unnamed key'), id: String(k.id) };
+  }
+  return null;
+}
+
+/** Is the server switched on at all: an enabled key, or the env token. */
+async function mcpOn() {
+  if (token()) return true;
+  try {
+    const keys = await zite.mcpKeys.findAll({ filters: { enabled: true }, limit: 1 });
+    return keys.records.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** One row per call, for the log on Admin -> MCP. Best effort, never throws. */
+async function logCall(keyName: string, method: string, tool: string, ok: boolean, detail: string, ms: number) {
+  try {
+    await zite.mcpCallLog.create({
+      record: {
+        keyName: keyName.slice(0, 80),
+        method: method.slice(0, 60),
+        tool: tool.slice(0, 80),
+        ok,
+        detail: detail.slice(0, 400),
+        ms: Math.min(Math.max(Math.round(ms), 0), 600000),
+      },
+    });
+  } catch {
+    // A logging failure must never fail the call itself.
+  }
 }
 
 let actorCache: { id: string; email: string; name: string } | null = null;
@@ -320,29 +383,39 @@ async function handle(byName: Endpoints, req: Request) {
 
 export function mountMcp(app: Express, byName: Endpoints) {
   app.all('/mcp', async (req: Request, res: Response) => {
-    if (!token()) {
+    if (!(await mcpOn())) {
       return res.status(503).json({
-        error: 'The crew hub MCP server is switched off. Set MCP_TOKEN in the server environment to turn it on.',
+        error: 'The crew hub MCP server is switched off. Make a key in Admin -> MCP, or set MCP_TOKEN on the server.',
       });
     }
-    if (!rateLimit.allow(`mcp:${req.ip ?? 'unknown'}`, 60, 60_000)) {
+    if (!rateLimit.allow(`mcp:${req.ip ?? 'unknown'}`, 120, 60_000)) {
       return res.status(429).json({ error: 'Too many MCP calls. Wait a minute.' });
     }
-    if (!tokenMatches(req)) {
+    const key = await matchKey(req);
+    if (!key) {
       res.setHeader('WWW-Authenticate', 'Bearer realm="ashtec-crew-hub"');
-      return res.status(401).json({ error: 'Send Authorization: Bearer <MCP_TOKEN>.' });
+      return res.status(401).json({ error: 'Send Authorization: Bearer <key>. Copy it from Admin -> MCP.' });
     }
     if (req.method === 'GET' || req.method === 'DELETE') {
       // Enough of a handshake for clients that probe the URL before posting.
       return res.status(405).json({ error: 'This MCP server takes JSON-RPC over POST /mcp.' });
     }
     try {
+      const started = Date.now();
+      const method = String(req.body?.method ?? '');
+      const tool = method === 'tools/call' ? String(req.body?.params?.name ?? '') : '';
       const out = await handle(byName, req);
+      if (method && method !== 'ping') {
+        const message = (out as any)?.error?.message ?? '';
+        void logCall(key.name, method, tool, !(out as any)?.error, message, Date.now() - started);
+      }
       if (!out) return res.status(202).end();
-      console.log(`[mcp] ${req.body?.method ?? 'unknown'} ok`);
+      console.log(`[mcp] ${method || 'unknown'} ok (${key.name})`);
       return res.json(out);
     } catch (e: any) {
       console.error('[mcp] failed:', e);
+      const method = String(req.body?.method ?? '');
+      void logCall(key.name, method, String(req.body?.params?.name ?? ''), false, e?.message ?? 'MCP call failed.', 0);
       return res.status(500).json({ jsonrpc: '2.0', id: null, error: { code: -32603, message: e?.message ?? 'MCP call failed.' } });
     }
   });

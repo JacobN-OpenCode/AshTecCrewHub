@@ -93,6 +93,8 @@ const platformIcon = (p: string) => (/Mobile/i.test(p) ? <Smartphone className="
 export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string } = {}) {
   const { data } = useAdminData();
   const shows = data?.shows ?? [];
+  const subs = data?.subEvents ?? [];
+  const liveShows = data?.liveShows ?? [];
   const admins = (data?.members ?? []).filter((m) => m.isAdmin);
 
   const [showId, setShowId] = useState<string | null>(fixedShowId ?? null);
@@ -132,11 +134,26 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
       if (showId !== fixedShowId) setShowId(fixedShowId);
       return;
     }
-    if (showId || shows.length === 0) return;
-    // 331a178a: auto-select the show if one is live/open; else first
-    const live = shows.find((s: any) => s.open || s.status === 'live' || s.status === 'rehearsal' || s.status === 'intermission');
-    setShowId(String((live ?? shows[0]).id));
-  }, [shows, showId, fixedShowId]);
+    if (showId || shows.length === 0 || !data) return;
+    // Ticket b753f155: open the show that is actually on, rather than making
+    // someone scroll a list of every show to find it. A show record carries no
+    // status of its own, so ask the live show rows first; failing that, take the
+    // next show in the calendar and finally the most recent past one.
+    const onAir = liveShows.find((l) => l.open || (l.status && l.status !== 'standby' && l.status !== 'finished'));
+    if (onAir?.showId) { setShowId(String(onAir.showId)); return; }
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const firstDate = (id: string) =>
+      subs
+        .filter((e) => e.showIds.includes(id) && !e.dateTbc && e.date)
+        .map((e) => String(e.date))
+        .sort()[0] ?? '';
+    const dated = shows.map((s) => ({ id: String(s.id), when: firstDate(String(s.id)), hidden: s.hidden }));
+    const order = (a: { when: string }, b: { when: string }) => a.when.localeCompare(b.when);
+    const next = dated.filter((s) => !s.hidden && s.when >= today).sort(order)[0];
+    const past = dated.filter((s) => !s.hidden).sort(order).reverse()[0];
+    setShowId(next?.id ?? past?.id ?? String(shows[0].id));
+  }, [data, shows, subs, liveShows, showId, fixedShowId]);
 
   const loadShow = useCallback(async (id: string) => {
     setLoading(true);

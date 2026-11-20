@@ -205,9 +205,9 @@ export default function Home() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <section className="rounded-2xl border bg-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><Calendar className="h-5 w-5 text-primary" />Next up</h2>
-            <Link to={me.isStaff || me.isAdmin ? '/team' : '/my-events'} className="text-sm underline text-muted-foreground hover:text-foreground">See all</Link>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="min-w-0 font-semibold flex items-center gap-2"><Calendar className="h-5 w-5 shrink-0 text-primary" /><span className="truncate">Next up</span></h2>
+            <Link to={me.isStaff || me.isAdmin ? '/team' : '/my-events'} className="shrink-0 text-sm underline text-muted-foreground hover:text-foreground">See all</Link>
           </div>
           {upcoming === null ? (
             <Skeleton className="h-24 rounded-xl" />
@@ -237,9 +237,9 @@ export default function Home() {
 
         {!me.isStaff && (
           <section className="rounded-2xl border bg-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5 text-primary" />Awaiting your reply</h2>
-              <Link to="/my-events" className="text-sm underline text-muted-foreground hover:text-foreground">Respond</Link>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <h2 className="min-w-0 font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5 shrink-0 text-primary" /><span className="truncate">Awaiting your reply</span></h2>
+              <Link to="/my-events" className="shrink-0 text-sm underline text-muted-foreground hover:text-foreground">Respond</Link>
             </div>
             {pending === null ? (
               <Skeleton className="h-24 rounded-xl" />
@@ -262,9 +262,9 @@ export default function Home() {
         )}
 
         <section className="rounded-2xl border bg-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><Megaphone className="h-5 w-5 text-primary" />Announcements</h2>
-            <Link to="/announcements" className="text-sm underline text-muted-foreground hover:text-foreground">All</Link>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="min-w-0 font-semibold flex items-center gap-2"><Megaphone className="h-5 w-5 shrink-0 text-primary" /><span className="truncate">Announcements</span></h2>
+            <Link to="/announcements" className="shrink-0 text-sm underline text-muted-foreground hover:text-foreground">All</Link>
           </div>
           {news === null ? (
             <Skeleton className="h-24 rounded-xl" />
@@ -286,8 +286,8 @@ export default function Home() {
         </section>
 
         <section className="rounded-2xl border bg-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold flex items-center gap-2"><Ticket className="h-5 w-5 text-primary" />Your support tickets</h2>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="min-w-0 font-semibold flex items-center gap-2"><Ticket className="h-5 w-5 shrink-0 text-primary" /><span className="truncate">Your support tickets</span></h2>
           </div>
           {openTickets === null ? (
             <Skeleton className="h-16 rounded-xl" />
@@ -307,7 +307,7 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground mt-1">{supportAwaiting > 0 ? `${supportAwaiting} waiting` : 'Nothing waiting'}</p>
               </Link>
               <Link to="/admin/members" className="rounded-xl border p-3 hover:bg-muted/40 hc-lift">
-                <p className="text-sm font-medium flex items-center gap-2"><Users className="h-4 w-4" />Members</p>
+                <p className="text-sm font-medium flex items-center gap-2"><Users className="h-4 w-4" />Crew</p>
                 <p className="text-xs text-muted-foreground mt-1">Roster and profiles</p>
               </Link>
               <Link to="/admin/events" className="rounded-xl border p-3 hover:bg-muted/40 hc-lift">
@@ -315,7 +315,7 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground mt-1">Shows and rehearsals</p>
               </Link>
               <Link to="/admin/attendance" className="rounded-xl border p-3 hover:bg-muted/40 hc-lift">
-                <p className="text-sm font-medium flex items-center gap-2"><ClipboardList className="h-4 w-4" />Presence</p>
+                <p className="text-sm font-medium flex items-center gap-2"><ClipboardList className="h-4 w-4" />Check-in</p>
                 <p className="text-xs text-muted-foreground mt-1">Registers and approvals</p>
               </Link>
             </div>

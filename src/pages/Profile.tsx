@@ -24,7 +24,7 @@ import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, useCatHidden, ACCENTS } from '../lib/uiPrefs';
 import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 import { useSfxMuted, playSfx } from '../lib/sfx';
 import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
@@ -798,6 +798,7 @@ function Preferences() {
   const [sameTab, setSameTab] = useSupportSameTab();
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   const [density, setDensity] = useDensity();
+  const [catHidden, setCatHidden] = useCatHidden();
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-5">
       <div>
@@ -826,6 +827,16 @@ function Preferences() {
           ))}
         </div>
       </div>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Keep the crew cat quiet</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Stops the cat popping up in the corner with things to say. Its page is still under Club → The cat.
+          </span>
+        </span>
+        <Switch checked={catHidden} onCheckedChange={setCatHidden} aria-label="Keep the crew cat quiet" />
+      </label>
 
       <label className="flex items-start justify-between gap-4 cursor-pointer">
         <span>

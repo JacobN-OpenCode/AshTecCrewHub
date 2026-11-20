@@ -93,9 +93,14 @@ export default function AdminCheckIn() {
   const [params, setParams] = useSearchParams();
   const [pick, setPick] = useState<{ events: EventOption[]; openSession: { title: string; subEventId: string } | null } | null>(null);
   const [chosen, setChosen] = useState('');
+  // Ticket 0a192bf9: people who answered "not attending" are hidden from the
+  // list by default; this brings them back for as long as the page is open.
+  const [showNo, setShowNo] = useState(false);
+  const showNoRef = useRef(false);
   const [roster, setRoster] = useState<{
     event: EventOption; members: Row[]; ticked: number;
     counts: { green: number; yellow: number; red: number; none: number };
+    notAttending?: number;
     sessionFor: { thisEvent: boolean; open: boolean };
   } | null>(null);
   const [presence, setPresence] = useState<{ session: { id: string; title: string } | null; roster: PresenceRow[] } | null>(null);
@@ -124,7 +129,7 @@ export default function AdminCheckIn() {
     if (!quiet) setLoading(true);
     try {
       const [r, p] = await Promise.all([
-        adminGetRegister({ subEventId }),
+        adminGetRegister({ subEventId, ...(showNoRef.current ? { showNotAttending: true } : {}) }),
         adminGetPresence({}).catch(() => null),
       ]);
       setRoster(r as never);
@@ -388,6 +393,20 @@ export default function AdminCheckIn() {
             <span className="h-2 w-2 rounded-full bg-rose-500" />{roster.counts.red} not in
           </span>
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{roster.counts.none} to mark</span>
+          {((roster.notAttending ?? 0) > 0 || showNo) && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showNo;
+                showNoRef.current = next;
+                setShowNo(next);
+                void loadRoster(chosen, true);
+              }}
+              className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showNo ? 'Hide people not coming' : `${roster.notAttending} not coming · show`}
+            </button>
+          )}
           {event.mode === 'register' && (
             <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Register only</span>
           )}

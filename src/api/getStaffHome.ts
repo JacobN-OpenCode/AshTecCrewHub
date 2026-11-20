@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createEndpoint } from '#backend';
+import { createEndpoint, ZiteError } from '#backend';
 import { zite } from '#db';
 import { requireMember, isStaff, ids, mapMember, todayIso } from '../lib/server';
 import { CLUB_SESSION } from '../lib/constants';
@@ -24,7 +24,15 @@ export default createEndpoint({
     const me = await requireMember(context.user.email);
     // Contractors never see the roster, even if their record also carries a
     // staff year (ticket b89e3fd2).
-    if (me.memberType === 'Contractor') throw new Error('Contractors cannot view the roster.');
+    if (me.memberType === 'Contractor') {
+      // Ticket d9cdd38a: this used to surface as a 500 from a plain Error. A
+      // contractor hitting the URL should get a plain "not for you".
+      throw new ZiteError({
+        code: 'FORBIDDEN',
+        message: 'Contractors cannot view the roster.',
+        userFacingMessage: 'The roster is for crew and staff. You do not need it for your work here.',
+      });
+    }
     if (!isStaff(me) && !me.isAdmin) throw new Error('Staff only.');
     const today = todayIso();
 

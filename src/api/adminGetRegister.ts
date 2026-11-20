@@ -23,7 +23,7 @@ const rank = (state: string) => ({ '': 0, green: 1, yellow: 2, red: 3 } as Recor
 export default createEndpoint({
   description: 'The picker, or one event roster, for taking a register (admins)',
   authenticated: true,
-  inputSchema: z.object({ subEventId: z.string().optional() }),
+  inputSchema: z.object({ subEventId: z.string().optional(), showNotAttending: z.boolean().optional() }),
   outputSchema: z.any(),
   execute: async ({ input, context }) => {
     await requireAdmin(context.user.email);
@@ -103,7 +103,7 @@ export default createEndpoint({
       if (['Yes', 'Maybe'].includes(answer)) expected.add(mid);
     }
 
-    const members = memberRecords.records
+    const everyone = memberRecords.records
       .filter((m) => m.memberType !== 'Contractor' && !m.isPreviewAccount)
       .map((m) => {
         const att = attByMember.get(m.id);
@@ -132,6 +132,15 @@ export default createEndpoint({
       // the first one on the screen.
       .sort((a, b) => rank(a.state) - rank(b.state) || a.name.localeCompare(b.name));
 
+    // Ticket 0a192bf9: someone who has already said they are not coming is not
+    // expected in the room, so they should not be sitting in the list of names
+    // still to mark. Anyone an admin has actually marked stays put whatever
+    // their answer was, and one toggle brings the rest back.
+    const saidNo = (m: (typeof everyone)[number]) =>
+      !m.state && !m.ticked && (m.rsvp === 'No' || m.rsvp === 'Not Attending');
+    const notAttending = everyone.filter(saidNo);
+    const members = input.showNotAttending ? everyone : everyone.filter((m) => !saidNo(m));
+
     return {
       mode: 'roster' as const,
       event,
@@ -145,6 +154,7 @@ export default createEndpoint({
         none: members.filter((m) => !m.state).length,
       },
       total: members.length,
+      notAttending: notAttending.length,
       expectedCount: members.filter((m) => m.expected).length,
       sessionFor: sessionFor(sub.id),
     };

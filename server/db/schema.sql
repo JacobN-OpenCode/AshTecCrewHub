@@ -992,4 +992,51 @@ CREATE TABLE IF NOT EXISTS "Settings" (
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
 
+
+-- Ticket 7958eb6c: "Documents". A link an admin or staff member wants the crew
+-- to have, with a say in who can see it. Links only, and the audience is checked
+-- on every read, so a shared document is never public just because it has a URL.
+CREATE TABLE IF NOT EXISTS "Documents" (
+  "id"          uuid PRIMARY KEY,
+  "title"       text NOT NULL DEFAULT '',
+  "description" text NOT NULL DEFAULT '',
+  "url"         text NOT NULL DEFAULT '',
+  "category"    text NOT NULL DEFAULT '',
+  "audience"    text NOT NULL DEFAULT 'crew',
+  "memberIds"   uuid[] NOT NULL DEFAULT '{}',
+  "createdBy"   uuid,
+  "hidden"      boolean NOT NULL DEFAULT false,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+
+-- Ticket for the MCP page: named keys, so one machine can be cut off without
+-- disturbing the others, and a log of what the tools were actually asked to do.
+CREATE TABLE IF NOT EXISTS "McpKeys" (
+  "id"         uuid PRIMARY KEY,
+  "name"       text NOT NULL DEFAULT '',
+  "prefix"     text NOT NULL DEFAULT '',
+  "tokenHash"  text NOT NULL DEFAULT '',
+  "enabled"    boolean NOT NULL DEFAULT true,
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now(),
+  "lastUsedAt" timestamptz
+);
+CREATE INDEX IF NOT EXISTS "McpKeys_hash_idx" ON "McpKeys" ("tokenHash");
+-- Added after the first cut of this table: zite.update always stamps updatedAt.
+ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS "McpCallLog" (
+  "id"        uuid PRIMARY KEY,
+  "keyName"   text NOT NULL DEFAULT '',
+  "method"    text NOT NULL DEFAULT '',
+  "tool"      text NOT NULL DEFAULT '',
+  "ok"        boolean NOT NULL DEFAULT true,
+  "detail"    text NOT NULL DEFAULT '',
+  "ms"        integer NOT NULL DEFAULT 0,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "McpCallLog_created_idx" ON "McpCallLog" ("createdAt");
+
 COMMIT;

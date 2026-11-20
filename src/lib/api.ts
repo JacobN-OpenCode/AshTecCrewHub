@@ -80,6 +80,13 @@ export type AdminGetLogsInputType = NonNullable<_AdminGetLogsCfg['inputSchema']>
 export type AdminGetLogsOutputType = Awaited<ReturnType<_AdminGetLogsCfg['execute']>>;
 export const adminGetLogs = createCaller<AdminGetLogsInputType, AdminGetLogsOutputType>('adminGetLogs');
 
+import type { default as _AdminGetMcpEp } from '../api/adminGetMcp';
+
+type _AdminGetMcpCfg = typeof _AdminGetMcpEp;
+export type AdminGetMcpInputType = NonNullable<_AdminGetMcpCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetMcpCfg['execute']>[0]['input'];
+export type AdminGetMcpOutputType = Awaited<ReturnType<_AdminGetMcpCfg['execute']>>;
+export const adminGetMcp = createCaller<AdminGetMcpInputType, AdminGetMcpOutputType>('adminGetMcp');
+
 import type { default as _AdminGetMemberDetailEp } from '../api/adminGetMemberDetail';
 
 type _AdminGetMemberDetailCfg = typeof _AdminGetMemberDetailEp;
@@ -156,6 +163,13 @@ type _AdminLiveShowDeviceCfg = typeof _AdminLiveShowDeviceEp;
 export type AdminLiveShowDeviceInputType = NonNullable<_AdminLiveShowDeviceCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminLiveShowDeviceCfg['execute']>[0]['input'];
 export type AdminLiveShowDeviceOutputType = Awaited<ReturnType<_AdminLiveShowDeviceCfg['execute']>>;
 export const adminLiveShowDevice = createCaller<AdminLiveShowDeviceInputType, AdminLiveShowDeviceOutputType>('adminLiveShowDevice');
+
+import type { default as _AdminMcpKeyEp } from '../api/adminMcpKey';
+
+type _AdminMcpKeyCfg = typeof _AdminMcpKeyEp;
+export type AdminMcpKeyInputType = NonNullable<_AdminMcpKeyCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminMcpKeyCfg['execute']>[0]['input'];
+export type AdminMcpKeyOutputType = Awaited<ReturnType<_AdminMcpKeyCfg['execute']>>;
+export const adminMcpKey = createCaller<AdminMcpKeyInputType, AdminMcpKeyOutputType>('adminMcpKey');
 
 import type { default as _AdminMoveRoleEp } from '../api/adminMoveRole';
 
@@ -366,6 +380,13 @@ type _GetCountdownCfg = typeof _GetCountdownEp;
 export type GetCountdownInputType = NonNullable<_GetCountdownCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetCountdownCfg['execute']>[0]['input'];
 export type GetCountdownOutputType = Awaited<ReturnType<_GetCountdownCfg['execute']>>;
 export const getCountdown = createCaller<GetCountdownInputType, GetCountdownOutputType>('getCountdown');
+
+import type { default as _GetDocumentsEp } from '../api/getDocuments';
+
+type _GetDocumentsCfg = typeof _GetDocumentsEp;
+export type GetDocumentsInputType = NonNullable<_GetDocumentsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetDocumentsCfg['execute']>[0]['input'];
+export type GetDocumentsOutputType = Awaited<ReturnType<_GetDocumentsCfg['execute']>>;
+export const getDocuments = createCaller<GetDocumentsInputType, GetDocumentsOutputType>('getDocuments');
 
 import type { default as _GetFamilyFeedEp } from '../api/getFamilyFeed';
 
@@ -710,6 +731,13 @@ export type SaveDebriefInputType = NonNullable<_SaveDebriefCfg['inputSchema']> e
 export type SaveDebriefOutputType = Awaited<ReturnType<_SaveDebriefCfg['execute']>>;
 export const saveDebrief = createCaller<SaveDebriefInputType, SaveDebriefOutputType>('saveDebrief');
 
+import type { default as _SaveDocumentEp } from '../api/saveDocument';
+
+type _SaveDocumentCfg = typeof _SaveDocumentEp;
+export type SaveDocumentInputType = NonNullable<_SaveDocumentCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_SaveDocumentCfg['execute']>[0]['input'];
+export type SaveDocumentOutputType = Awaited<ReturnType<_SaveDocumentCfg['execute']>>;
+export const saveDocument = createCaller<SaveDocumentInputType, SaveDocumentOutputType>('saveDocument');
+
 import type { default as _SaveGreenRoomNoteEp } from '../api/saveGreenRoomNote';
 
 type _SaveGreenRoomNoteCfg = typeof _SaveGreenRoomNoteEp;
@@ -915,6 +943,7 @@ export const api = {
   adminGetFeedback,
   adminGetLiveShow,
   adminGetLogs,
+  adminGetMcp,
   adminGetMemberDetail,
   adminGetPresence,
   adminGetPresenceHistory,
@@ -926,6 +955,7 @@ export const api = {
   adminImportLiveShowScenes,
   adminLiveShowControl,
   adminLiveShowDevice,
+  adminMcpKey,
   adminMoveRole,
   adminNoteTicket,
   adminRecomputeAttendance,
@@ -956,6 +986,7 @@ export const api = {
   getCallSheet,
   getCatLoginAdmins,
   getCountdown,
+  getDocuments,
   getFamilyFeed,
   getLiveShowAdmins,
   getLiveShowState,
@@ -1005,6 +1036,7 @@ export const api = {
   saveChecklistItem,
   saveCue,
   saveDebrief,
+  saveDocument,
   saveGreenRoomNote,
   saveLiveShowScript,
   saveLostItem,
