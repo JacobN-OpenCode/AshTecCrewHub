@@ -34,6 +34,7 @@
 
 import type { Express, Request, Response } from 'express';
 import { AsyncLocalStorage } from 'async_hooks';
+import { exec, execFile } from 'child_process';
 import { createHash, timingSafeEqual } from 'crypto';
 import { zite } from '#db';
 import * as rateLimit from './rateLimit.js';
@@ -415,15 +416,312 @@ const TOOLS = [
     },
   },
   {
-    name: 'clear_live_show_chat',
-    description: 'Delete the whole live show chat. Announcements are not touched. This cannot be undone.',
+    name: 'get_ticket',
+    description: 'One support ticket in full: the message, the whole thread, who raised it and who it is assigned to.',
+    inputSchema: {
+      type: 'object',
+      properties: { ticketId: str('Ticket id from list_tickets.') },
+      required: ['ticketId'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const r: any = await call(byName, 'adminGetTicket', { id: String(args.ticketId ?? '') });
+      if (!r?.ticket) throw new Error('No ticket with that id.');
+      return {
+        ticket: r.ticket,
+        submitter: r.submitter ?? null,
+        maintainers: r.maintainers ?? [],
+        replies: (r.replies ?? []).map((x: any) => ({ kind: x.kind, author: x.authorName, body: x.body, at: x.sentAt })),
+      };
+    },
+  },
+  {
+    name: 'update_ticket',
+    description:
+      'Change a ticket without replying: severity, who it is assigned to, pinned, the "refer to opencode" label, or a private note. Emails nobody.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: str('Ticket id from list_tickets.'),
+        severity: str('Low, Medium, High, Urgent, or "" to clear it.'),
+        assignedMaintainerIds: { type: 'array', items: { type: 'string' }, description: 'Admin member ids. Replaces the current assignees.' },
+        pinned: { type: 'boolean', description: 'Float it to the top of the support list.' },
+        referToOpencode: { type: 'boolean', description: 'Label it for the coding agent. Bug reports and feature requests only.' },
+        note: str('Private note for the thread. Not emailed.'),
+      },
+      required: ['ticketId'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const id = String(args.ticketId ?? '');
+      if (!id) throw new Error('Which ticket?');
+      const patch: Record<string, unknown> = { id };
+      if (args.severity !== undefined) patch.severity = String(args.severity);
+      if (args.pinned !== undefined) patch.pinned = !!args.pinned;
+      if (args.referToOpencode !== undefined) patch.referToOpencode = !!args.referToOpencode;
+      if (Array.isArray(args.assignedMaintainerIds)) patch.assignedMaintainerIds = args.assignedMaintainerIds.map(String);
+      const note = String(args.note ?? '').trim();
+      if (note) await call(byName, 'adminNoteTicket', { id, message: note });
+      if (Object.keys(patch).length > 1) await call(byName, 'adminUpdateTicket', patch);
+      return { ok: true, ticketId: id, changed: Object.keys(patch).filter((k) => k !== 'id') };
+    },
+  },
+  {
+    name: 'set_register',
+    description:
+      'Mark one person on a session register. green = in, yellow = away with a reason, red = not in with a reason, "" = clear the mark. Yellow and red need a reason.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        subEventId: str('Session id from list_sessions.'),
+        memberId: str('Member id from get_register or find_member.'),
+        state: str('green, yellow, red, or "" to clear.'),
+        reason: str('Why, for yellow and red. At least two characters.'),
+      },
+      required: ['subEventId', 'memberId', 'state'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const state = String(args.state ?? '');
+      if (!['green', 'yellow', 'red', ''].includes(state)) throw new Error('State has to be green, yellow, red or "".');
+      const reason = String(args.reason ?? '').trim();
+      const r: any = await call(byName, 'adminRegisterAttendance', {
+        subEventId: String(args.subEventId ?? ''),
+        memberId: String(args.memberId ?? ''),
+        state,
+        ...(reason ? { reason } : {}),
+      });
+      return { ok: !!r?.ok, state: r?.state ?? state };
+    },
+  },
+  {
+    name: 'control_live_show',
+    description:
+      'Drive the live show board: start, pause or reset the clock, jump to a scene, set the status, or raise a movement alert. Defaults to the show that is open.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: str('start, pause, reset, scene, status or movement.'),
+        liveShowId: str('Show id. Leave out for the open show.'),
+        sceneIndex: { type: 'number', description: 'For action "scene": 0-based scene number.' },
+        status: str('For action "status": standby, rehearsal, live, intermission or finished.'),
+        movementAlert: { type: 'boolean', description: 'For action "movement": show or hide the "screen moved" panel.' },
+        movementMessage: str('For action "movement": what the screens say.'),
+        movementSeconds: { type: 'number', description: 'For action "movement": how long it stays up, 2 to 600.' },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const action = String(args.action ?? '');
+      if (!['start', 'pause', 'reset', 'scene', 'status', 'movement'].includes(action)) {
+        throw new Error('Action has to be start, pause, reset, scene, status or movement.');
+      }
+      let liveShowId = String(args.liveShowId ?? '');
+      if (!liveShowId) {
+        const show = await openLiveShow();
+        if (!show) throw new Error('No live show is open. Pass liveShowId.');
+        liveShowId = String(show.id);
+      }
+      const extra: Record<string, unknown> = {};
+      if (args.sceneIndex !== undefined) extra.sceneIndex = Number(args.sceneIndex);
+      if (args.status !== undefined) extra.status = String(args.status);
+      if (args.movementAlert !== undefined) extra.movementAlert = !!args.movementAlert;
+      if (args.movementMessage !== undefined) extra.movementMessage = String(args.movementMessage);
+      if (args.movementSeconds !== undefined) extra.movementSeconds = Number(args.movementSeconds);
+      await call(byName, 'adminLiveShowControl', { liveShowId, action, ...extra });
+      const after = await openLiveShow();
+      return { ok: true, action, liveShow: after ? mapLiveShow(after) : null };
+    },
+  },
+  {
+    name: 'list_documents',
+    description: 'The links on the Documents page, with who each one is shared with.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     run: async (byName: Endpoints) => {
-      const r: any = await call(byName, 'liveShowClearChat', {});
-      return { cleared: r?.cleared ?? 0 };
+      const r: any = await call(byName, 'getDocuments', {});
+      return { canManage: !!r?.canManage, documents: r?.documents ?? [] };
+    },
+  },
+  {
+    name: 'add_document',
+    description:
+      'Add, edit or remove a link on the Documents page. Shared with the whole crew, or with named people. Links only, no uploads.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: str('What it is, e.g. "Risk assessment - High School Musical".'),
+        url: str('The link. Must start with http:// or https://.'),
+        description: str('Optional note about it.'),
+        category: str('Optional grouping, e.g. Safety, Music, Schedules.'),
+        audience: str('"crew" (everyone, the default) or "members" (only the people listed).'),
+        memberIds: { type: 'array', items: { type: 'string' }, description: 'Member ids, when audience is "members".' },
+        documentId: str('Pass an existing id to edit it instead of adding a new one.'),
+        remove: { type: 'boolean', description: 'Delete the document with this documentId.' },
+      },
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const r: any = await call(byName, 'saveDocument', {
+        ...(args.documentId ? { id: String(args.documentId) } : {}),
+        ...(args.title !== undefined ? { title: String(args.title) } : {}),
+        ...(args.url !== undefined ? { url: String(args.url) } : {}),
+        ...(args.description !== undefined ? { description: String(args.description) } : {}),
+        ...(args.category !== undefined ? { category: String(args.category) } : {}),
+        ...(args.audience !== undefined ? { audience: String(args.audience) } : {}),
+        ...(Array.isArray(args.memberIds) ? { memberIds: args.memberIds.map(String) } : {}),
+        ...(args.remove ? { remove: true } : {}),
+      });
+      return { ok: !!r?.ok, id: r?.id ?? '' };
+    },
+  },
+  {
+    name: 'post_announcement',
+    description:
+      'Post a crew announcement. It appears on the Announcements page and sends a push to everyone who has notifications on. Pass announcementId to edit one, or remove to delete it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: str('Short heading.'),
+        body: str('The announcement.'),
+        pinned: { type: 'boolean', description: 'Keep it at the top of the list.' },
+        announcementId: str('Edit this announcement instead of posting a new one.'),
+        remove: { type: 'boolean', description: 'Delete the announcement with this announcementId.' },
+      },
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const r: any = await call(byName, 'saveAnnouncement', {
+        ...(args.announcementId ? { id: String(args.announcementId) } : {}),
+        ...(args.title !== undefined ? { title: String(args.title) } : {}),
+        ...(args.body !== undefined ? { body: String(args.body) } : {}),
+        ...(args.pinned !== undefined ? { pinned: !!args.pinned } : {}),
+        ...(args.remove ? { remove: true } : {}),
+      });
+      return { ok: true, announcement: r?.announcement ?? r ?? null };
+    },
+  },
+  {
+    name: 'search',
+    description: 'Search the crew hub: shows, sessions and crew members matching a word.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: str('What to look for.') },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const q = String(args.query ?? '').trim().toLowerCase();
+      if (q.length < 2) throw new Error('Give at least two letters to search for.');
+      const r: any = await call(byName, 'globalSearch', {});
+      const hit = (v: unknown) => JSON.stringify(v ?? '').toLowerCase().includes(q);
+      return {
+        shows: (r?.shows ?? []).filter(hit).slice(0, 10),
+        sessions: (r?.subs ?? r?.subEvents ?? []).filter(hit).slice(0, 10),
+        members: (r?.members ?? []).filter(hit).slice(0, 10),
+      };
+    },
+  },
+  {
+    name: 'schedule',
+    description: 'Everything on the calendar between two dates, oldest first: shows, rehearsals and club sessions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: str('YYYY-MM-DD. Defaults to today.'),
+        to: str('YYYY-MM-DD. Defaults to 30 days after from.'),
+      },
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const today = new Date();
+      const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const from = String(args.from ?? '').trim() || iso(today);
+      const to = String(args.to ?? '').trim() || iso(new Date(today.getTime() + 30 * 86400000));
+      const r: any = await call(byName, 'adminGetRegister', {});
+      const events = ((r?.events ?? []) as any[])
+        .filter((e) => !!e.date && !e.dateTbc && e.date >= from && e.date <= to)
+        .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.startTime ?? '').localeCompare(String(b.startTime ?? '')))
+        .map((e) => ({ id: e.id, title: e.title, date: e.date, startTime: e.startTime, type: e.type, shows: e.shows, mode: e.mode }));
+      return { from, to, count: events.length, events };
+    },
+  },
+  {
+    name: 'deploy',
+    description:
+      'Update the server from git: fetch, fast-forward the current branch, apply the schema, build, then restart the service. One fixed script, no arguments. Takes about a minute; the restart happens just after this returns.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    run: async () => {
+      if (deploying) throw new Error('A deploy is already running. Give it a minute.');
+      deploying = true;
+      try {
+        const dir = (process.env.DEPLOY_DIR ?? process.cwd()).trim();
+        const restart = (process.env.DEPLOY_RESTART ?? 'systemctl restart ashtec-crew-hub').trim();
+        const steps: { cmd: string; code: number; tail: string }[] = [];
+        const stop = (cmd: string) => ({ ok: false, dir, stoppedAt: cmd, steps, note: 'Nothing was restarted. Fix the step above and run deploy again.' });
+
+        const fetched = await runStep('git', ['fetch', '--all', '--prune'], dir);
+        steps.push({ cmd: 'git fetch --all --prune', code: fetched.code, tail: tailLines(fetched.out, 25) });
+        if (fetched.code !== 0) return stop('git fetch --all --prune');
+
+        // Merge origin/<the branch we are on> rather than @{u}: a checkout made by
+        // hand often has no upstream set, and that is not a reason to refuse.
+        const head = await runStep('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dir);
+        const branch = head.out.trim();
+        if (head.code !== 0 || !branch || branch === 'HEAD') {
+          steps.push({ cmd: 'git rev-parse --abbrev-ref HEAD', code: head.code, tail: tailLines(head.out, 25) });
+          return stop('git rev-parse --abbrev-ref HEAD');
+        }
+        // Fetch the branch by name so FETCH_HEAD is set: a clone that only tracks
+        // main has no origin/<branch> ref to merge.
+        const plan: [string, string[]][] = [
+          ['git', ['fetch', 'origin', branch]],
+          ['git', ['merge', '--ff-only', 'FETCH_HEAD']],
+          ['npm', ['run', 'schema']],
+          ['npm', ['run', 'build']],
+        ];
+        for (const [cmd, argv] of plan) {
+          const r = await runStep(cmd, argv, dir);
+          steps.push({ cmd: `${cmd} ${argv.join(' ')}`, code: r.code, tail: tailLines(r.out, 25) });
+          if (r.code !== 0) return stop(`${cmd} ${argv.join(' ')}`);
+        }
+        // Answer first, then restart: the restart kills this process, so doing it
+        // inline would drop the reply the caller is waiting for.
+        setTimeout(() => {
+          exec(restart, { cwd: dir }, () => {});
+        }, 1500);
+        return {
+          ok: true,
+          dir,
+          branch,
+          steps,
+          restart: `${restart} in a moment`,
+          note: 'Check /healthz in about 20 seconds. The endpoint count should match the build you just made.',
+        };
+      } finally {
+        deploying = false;
+      }
     },
   },
 ];
+
+let deploying = false;
+
+/** Run one command for the deploy tool, never throwing: the exit code is the answer. */
+function runStep(cmd: string, argv: string[], cwd: string) {
+  return new Promise<{ code: number; out: string }>((resolve) => {
+    execFile(cmd, argv, { cwd, timeout: 300_000, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+      const code = err ? (typeof (err as any).code === 'number' ? (err as any).code : 1) : 0;
+      resolve({ code, out: `${stdout ?? ''}${stderr ?? ''}`.trim() });
+    });
+  });
+}
+
+/** The last few lines of a command's output, which is all anyone reads in a tool reply. */
+function tailLines(out: string, n: number) {
+  const lines = out.split('\n').filter((l) => l.trim() !== '');
+  return lines.slice(-n).join('\n');
+}
 
 function text(value: unknown) {
   const body = typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2);

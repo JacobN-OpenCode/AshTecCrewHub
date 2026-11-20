@@ -82,7 +82,7 @@ export default createEndpoint({
         }))
         .sort((a, b) => (a.at < b.at ? 1 : -1))
         .slice(0, 60),
-      toolCount: 10,
+      toolCount: 19,
       callsToday: today.length,
       failuresToday: today.filter((l) => !l.ok).length,
     };
