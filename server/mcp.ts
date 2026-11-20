@@ -14,22 +14,26 @@
  *     so a forgotten deploy cannot expose anything.
  *   - Compared with timingSafeEqual over sha256 digests, so the comparison does
  *     not leak the token's length or content.
- *   - The tools run as one real admin account, named by MCP_EMAIL. If that is
- *     unset the first admin in the crew list is used. Never anonymous: every
- *     call is an admin's call, and admin-only endpoints stay admin-only.
+ *   - Each key acts as the admin who made it (McpKeys.memberId). A key made
+ *     before that column existed, or the MCP_TOKEN environment token, falls back
+ *     to MCP_EMAIL and then to the first admin in the crew list. Never
+ *     anonymous: every call is an admin's call, and admin-only endpoints stay
+ *     admin-only.
  *   - Tools are a short, named list. There is no "call any endpoint" tool, so the
  *     token cannot be turned into a general-purpose SQL or filesystem client.
  *   - Reads are capped (see `MAX_TEXT`) so a big response cannot be used to
  *     stream the whole database out in one call.
  *   - Every call is rate limited per IP and logged to the server log.
  *
- * Not done on purpose: writes beyond the live show chat, member create/delete,
- * settings, and anything that sends email. Those are one careless tool call away
- * from annoying 40 people, and they are easy to add later if they are ever
- * actually wanted.
+ * Writes are limited to the live show chat, replying to a support ticket and
+ * closing one. Not done on purpose: member create/delete, settings, and anything
+ * that emails the whole crew. Those are one careless tool call away from
+ * annoying 40 people, and they are easy to add later if they are ever actually
+ * wanted.
  */
 
 import type { Express, Request, Response } from 'express';
+import { AsyncLocalStorage } from 'async_hooks';
 import { createHash, timingSafeEqual } from 'crypto';
 import { zite } from '#db';
 import * as rateLimit from './rateLimit.js';
@@ -59,6 +63,10 @@ function sameHash(a: string, b: string) {
   return timingSafeEqual(digest(a), digest(b));
 }
 
+/** Which key is making the call in flight, so the tools know who they act as. */
+type KeyInfo = { name: string; id: string; memberId: string };
+const currentKey = new AsyncLocalStorage<KeyInfo>();
+
 /**
  * Keys made in Admin -> MCP (table McpKeys) are the normal way in. The
  * MCP_TOKEN environment variable still works, so a server set up before the tab
@@ -66,12 +74,12 @@ function sameHash(a: string, b: string) {
  *
  * Returns the name to log the call under, or null when nothing matches.
  */
-async function matchKey(req: Request): Promise<{ name: string; id: string } | null> {
+async function matchKey(req: Request): Promise<KeyInfo | null> {
   const given = bearer(req);
   if (!given) return null;
 
   const env = token();
-  if (env && timingSafeEqual(digest(given), digest(env))) return { name: 'environment token', id: '' };
+  if (env && timingSafeEqual(digest(given), digest(env))) return { name: 'environment token', id: '', memberId: '' };
 
   let keys: any[] = [];
   try {
@@ -86,7 +94,7 @@ async function matchKey(req: Request): Promise<{ name: string; id: string } | nu
     if (!sameHash(hash, stored)) continue;
     // Awaited, so the admin tab shows the use it just had rather than trailing one call behind.
     await zite.mcpKeys.update({ id: String(k.id), record: { lastUsedAt: new Date().toISOString() } }).catch(() => {});
-    return { name: String(k.name ?? 'unnamed key'), id: String(k.id) };
+    return { name: String(k.name ?? 'unnamed key'), id: String(k.id), memberId: String(k.memberId ?? '') };
   }
   return null;
 }
@@ -120,30 +128,44 @@ async function logCall(keyName: string, method: string, tool: string, ok: boolea
   }
 }
 
-let actorCache: { id: string; email: string; name: string } | null = null;
+const actorCache = new Map<string, { id: string; email: string; name: string }>();
 
-/** The admin every tool call runs as. MCP_EMAIL if set, else the first admin. */
+/**
+ * The admin this call runs as: the member the key belongs to, else MCP_EMAIL,
+ * else the first admin. Cached per member, so a key made by one admin never
+ * borrows another admin's name.
+ */
 async function actor() {
-  if (actorCache) return actorCache;
+  const key = currentKey.getStore();
+  const byId = (key?.memberId ?? '').trim();
   const wanted = (process.env.MCP_EMAIL ?? '').trim();
-  const query = wanted
-    ? 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE lower("schoolEmail") = lower($1) AND "isAdmin" = true LIMIT 1'
-    : 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "isAdmin" = true AND "isPreviewAccount" = false ORDER BY "createdAt" LIMIT 1';
-  const { rows } = await zite.sql({ query, params: wanted ? [wanted] : [] });
+  const cacheKey = byId ? `id:${byId}` : `env:${wanted.toLowerCase()}`;
+  const hit = actorCache.get(cacheKey);
+  if (hit) return hit;
+
+  const query = byId
+    ? 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1 AND "isAdmin" = true LIMIT 1'
+    : wanted
+      ? 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE lower("schoolEmail") = lower($1) AND "isAdmin" = true LIMIT 1'
+      : 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "isAdmin" = true AND "isPreviewAccount" = false ORDER BY "createdAt" LIMIT 1';
+  const { rows } = await zite.sql({ query, params: byId ? [byId] : wanted ? [wanted] : [] });
   const row = rows[0];
   if (!row) {
     throw new Error(
-      wanted
-        ? `MCP_EMAIL is ${wanted}, which is not an admin in the crew list.`
-        : 'No admin exists yet, so there is nobody for the tools to run as.',
+      byId
+        ? 'This key is set to act as a crew member who is not an admin any more. Make a new key in Admin -> MCP.'
+        : wanted
+          ? `MCP_EMAIL is ${wanted}, which is not an admin in the crew list.`
+          : 'No admin exists yet, so there is nobody for the tools to run as.',
     );
   }
-  actorCache = {
+  const found = {
     id: String(row.id),
     email: String(row.schoolEmail ?? ''),
     name: `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || 'Admin',
   };
-  return actorCache;
+  actorCache.set(cacheKey, found);
+  return found;
 }
 
 /** Run an endpoint the way the browser would, as the MCP admin. */
@@ -340,6 +362,59 @@ const TOOLS = [
     },
   },
   {
+    name: 'reply_to_ticket',
+    description:
+      'Reply to a support ticket. The reply is emailed to the person who raised it and recorded on the thread. Signed "gorkie" unless you pass as.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: str('Ticket id from list_tickets.'),
+        message: str('What to say. Plain text, up to 4000 characters.'),
+        as: str('Name to sign the reply with. Defaults to "gorkie".'),
+      },
+      required: ['ticketId', 'message'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const message = String(args.message ?? '').trim();
+      if (!message) throw new Error('Write the reply first.');
+      const asName = String(args.as ?? 'gorkie').trim() || 'gorkie';
+      const r: any = await call(byName, 'adminReplyTicket', {
+        id: String(args.ticketId ?? ''),
+        message,
+        asName,
+      });
+      return { sent: !!r?.sent, signedAs: asName, messageId: r?.messageId ?? '' };
+    },
+  },
+  {
+    name: 'close_ticket',
+    description:
+      'Close or resolve a support ticket, with an optional private note on the thread. Closing emails nobody.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: str('Ticket id from list_tickets.'),
+        status: str('"Closed" (the default) or "Resolved".'),
+        note: str('Optional private note for the thread. Not emailed.'),
+        as: str('Name the status change is recorded under. Defaults to "gorkie".'),
+      },
+      required: ['ticketId'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const id = String(args.ticketId ?? '');
+      if (!id) throw new Error('Which ticket?');
+      const status = String(args.status ?? 'Closed');
+      if (status !== 'Closed' && status !== 'Resolved') throw new Error('Status has to be Closed or Resolved.');
+      const note = String(args.note ?? '').trim();
+      const asName = String(args.as ?? 'gorkie').trim() || 'gorkie';
+      if (note) await call(byName, 'adminNoteTicket', { id, message: note });
+      await call(byName, 'adminUpdateTicket', { id, status, asName });
+      return { ok: true, ticketId: id, status };
+    },
+  },
+  {
     name: 'clear_live_show_chat',
     description: 'Delete the whole live show chat. Announcements are not touched. This cannot be undone.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -357,7 +432,7 @@ function text(value: unknown) {
 
 type Rpc = { id?: string | number | null; method?: string; params?: any };
 
-async function handle(byName: Endpoints, req: Request) {
+async function handle(byName: Endpoints, req: Request, key: KeyInfo) {
   const msg = (Array.isArray(req.body) ? req.body[0] : req.body) as Rpc;
   const id = msg?.id ?? null;
   const method = String(msg?.method ?? '');
@@ -371,7 +446,7 @@ async function handle(byName: Endpoints, req: Request) {
       capabilities: { tools: {} },
       serverInfo: { name: 'ashtec-crew-hub', version: '1.0.0' },
       instructions:
-        'Read-only tools for the AshTec crew hub, plus posting and clearing the live show chat. Register colours: green = in, yellow = away with a reason, red = not in with a reason.',
+        'Tools for the AshTec crew hub: read the schedule, registers, tickets and live show, post or clear the live show chat, and reply to or close a support ticket. Register colours: green = in, yellow = away with a reason, red = not in with a reason.',
     });
   }
   if (method === 'notifications/initialized' || method === 'notifications/cancelled') return null;
@@ -386,7 +461,7 @@ async function handle(byName: Endpoints, req: Request) {
     const tool = TOOLS.find((t) => t.name === name);
     if (!tool) return fail(-32602, `No tool called ${name}. Try tools/list.`);
     try {
-      const result = await tool.run(byName, msg?.params?.arguments ?? {});
+      const result = await currentKey.run(key, () => tool.run(byName, msg?.params?.arguments ?? {}));
       return reply({ content: [{ type: 'text', text: text(result) }], isError: false });
     } catch (e: any) {
       return reply({ content: [{ type: 'text', text: e?.message ?? 'That did not work.' }], isError: true });
@@ -418,7 +493,7 @@ export function mountMcp(app: Express, byName: Endpoints) {
       const started = Date.now();
       const method = String(req.body?.method ?? '');
       const tool = method === 'tools/call' ? String(req.body?.params?.name ?? '') : '';
-      const out = await handle(byName, req);
+      const out = await handle(byName, req, key);
       if (method && method !== 'ping') {
         const message = (out as any)?.error?.message ?? '';
         void logCall(key.name, method, tool, !(out as any)?.error, message, Date.now() - started);

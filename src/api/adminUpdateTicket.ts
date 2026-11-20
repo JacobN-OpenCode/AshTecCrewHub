@@ -19,6 +19,8 @@ export default createEndpoint({
     referToOpencode: z.boolean().optional(),
     pinned: z.boolean().optional(),
     delete: z.boolean().optional(),
+    // Used by the MCP server, so the trail says who really moved the ticket.
+    asName: z.string().max(80).optional(),
   }),
   outputSchema: z.object({ success: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -83,7 +85,7 @@ export default createEndpoint({
       await zite.supportReplies.create({
         record: {
           ticket: input.id, author: admin.id, kind: REPLY_KIND.note,
-          body: `${fullName(admin) || 'An admin'} changed ${changes.join('; ')}.`,
+          body: `${(input.asName ?? '').trim() || fullName(admin) || 'An admin'} changed ${changes.join('; ')}.`,
           recipients: '', sentAt: new Date().toISOString(),
         } as never,
       });

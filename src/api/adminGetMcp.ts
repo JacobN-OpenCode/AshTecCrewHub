@@ -35,9 +35,10 @@ export default createEndpoint({
     const { rows: actorRows } = await zite.sql({ query, params: wanted ? [wanted] : [] });
     const actorRow = actorRows[0];
 
-    const [keyRows, logRows] = await Promise.all([
+    const [keyRows, logRows, crewRows] = await Promise.all([
       zite.mcpKeys.findAll({ limit: 100 }),
       zite.mcpCallLog.findAll({ limit: 120 }),
+      zite.crewMembers.findAll({ limit: 2000 }),
     ]);
 
     const enabledKeys = keyRows.records.filter((k) => k.enabled);
@@ -59,6 +60,11 @@ export default createEndpoint({
           name: String(k.name ?? ''),
           prefix: String(k.prefix ?? ''),
           enabled: !!k.enabled,
+          memberId: String(k.memberId ?? ''),
+          actorName: (() => {
+            const m = crewRows.records.find((x) => String(x.id) === String(k.memberId ?? ''));
+            return m ? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() : '';
+          })(),
           createdAt: String(k.createdAt ?? ''),
           lastUsedAt: String(k.lastUsedAt ?? ''),
         }))
@@ -76,7 +82,7 @@ export default createEndpoint({
         }))
         .sort((a, b) => (a.at < b.at ? 1 : -1))
         .slice(0, 60),
-      toolCount: 8,
+      toolCount: 10,
       callsToday: today.length,
       failuresToday: today.filter((l) => !l.ok).length,
     };
