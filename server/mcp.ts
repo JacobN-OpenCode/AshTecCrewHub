@@ -658,18 +658,32 @@ const TOOLS = [
         const dir = (process.env.DEPLOY_DIR ?? process.cwd()).trim();
         const restart = (process.env.DEPLOY_RESTART ?? 'systemctl restart ashtec-crew-hub').trim();
         const steps: { cmd: string; code: number; tail: string }[] = [];
+        const stop = (cmd: string) => ({ ok: false, dir, stoppedAt: cmd, steps, note: 'Nothing was restarted. Fix the step above and run deploy again.' });
+
+        const fetched = await runStep('git', ['fetch', '--all', '--prune'], dir);
+        steps.push({ cmd: 'git fetch --all --prune', code: fetched.code, tail: tailLines(fetched.out, 25) });
+        if (fetched.code !== 0) return stop('git fetch --all --prune');
+
+        // Merge origin/<the branch we are on> rather than @{u}: a checkout made by
+        // hand often has no upstream set, and that is not a reason to refuse.
+        const head = await runStep('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dir);
+        const branch = head.out.trim();
+        if (head.code !== 0 || !branch || branch === 'HEAD') {
+          steps.push({ cmd: 'git rev-parse --abbrev-ref HEAD', code: head.code, tail: tailLines(head.out, 25) });
+          return stop('git rev-parse --abbrev-ref HEAD');
+        }
+        // Fetch the branch by name so FETCH_HEAD is set: a clone that only tracks
+        // main has no origin/<branch> ref to merge.
         const plan: [string, string[]][] = [
-          ['git', ['fetch', '--all', '--prune']],
-          ['git', ['merge', '--ff-only', '@{u}']],
+          ['git', ['fetch', 'origin', branch]],
+          ['git', ['merge', '--ff-only', 'FETCH_HEAD']],
           ['npm', ['run', 'schema']],
           ['npm', ['run', 'build']],
         ];
         for (const [cmd, argv] of plan) {
           const r = await runStep(cmd, argv, dir);
           steps.push({ cmd: `${cmd} ${argv.join(' ')}`, code: r.code, tail: tailLines(r.out, 25) });
-          if (r.code !== 0) {
-            return { ok: false, dir, stoppedAt: `${cmd} ${argv.join(' ')}`, steps, note: 'Nothing was restarted. Fix the step above and run deploy again.' };
-          }
+          if (r.code !== 0) return stop(`${cmd} ${argv.join(' ')}`);
         }
         // Answer first, then restart: the restart kills this process, so doing it
         // inline would drop the reply the caller is waiting for.
@@ -679,6 +693,7 @@ const TOOLS = [
         return {
           ok: true,
           dir,
+          branch,
           steps,
           restart: `${restart} in a moment`,
           note: 'Check /healthz in about 20 seconds. The endpoint count should match the build you just made.',
