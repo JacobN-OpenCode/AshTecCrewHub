@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '#auth';
 import {
   getLiveShowState, getMe, getLiveShowAdmins, enableLiveShowDevice, liveShowUnlockAdmin,
-  adminLiveShowControl, adminLiveShowDevice, liveShowChat, liveShowAnnouncement, liveShowMovement,
+  adminLiveShowControl, adminLiveShowDevice, liveShowChat, liveShowClearChat, liveShowAnnouncement, liveShowMovement,
 } from '#api';
 import { Button } from '@project/components/ui/button';
 import { toast } from 'sonner';
@@ -554,6 +554,7 @@ function ControlPanel({
   onRefresh: () => void;
 }) {
   const [text, setText] = useState('');
+  const [clearAsk, setClearAsk] = useState(false);
   const [annText, setAnnText] = useState('');
   const [annSeconds, setAnnSeconds] = useState(30);
   const [annUntilCleared, setAnnUntilCleared] = useState(false);
@@ -569,6 +570,17 @@ function ControlPanel({
   const control = async (action: string, extra?: { status?: string; sceneIndex?: number }) => {
     try { await adminLiveShowControl({ liveShowId: board.id, action, ...extra, memberId: cred.memberId, secret: cred.secret }); onRefresh(); }
     catch (e) { toast.error((e as Error).message); }
+  };
+
+  const clearChat = async () => {
+    setBusy(true);
+    try {
+      const r = await liveShowClearChat({ liveShowId: board.id, memberId: cred.memberId, secret: cred.secret });
+      setClearAsk(false);
+      toast.success(r?.cleared ? `Cleared ${r.cleared} message${r.cleared === 1 ? '' : 's'}.` : 'The chat was already empty.');
+      onRefresh();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
   };
 
   const sendChat = async () => {
@@ -667,6 +679,22 @@ function ControlPanel({
             <div className="max-h-40 overflow-y-auto space-y-1">
               {messages.slice(-8).map((m) => <p key={m.id} className="text-xs text-[#9aa3b2]"><span className="text-cream/70">{m.authorName}:</span> {m.body}</p>)}
             </div>
+            {/* Clearing the chat is admin-only and one of the few things here that
+                destroys something, so it asks once, in place, instead of using
+                window.confirm - which a PWA launched from a home screen can
+                suppress, leaving a button that appears to do nothing. */}
+            {messages.length > 0 && (clearAsk ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-[#9aa3b2]">Clear all {messages.length}?</span>
+                <Button size="sm" variant="destructive" disabled={busy} onClick={() => void clearChat()} className="h-7 px-2 text-xs">Yes, clear</Button>
+                <Button size="sm" variant="ghost" disabled={busy} onClick={() => setClearAsk(false)} className="h-7 px-2 text-xs">Cancel</Button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setClearAsk(true)}
+                className="text-xs text-[#9aa3b2] underline underline-offset-2 hover:text-cream">
+                Clear chat
+              </button>
+            ))}
           </div>
         </div>
 

@@ -274,6 +274,36 @@ because there is no signed-in member.
 
 ---
 
+## The MCP server
+
+The crew hub serves its own small [MCP](https://modelcontextprotocol.io) server at `POST /mcp`, so an MCP client (Claude, Cursor, whatever you use) can read the club and post to the live show chat without a browser.
+
+It is off until you give it a token:
+
+```bash
+# in .env, on the server
+MCP_TOKEN=$(openssl rand -hex 32)   # long and random: it is a password
+MCP_EMAIL=you@ashpupil.co.uk        # which admin the tools run as (empty = first admin)
+```
+
+Then point a client at it:
+
+```json
+{
+  "mcpServers": {
+    "ashtec-crew-hub": {
+      "type": "http",
+      "url": "https://ashtec.dino.icu/mcp",
+      "headers": { "Authorization": "Bearer <the token you generated>" }
+    }
+  }
+}
+```
+
+Tools it exposes: `crew_hub_overview`, `list_sessions`, `get_register`, `list_tickets`, `find_member`, `live_show`, `send_live_show_chat`, `clear_live_show_chat`.
+
+**What keeps it honest.** Without `MCP_TOKEN` the route answers `503`; a wrong token gets `401` (compared in constant time, so a guess gets no hint). No tool can call an arbitrary endpoint, there is no way to create or delete people, change settings or send email, replies stay under 16 kB, and every call is rate limited and logged. Tools run as one named admin, so anything they read is something that admin could already read.
+
 ## Data and privacy
 
 An account holds a crew member's name, school year, roles, school email, and

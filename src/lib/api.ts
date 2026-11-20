@@ -556,6 +556,13 @@ export type LiveShowChatInputType = NonNullable<_LiveShowChatCfg['inputSchema']>
 export type LiveShowChatOutputType = Awaited<ReturnType<_LiveShowChatCfg['execute']>>;
 export const liveShowChat = createCaller<LiveShowChatInputType, LiveShowChatOutputType>('liveShowChat');
 
+import type { default as _LiveShowClearChatEp } from '../api/liveShowClearChat';
+
+type _LiveShowClearChatCfg = typeof _LiveShowClearChatEp;
+export type LiveShowClearChatInputType = NonNullable<_LiveShowClearChatCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_LiveShowClearChatCfg['execute']>[0]['input'];
+export type LiveShowClearChatOutputType = Awaited<ReturnType<_LiveShowClearChatCfg['execute']>>;
+export const liveShowClearChat = createCaller<LiveShowClearChatInputType, LiveShowClearChatOutputType>('liveShowClearChat');
+
 import type { default as _LiveShowMovementEp } from '../api/liveShowMovement';
 
 type _LiveShowMovementCfg = typeof _LiveShowMovementEp;
@@ -976,6 +983,7 @@ export const api = {
   globalSearch,
   liveShowAnnouncement,
   liveShowChat,
+  liveShowClearChat,
   liveShowMovement,
   liveShowUnlockAdmin,
   memberEditTicket,

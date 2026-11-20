@@ -39,6 +39,7 @@ import { logRequest, logPageView, setViewDuration, pruneActivity } from './activ
 import { notifyServerError } from './notify.js';
 import { pruneNotifications, pruneNotificationHistory } from './push.js';
 import { db } from './db/index.js';
+import { mountMcp } from './mcp.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const apiDir = path.join(root, 'src', 'api');
@@ -272,6 +273,9 @@ for (const ep of endpoints) {
     }
   });
 }
+
+// The crew hub's own MCP server (server/mcp.ts). Off unless MCP_TOKEN is set.
+mountMcp(app, byName);
 
 // ---------------------------------------------------------------- auth routes
 app.post('/api/auth/magic-link', async (req, res) => {
