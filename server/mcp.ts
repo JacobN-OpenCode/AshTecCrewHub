@@ -158,6 +158,18 @@ async function call(byName: Endpoints, name: string, input: unknown) {
 
 const str = (description: string, extra: Record<string, unknown> = {}) => ({ type: 'string', description, ...extra });
 
+/** The short version of an open show, shared by the overview and live_show tools. */
+async function describeLiveShow(show: Awaited<ReturnType<typeof openLiveShow>>) {
+  if (!show) return null;
+  const mapped = mapLiveShow(show);
+  return {
+    name: mapped.name,
+    status: mapped.status,
+    scene: mapped.currentSceneIndex,
+    scenes: (await loadLiveShowScenes(show.id)).length,
+  };
+}
+
 const TOOLS = [
   {
     name: 'crew_hub_overview',
@@ -167,29 +179,31 @@ const TOOLS = [
     run: async (byName: Endpoints) => {
       const [register, live, support] = await Promise.all([
         call(byName, 'adminGetRegister', {}),
-        call(byName, 'getLiveShowState', {}),
+        openLiveShow(),
         call(byName, 'adminGetSupport', {}),
       ]);
-      const events = ((register as any)?.events ?? []).slice(0, 8).map((e: any) => ({
-        id: e.id,
-        title: e.title,
-        date: e.date,
-        startTime: e.startTime,
-        type: e.type,
-        shows: e.showNames ?? [],
-        mode: e.mode,
-      }));
+      // Today, in the same local-date form the sub-events use, so "next" means
+      // next: the picker also holds everything that has already happened.
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const events = ((register as any)?.events ?? [])
+        .filter((e: any) => !!e.date && !e.dateTbc && e.date >= today)
+        .slice(0, 8)
+        .map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          startTime: e.startTime,
+          type: e.type,
+          shows: e.showNames ?? [],
+          mode: e.mode,
+        }));
       const tickets = ((support as any)?.tickets ?? []) as any[];
       return {
         actor: (await actor()).name,
-        liveShow: (live as any)?.liveShow
-          ? {
-              name: (live as any).liveShow.name,
-              status: (live as any).liveShow.status,
-              scene: (live as any).liveShow.currentSceneIndex,
-              scenes: (live as any).scenes?.length ?? null,
-            }
-          : null,
+        // The show that is actually open, not merely the last one anyone
+        // touched, so this agrees with the live_show tool.
+        liveShow: live ? await describeLiveShow(live) : null,
         nextSessions: events,
         openTickets: tickets.filter((t) => !/closed|resolved/i.test(String(t.status))).length,
         waitingOnUs: tickets.filter((t) => t.maintainerTurn).length,
