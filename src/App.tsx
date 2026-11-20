@@ -39,6 +39,7 @@ import AdminFeedback from './pages/admin/AdminFeedback';
 import Feedback from './pages/Feedback';
 import Announcements from './pages/Announcements';
 import Documents from './pages/Documents';
+import Contacts from './pages/Contacts';
 import AdminMcp from './pages/admin/AdminMcp';
 import Mascot from './pages/Mascot';
 import Memories from './pages/Memories';
@@ -133,6 +134,8 @@ function SignedIn() {
           <Route path="/announcements" element={<Announcements />} />
           {/* Ticket 7958eb6c: links shared with the crew, or with named people. */}
           <Route path="/documents" element={<Documents />} />
+          {/* Ticket 19ffa650: the sheet the Settings switch kept pointing at. */}
+          <Route path="/contacts" element={<Contacts />} />
           {/* Batch 8: the mascot and the show memories wall. */}
           <Route path="/mascot" element={<Mascot />} />
           <Route path="/memories" element={<Memories />} />

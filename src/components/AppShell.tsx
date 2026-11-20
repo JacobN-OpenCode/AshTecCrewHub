@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
-  PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Wrench, X, FileText,
+  PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Wrench, X, FileText, BookUser, ChevronDown,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -118,6 +118,22 @@ function Shell() {
   usePageView(loc.pathname);
   const { session } = useLivePresence();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
+  // Ticket 710307e1: the nav groups fold away, so a member can keep only the
+  // things they actually use on screen. Remembered per browser, like the other
+  // layout choices, and a group holding the page you are on always stays open.
+  const [closedGroups, setClosedGroups] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem('ashtec-nav-closed');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+    } catch { return []; }
+  });
+  const toggleGroup = (label: string) =>
+    setClosedGroups((prev) => {
+      const next = prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label];
+      try { localStorage.setItem('ashtec-nav-closed', JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
   const [accent, setAccent] = useAccent();
   // Ticket 8051f385: compact density drives the single-row sidebar footer and
   // the tightened spacing (via data-density on <html>).
@@ -217,6 +233,8 @@ function Shell() {
     if (features.parents && (me.isAdmin || me.isStaff)) club.push({ to: '/parents', label: 'For parents', icon: HeartHandshake });
     // Ticket 7958eb6c: the crew's shared documents.
     club.push({ to: '/documents', label: 'Documents', icon: FileText });
+    // Ticket 19ffa650: the contact sheet the settings switch talks about.
+    club.push({ to: '/contacts', label: 'Contact sheet', icon: BookUser });
     if (features.tools) club.push({ to: '/tools', label: 'Tools', icon: Wrench });
     // Batch 8: the fun ones.
     if (features.memories) club.push({ to: '/memories', label: 'Memories', icon: Images });
@@ -415,16 +433,32 @@ function Shell() {
           </button>
 
           <nav data-tour="nav" className="mt-3 flex-1 space-y-4 overflow-y-auto px-3 pb-4">
-            {groups.map((g) => (
-              <div key={g.label}>
-                {!collapsed && (
-                  <div className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
-                )}
-                <div className="flex flex-col gap-0.5" data-tour={g.label === 'Admin' ? 'admin-menu' : undefined}>
-                  {g.items.map((i) => <NavRow key={i.to} item={i} collapsed={collapsed} />)}
+            {groups.map((g) => {
+              const folded = closedGroups.includes(g.label);
+              const holdingThisPage = g.items.some((i) => loc.pathname === i.to || loc.pathname.startsWith(`${i.to}/`));
+              const showItems = collapsed || !folded || holdingThisPage;
+              return (
+                <div key={g.label}>
+                  {!collapsed && (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(g.label)}
+                      aria-expanded={!folded}
+                      title={folded ? `Show ${g.label}` : `Hide ${g.label}`}
+                      className="flex w-full items-center gap-1 rounded-lg px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <span className="flex-1 text-left">{g.label}</span>
+                      <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', folded && '-rotate-90')} />
+                    </button>
+                  )}
+                  {showItems && (
+                    <div className="flex flex-col gap-0.5" data-tour={g.label === 'Admin' ? 'admin-menu' : undefined}>
+                      {g.items.map((i) => <NavRow key={i.to} item={i} collapsed={collapsed} />)}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {!collapsed && memberViewToggle}
           </nav>
 

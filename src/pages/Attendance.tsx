@@ -177,7 +177,7 @@ export default function Attendance() {
             <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.05] p-5">
               <h2 className="flex items-center gap-2 text-lg font-semibold text-yellow-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Waiting for an admin to {pending.toLowerCase()} you
+                Waiting for an admin to {pending.toLowerCase() === 'check out' ? 'check you out' : 'check you in'}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Hold this up to an admin&rsquo;s phone camera. The page updates on its own once they approve it.

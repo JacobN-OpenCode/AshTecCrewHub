@@ -89,16 +89,25 @@ self.addEventListener('push', (event) => {
     data = { title: 'AshTec Crew Hub', body: event.data ? event.data.text() : '' };
   }
   const title = data.title || 'AshTec Crew Hub';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag,
+    data: { url: data.url || '/' },
+    // Re-notify rather than sit silently if the same tag fires again.
+    renotify: !!data.tag,
+  };
+  // Ticket 3a431f75: a browser that rejects one option (Safari has been picky
+  // about `renotify` and `badge`) used to drop the whole notification with no
+  // trace. Try the full set, then a plain one, so a push always shows if the
+  // device allows it at all.
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: data.tag,
-      data: { url: data.url || '/' },
-      // Re-notify rather than sit silently if the same tag fires again.
-      renotify: !!data.tag,
-    })
+    self.registration.showNotification(title, options).catch(() =>
+      self.registration
+        .showNotification(title, { body: options.body, data: options.data, tag: options.tag })
+        .catch(() => undefined)
+    )
   );
 });
 

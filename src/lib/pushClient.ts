@@ -26,7 +26,7 @@ const appBridge = (): { postMessage: (m: unknown) => void } | undefined =>
     .webkit?.messageHandlers?.ashtec;
 
 /** Ask the server to push a test to this member's devices and report how many. */
-export async function sendTest(): Promise<{ sent: number; subscriptions: number }> {
+export async function sendTest(): Promise<{ sent: number; subscriptions: number; error?: string }> {
   return sendTestNotification({});
 }
 

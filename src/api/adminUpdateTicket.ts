@@ -44,7 +44,11 @@ export default createEndpoint({
       if (input.referToOpencode && !OPENCODE_TAG_TYPES.includes(t.type ?? 'General Support')) {
         throw new Error('Only bug reports and feature requests can be referred to opencode.');
       }
-      record.referToOpencode = input.referToOpencode;
+      // The column is text, not boolean. A JS false reaches Postgres as the
+      // string 'false', which is truthy to every reader of this field, so the
+      // tag could be set but never cleared (tickets 348aa062, 5a2ec8e8).
+      // Keep it '' when off, so the badge and the X button agree.
+      record.referToOpencode = input.referToOpencode ? 'true' : '';
     }
     if (input.assignedMaintainerIds) {
       const { records: members } = await zite.crewMembers.findAll({ limit: 2000 });

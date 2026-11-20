@@ -93,7 +93,17 @@ export interface PushPayload {
  * are deleted, which is the only way to keep the table from filling with dead
  * devices the user has uninstalled or revoked.
  */
-export async function sendToMember(memberId: string, payload: PushPayload): Promise<number> {
+export async function sendToMember(
+  memberId: string,
+  payload: PushPayload,
+  /**
+   * Ticket 3a431f75: "notifications don't arrive" is otherwise impossible to
+   * tell apart from "the push service said no", so the caller can collect the
+   * first failure reason and show it. Optional, so every existing caller is
+   * unchanged.
+   */
+  opts?: { onError?: (message: string) => void }
+): Promise<number> {
   if (!(await ensureVapid())) return 0;
   const { records: subs } = await zite.pushSubscriptions.findAll({ filters: { member: memberId }, limit: 50 });
   let sent = 0;
@@ -110,14 +120,16 @@ export async function sendToMember(memberId: string, payload: PushPayload): Prom
         // The subscription is gone for good; drop it.
         await zite.pushSubscriptions.delete({ id: s.id }).catch(() => {});
       } else {
-        console.warn(`[push] send failed (${code ?? '?'}) for ${memberId}:`, e?.body ?? e?.message ?? e);
+        const reason = String(e?.body || e?.message || 'send failed').slice(0, 200);
+        console.warn(`[push] send failed (${code ?? '?'}) for ${memberId}:`, reason);
+        opts?.onError?.(`${code ?? '?'}: ${reason}`);
       }
     }
   }
   // Only a notification that actually reached a device is worth remembering;
   // recording a push nobody received would make "what you missed" lie. A test
   // push is skipped so the history stays about real commitments.
-  if (sent > 0 && payload.tag !== 'test') await recordHistory(memberId, payload);
+  if (sent > 0 && !payload.tag?.startsWith('test')) await recordHistory(memberId, payload);
   return sent;
 }
 

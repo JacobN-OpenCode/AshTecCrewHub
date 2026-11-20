@@ -374,6 +374,13 @@ export type GetCatLoginAdminsInputType = NonNullable<_GetCatLoginAdminsCfg['inpu
 export type GetCatLoginAdminsOutputType = Awaited<ReturnType<_GetCatLoginAdminsCfg['execute']>>;
 export const getCatLoginAdmins = createCaller<GetCatLoginAdminsInputType, GetCatLoginAdminsOutputType>('getCatLoginAdmins');
 
+import type { default as _GetContactSheetEp } from '../api/getContactSheet';
+
+type _GetContactSheetCfg = typeof _GetContactSheetEp;
+export type GetContactSheetInputType = NonNullable<_GetContactSheetCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetContactSheetCfg['execute']>[0]['input'];
+export type GetContactSheetOutputType = Awaited<ReturnType<_GetContactSheetCfg['execute']>>;
+export const getContactSheet = createCaller<GetContactSheetInputType, GetContactSheetOutputType>('getContactSheet');
+
 import type { default as _GetCountdownEp } from '../api/getCountdown';
 
 type _GetCountdownCfg = typeof _GetCountdownEp;
@@ -985,6 +992,7 @@ export const api = {
   getCalendarFeed,
   getCallSheet,
   getCatLoginAdmins,
+  getContactSheet,
   getCountdown,
   getDocuments,
   getFamilyFeed,

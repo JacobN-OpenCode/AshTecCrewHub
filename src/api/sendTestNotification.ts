@@ -16,17 +16,25 @@ export default createEndpoint({
   description: 'Sends a test push notification to all of this member’s subscribed devices',
   authenticated: true,
   inputSchema: z.object({}),
-  outputSchema: z.object({ sent: z.number(), subscriptions: z.number() }),
+  outputSchema: z.object({ sent: z.number(), subscriptions: z.number(), error: z.string().optional() }),
   execute: async ({ context }) => {
     const me = await requireMember(context.user.email);
     if (!(await ensureVapid())) throw new Error('Push is not configured on the server.');
     const { records: subs } = await zite.pushSubscriptions.findAll({ filters: { member: me.id }, limit: 50 });
-    const sent = await sendToMember(me.id, {
-      title: 'AshTec Crew Hub',
-      body: 'Test notification — if you can see this, notifications are working.',
-      url: '/profile',
-      tag: 'test',
-    });
-    return { sent, subscriptions: subs.length };
+    // Ticket 3a431f75: a fresh tag every time, because a repeated tag lets the
+    // operating system replace the previous notification instead of showing a
+    // new one, which reads as "the test did nothing" when it worked fine.
+    let failure: string | undefined;
+    const sent = await sendToMember(
+      me.id,
+      {
+        title: 'AshTec Crew Hub',
+        body: 'Test notification — if you can see this, notifications are working.',
+        url: '/profile',
+        tag: `test-${Date.now()}`,
+      },
+      { onError: (message) => { failure ??= message; } }
+    );
+    return { sent, subscriptions: subs.length, error: failure };
   },
 });

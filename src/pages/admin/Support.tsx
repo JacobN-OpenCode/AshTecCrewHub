@@ -19,22 +19,91 @@ type Ticket = AdminGetSupportOutputType['tickets'][number];
 
 const STATUS_ORDER = ['Open', 'In Progress', 'Resolved', 'Closed'];
 
+/**
+ * Ticket 8283a6f7: the filters reset every time you came back from a ticket,
+ * and there was no way to say what the page should open on. Both are the same
+ * fix - remember the last filter set in this browser and start from it. Going
+ * back to the list remounts this page, so the remembered set is also what the
+ * back button restores.
+ */
+const FILTER_KEY = 'ashtec-support-filters';
+type Filters = {
+  q: string;
+  type: string;
+  status: string;
+  severity: string;
+  sort: 'recency' | 'oldest' | 'status';
+  onlyMaintainerTurn: boolean;
+  onlyReferred: boolean;
+};
+const FILTER_DEFAULTS: Filters = {
+  q: '',
+  type: 'all',
+  status: 'active',
+  severity: 'all',
+  sort: 'recency',
+  onlyMaintainerTurn: false,
+  onlyReferred: false,
+};
+
+function savedFilters(): Filters {
+  try {
+    const raw = localStorage.getItem(FILTER_KEY);
+    if (!raw) return FILTER_DEFAULTS;
+    const parsed = JSON.parse(raw) as Partial<Filters>;
+    // Unknown or missing keys fall back to the default rather than breaking.
+    return { ...FILTER_DEFAULTS, ...parsed };
+  } catch {
+    return FILTER_DEFAULTS;
+  }
+}
+
 export default function Support() {
   const { data, patchMember } = useAdminData();
   const { me } = useMe();
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
-  const [q, setQ] = useState('');
-  const [type, setType] = useState('all');
-  const [status, setStatus] = useState('active');
-  const [severity, setSeverity] = useState('all');
+  // Read once, so every filter below starts from what this browser last used.
+  const [start] = useState<Filters>(savedFilters);
+  const [q, setQ] = useState(start.q);
+  const [type, setType] = useState(start.type);
+  const [status, setStatus] = useState(start.status);
+  const [severity, setSeverity] = useState(start.severity);
   // Ticket 7e001fce: the list always showed the submitted date; make the date
   // sortable in both directions.
-  const [sort, setSort] = useState<'recency' | 'oldest' | 'status'>('recency');
+  const [sort, setSort] = useState<Filters['sort']>(start.sort);
   // Ticket edf25b3d: this checkbox is "waiting on a maintainer", which is the
   // maintainerTurn rule (see adminGetSupport), not awaitingReply - that asks
   // whether the sender still owes us a reply.
-  const [onlyMaintainerTurn, setOnlyMaintainerTurn] = useState(false);
-  const [onlyReferred, setOnlyReferred] = useState(false);
+  const [onlyMaintainerTurn, setOnlyMaintainerTurn] = useState(start.onlyMaintainerTurn);
+  const [onlyReferred, setOnlyReferred] = useState(start.onlyReferred);
+  // Remember the current set as this browser's default (ticket 8283a6f7).
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ q, type, status, severity, sort, onlyMaintainerTurn, onlyReferred }));
+    } catch {
+      // A browser with storage blocked just keeps the built-in defaults.
+    }
+  }, [q, type, status, severity, sort, onlyMaintainerTurn, onlyReferred]);
+
+  const changed =
+    q !== FILTER_DEFAULTS.q ||
+    type !== FILTER_DEFAULTS.type ||
+    status !== FILTER_DEFAULTS.status ||
+    severity !== FILTER_DEFAULTS.severity ||
+    sort !== FILTER_DEFAULTS.sort ||
+    onlyMaintainerTurn !== FILTER_DEFAULTS.onlyMaintainerTurn ||
+    onlyReferred !== FILTER_DEFAULTS.onlyReferred;
+
+  const resetFilters = () => {
+    setQ(FILTER_DEFAULTS.q);
+    setType(FILTER_DEFAULTS.type);
+    setStatus(FILTER_DEFAULTS.status);
+    setSeverity(FILTER_DEFAULTS.severity);
+    setSort(FILTER_DEFAULTS.sort);
+    setOnlyMaintainerTurn(FILTER_DEFAULTS.onlyMaintainerTurn);
+    setOnlyReferred(FILTER_DEFAULTS.onlyReferred);
+  };
+
   const [busyMaint, setBusyMaint] = useState('');
   const [pinning, setPinning] = useState('');
   const [untagging, setUntagging] = useState('');
@@ -357,6 +426,11 @@ export default function Support() {
               Remind maintainers{maintainerTurn > 0 ? ` (${maintainerTurn})` : ''}
             </Button>
             <Button variant="outline" disabled={refreshing} onClick={refresh}>{refreshing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}Refresh</Button>
+            {changed && (
+              <Button variant="ghost" onClick={resetFilters} title="Back to the built-in filters: open and in progress, newest first">
+                Reset filters
+              </Button>
+            )}
           </div>
         </div>
 
@@ -386,6 +460,14 @@ export default function Support() {
             Only {OPENCODE_TAG.toLowerCase()} ({referred})
           </label>
         </div>
+
+        {/* Ticket 47c6e418: "waiting on the reporter" was never explained on the
+            page. Both states are about who spoke last, so say that plainly. */}
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Waiting on us</span> means the reporter spoke last, so a
+          maintainer owes them an answer. <span className="font-medium text-foreground">Waiting on the reporter</span>{' '}
+          means we replied and the next move is theirs. Your filters are remembered in this browser.
+        </p>
 
         {layout === 'cards' ? (
           <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -321,7 +321,12 @@ export default function Profile() {
           <p className="text-xs text-muted-foreground">
             {contactShare
               ? 'Your school email is on the contact sheet. Turn this off any time and you disappear from it.'
-              : 'Off, so you are not on the contact sheet.'}
+              : 'Off, so you are not on the contact sheet.'}{' '}
+            {/* Ticket 19ffa650: "Where?" - the switch never said where. */}
+            <Link to="/contacts" className="underline hover:text-foreground">
+              See the contact sheet
+            </Link>
+            .
           </p>
         </div>
 
@@ -730,7 +735,9 @@ function PwaSettings() {
                   ? `Sent to ${r.sent} of your ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}. Check your notifications.`
                   : r.subscriptions === 0
                     ? 'No device is subscribed yet. Turn on admin notifications above (or the switch), and allow the permission prompt.'
-                    : `Could not deliver to ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}. They may have been uninstalled; toggle notifications off and on again.`,
+                    // Ticket 3a431f75: say why the push service refused, rather
+                  // than leaving it at "could not deliver".
+                  : `Could not deliver to ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}${r.error ? ` (${r.error})` : ''}. Toggle notifications off and on again, or send this to Mr Navaratne so the reason can be looked at.`,
               );
             } catch (e) {
               setNote((e as Error).message);

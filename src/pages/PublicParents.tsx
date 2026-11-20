@@ -285,7 +285,7 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
     };
   }, []);
 
-  const { grouped, tbc, past } = useMemo(() => {
+  const { grouped, tbc } = useMemo(() => {
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const map = new Map<string, PublicEvent[]>();
@@ -310,7 +310,9 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
       // "Date TBC" is a real thing the letter promises parents, so it gets its
       // own list rather than being dropped or mixed in with dated events.
       tbc: undated,
-      past: days.filter(([d]) => d < todayKey),
+      // Ticket 73551e11: past dates were listed here under "Already happened",
+      // which is not what a parent opens this page for. Anything before today is
+      // dropped rather than archived.
     };
   }, [events]);
 
@@ -485,8 +487,6 @@ export default function PublicParents({ inShell = false }: { inShell?: boolean }
             </ul>
           </section>
         )}
-
-        {past.length > 0 && <Section title="Already happened" rows={past.slice(0, 10)} muted />}
 
         <section className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
