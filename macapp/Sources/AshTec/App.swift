@@ -21,6 +21,16 @@ import UserNotifications
 
 let APP_URL = "https://ashtec.dino.icu"
 
+/// Which build this is, straight from the bundle (ticket c80f5a65). The site is
+/// told on load, so the downloads page can say "there is a newer one" instead of
+/// the crew having to guess. build.sh writes the same number into Info.plist.
+let APP_VERSION = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
+
+/// A page of the site, with this build tagged on the end.
+func appURL(_ path: String = "/") -> URL? {
+    URL(string: APP_URL + path + "?app=" + APP_VERSION)
+}
+
 // MARK: - Next-call model
 
 struct Call: Codable {
@@ -187,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
-        webView.load(URLRequest(url: URL(string: APP_URL)!))
+        if let start = appURL() { webView.load(URLRequest(url: start)) }
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -284,6 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu(); appItem.submenu = appMenu
         appMenu.addItem(withTitle: "About AshTec", action: #selector(about), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide AshTec", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
@@ -327,14 +338,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.windowsMenu = windowMenu
     }
 
+    /// One click on the downloads page, where it can compare this build against
+    /// the newest one and hand over the zip.
+    @objc private func checkUpdates() { if let page = appURL("/apps") { webView.load(URLRequest(url: page)) } }
     @objc private func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "AshTec",
-            .applicationVersion: "2.0",
+            .applicationVersion: APP_VERSION,
             .credits: NSAttributedString(string: "The Ashford School Tech Crew hub.\nBuilt by the crew, for the crew."),
         ])
     }
-    @objc private func goHome() { webView.load(URLRequest(url: URL(string: APP_URL)!)) }
+    @objc private func goHome() { if let home = appURL() { webView.load(URLRequest(url: home)) } }
     @objc private func reload() { webView.reload() }
     @objc private func goBack() { webView.goBack() }
     @objc private func goForward() { webView.goForward() }

@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import {
-  Apple, Check, Download, Lock, ShieldCheck, Smartphone, Watch,
+  Apple, Check, Download, Lock, RefreshCw, ShieldCheck, Smartphone, Watch,
 } from 'lucide-react';
 import PublicLayout from '../../components/public/PublicLayout';
+import { appVersion, fetchLatestApp, isNewer, type LatestApp } from '../../lib/appVersion';
 
 /** The invite code for the download page. A soft gate, not real security. */
 const INVITE_CODE = 'JN202610';
@@ -75,6 +76,8 @@ export default function Apps() {
       ) : (
         <section className="px-4 pb-24">
           <div className="mx-auto max-w-4xl space-y-6">
+            <AppUpdateCard />
+
             <div className="grid gap-4 sm:grid-cols-2">
               <button
                 type="button"
@@ -126,6 +129,41 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">{n}</span>
       <span className="text-sm leading-relaxed text-muted-foreground">{children}</span>
     </li>
+  );
+}
+
+/**
+ * "Is this copy of the Mac app old?" (ticket c80f5a65)
+ *
+ * Shown on the downloads page. When the page was opened from the Mac app it
+ * knows which version that app reported, so it can say "you are one behind"
+ * instead of just offering a download. In a plain browser it stays quiet.
+ */
+function AppUpdateCard() {
+  const mine = appVersion();
+  const [latest, setLatest] = useState<LatestApp | null>(null);
+  useEffect(() => { fetchLatestApp().then(setLatest); }, []);
+  if (!latest) return null;
+  const behind = !!mine && isNewer(latest.version, mine);
+  return (
+    <div className="rounded-3xl border border-primary/30 bg-primary/5 p-6 sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight">
+          <RefreshCw className="h-5 w-5 text-primary" /> {behind ? 'There is a newer Mac app' : 'Mac app version'}
+        </h2>
+        <Button asChild className="rounded-full">
+          <a href={latest.url} download>
+            <Download className="mr-2 h-4 w-4" /> Get {latest.version}
+          </a>
+        </Button>
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">
+        {mine
+          ? <>This app is running <b>{mine}</b>. The latest build is <b>{latest.version}</b>.{behind ? ' Download it, then drag the new AshTec.app over the old one in Applications.' : ' You are up to date.'}</>
+          : <>The latest Mac build is <b>{latest.version}</b>. Open this page from inside the app and it will tell you which version you have.</>}
+        {latest.releasedAt ? <> Built {latest.releasedAt}.</> : null}
+      </p>
+    </div>
   );
 }
 

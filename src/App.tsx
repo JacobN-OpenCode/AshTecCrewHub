@@ -54,12 +54,15 @@ import Watch from './pages/Watch';
 import CallSheet from './pages/CallSheet';
 import { MeContext, type Me, type Mentor } from './lib/me';
 import { applyAccent, getAccent, applyAccessibilityPrefs } from './lib/uiPrefs';
+import { noteAppVersion } from './lib/appVersion';
 
 document.documentElement.classList.add('dark');
 // Ticket 8051f385: apply the saved density (roomy/compact) before first paint
 // so the layout does not flash the default. Batch 6 folds density, text scale
 // and high contrast into one call so all three land before the first paint.
 applyAccessibilityPrefs();
+// The Mac app opens the site as /?app=1.1; remember which copy this browser has.
+noteAppVersion();
 // Apply the saved accent before first paint so the app never flashes the default.
 applyAccent(getAccent());
 

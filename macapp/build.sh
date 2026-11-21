@@ -38,8 +38,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key><string>uk.navaratne.ashtec.mac</string>
   <key>CFBundleExecutable</key><string>AshTec</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>1.1</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
@@ -63,6 +63,19 @@ echo "==> Zipping"
 mkdir -p "$out"
 rm -f "$out/AshTec-macOS.zip"
 ( cd "$here/dist" && zip -qry "$out/AshTec-macOS.zip" "AshTec.app" )
+
+echo "==> Version file"
+# The downloads page reads this to tell the crew (and the app's own "Check for
+# Updates…" menu item) whether the copy they have is old. Keep it in step with
+# CFBundleShortVersionString above.
+cat > "$out/latest.json" <<JSON
+{
+  "version": "1.1",
+  "url": "/downloads/AshTec-macOS.zip",
+  "releasedAt": "$(date -u +%Y-%m-%d)",
+  "notes": "Check for Updates in the AshTec menu."
+}
+JSON
 
 echo "==> Done: public/downloads/AshTec-macOS.zip"
 ls -lh "$out/AshTec-macOS.zip"
