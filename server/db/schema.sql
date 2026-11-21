@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS "CrewMembers" (
   "isMaintainer"       boolean NOT NULL DEFAULT false,
   "isPreviewAccount"   boolean NOT NULL DEFAULT false,
   "alternateEmails"    text NOT NULL DEFAULT '',
+  -- Ticket 37a44d7a: keep someone off the roster page without deleting them.
+  "hiddenFromRoster"   boolean NOT NULL DEFAULT false,
   "createdAt"          timestamptz NOT NULL DEFAULT now(),
   "updatedAt"          timestamptz NOT NULL DEFAULT now()
 );
@@ -156,6 +158,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "Attendance_attendanceKey_uniq"
 -- appointment). The colour is kept next to the reason so a register that was
 -- half-taken reopens exactly as it was left. '' means nobody has marked them.
 ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "registerState" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "hiddenFromRoster" boolean NOT NULL DEFAULT false;
 -- When someone is away for a while, the time they said they would be back.
 -- The register shows it next to their name and flags them as not back yet once
 -- it has passed (ticket 2bb49af3).

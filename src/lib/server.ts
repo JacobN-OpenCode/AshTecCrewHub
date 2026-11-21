@@ -195,6 +195,9 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   parentEmail: (m as unknown as { parentEmail?: string }).parentEmail ?? '',
   mentorId: (m as unknown as { mentorId?: string | null }).mentorId ?? null,
   isMentor: !!(m as unknown as { isMentor?: boolean }).isMentor,
+  // Ticket 37a44d7a: off the roster page, but still a member everywhere else
+  // (forms, attendance, tickets, notifications).
+  hiddenFromRoster: !!(m as unknown as { hiddenFromRoster?: boolean }).hiddenFromRoster,
   // Contractors (ticket 00c0715c) are external: they get the platform and
   // their own attendance, but no stage layout or student information.
   isContractor: m.memberType === 'Contractor',

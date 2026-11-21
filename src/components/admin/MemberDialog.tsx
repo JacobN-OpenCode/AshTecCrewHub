@@ -14,7 +14,7 @@ import MemberAvatar from '../MemberAvatar';
 import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../../lib/avatarUrl';
 
 type F = Omit<AdminMember, 'id'>;
-const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', contactShare: false, parentEmail: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
+const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', hiddenFromRoster: false, contactShare: false, parentEmail: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
 
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
@@ -67,6 +67,8 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
           <div className="flex flex-col gap-2 self-end pb-2">
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isAdmin} onCheckedChange={(c) => set({ isAdmin: !!c })} />Admin access</label>}
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMaintainer} onCheckedChange={(c) => set({ isMaintainer: !!c })} />Maintainer (gets bug reports)</label>}
+            {/* Ticket 37a44d7a: off the roster list only. */}
+            {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={!!f.hiddenFromRoster} onCheckedChange={(c) => set({ hiddenFromRoster: !!c })} />Hide from the roster page</label>}
             {f.isPreview && <p className="text-xs text-muted-foreground">Pretend person — can’t sign in or get emails. Use “Preview as” to see the app as them.</p>}
           </div>
           {(['roles', 'headOf'] as const).map((k) => (

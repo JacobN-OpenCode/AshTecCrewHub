@@ -125,6 +125,7 @@ export default function AdminMembers() {
           {m.isAdmin && <Shield className="h-3.5 w-3.5 text-primary" />}
           {m.isMaintainer && <Wrench className="h-3.5 w-3.5 text-primary" />}
           {m.isPreview && <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">Preview</Badge>}
+          {!!m.hiddenFromRoster && <Badge className="bg-muted text-muted-foreground" variant="outline">Off roster</Badge>}
           <Badge variant="outline">{m.memberType}</Badge>
           {m.year && <span className="text-xs text-muted-foreground">{m.year}</span>}
           {!!outstanding.get(m.id) && (

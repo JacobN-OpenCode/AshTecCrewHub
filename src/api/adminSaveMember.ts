@@ -36,6 +36,7 @@ export default createEndpoint({
     // with no mentor was rejected before it reached the database.
     mentorId: z.string().nullable().optional(),
     isMentor: z.boolean().optional(),
+    hiddenFromRoster: z.boolean().optional(),
     // Feedback round 2: per-member permission overrides.
     permissions: z.object({ granted: z.array(z.string()), revoked: z.array(z.string()) }).optional(),
   }),
@@ -88,6 +89,7 @@ export default createEndpoint({
       parentEmail: (input.parentEmail ?? '').trim().toLowerCase().slice(0, 200),
       mentorId: input.mentorId || null,
       isMentor: !!input.isMentor,
+      hiddenFromRoster: !!input.hiddenFromRoster,
     };
     if (input.permissions !== undefined) {
       record.permissions = JSON.stringify(parsePermissionState(input.permissions));

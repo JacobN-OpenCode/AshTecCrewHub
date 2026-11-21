@@ -44,7 +44,9 @@ export default createEndpoint({
     ]);
 
     const students = members.records
-      .filter((m) => !isStaff(m) && !m.isPreviewAccount)
+      // Ticket 37a44d7a: hidden crew stay members everywhere else, they just
+      // do not appear on the roster page.
+      .filter((m) => !isStaff(m) && !m.isPreviewAccount && !(m as unknown as { hiddenFromRoster?: boolean }).hiddenFromRoster)
       .map((m) => mapMember(m))
       .sort((a, b) => (a.firstName ?? '').localeCompare(b.firstName ?? ''));
 
