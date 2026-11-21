@@ -105,3 +105,47 @@ test('every theme shares one layout instead of shipping its own shell', () => {
     assert.ok(!new RegExp(`\\[data-theme=['\"]${t.id}['\"]\\]\\s*\\.app-(main|sidebar)[^{]*\\{[^}]*max-width`).test(css), `index.css still gives "${t.id}" its own page width`);
   }
 });
+
+/**
+ * A look paints its sidebar and its card edge with fixed light colours rather
+ * than with the semantic variables. Those rules come after the base stylesheet's
+ * dark ones, so unless each is answered in dark mode the look keeps a cream
+ * sidebar and pale card outlines on a dark page.
+ */
+/** Every `selector { declarations }` pair in the stylesheet. */
+function cssRules(css: string): { selector: string; body: string }[] {
+  const rules: { selector: string; body: string }[] = [];
+  for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    rules.push({ selector: match[1].trim(), body: match[2] });
+  }
+  return rules;
+}
+
+test('a look that fixes a shell colour in light mode repaints it in dark mode', () => {
+  const css = readFileSync(join(import.meta.dirname, '../src/index.css'), 'utf8');
+  const rules = cssRules(css);
+
+  // The two places a look sets colour directly instead of through a variable.
+  const surfaces = [
+    { what: 'the sidebar', target: '.app-sidebar', light: /(^|[;\s])background\s*:/ },
+    { what: 'the card edge', target: '.bg-card', light: /(^|[;\s])border-color\s*:/ },
+  ];
+
+  for (const t of THEMES) {
+    for (const surface of surfaces) {
+      const light = rules.find((r) => r.selector === `[data-theme='${t.id}'] ${surface.target}`);
+      if (!light || !surface.light.test(light.body)) continue;
+
+      const dark = rules.find(
+        (r) =>
+          /\bhtml\.dark\b/.test(r.selector) &&
+          r.selector.includes(surface.target) &&
+          (r.selector.includes(`[data-theme='${t.id}']`) || r.selector.includes(":not([data-theme='ashtec'])")),
+      );
+      assert.ok(
+        dark && surface.light.test(dark.body),
+        `index.css paints "${t.id}" ${surface.what} in light mode but never restates it under html.dark`,
+      );
+    }
+  }
+});

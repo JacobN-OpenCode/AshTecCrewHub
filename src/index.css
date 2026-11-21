@@ -394,6 +394,25 @@ html.dark[data-theme]:not([data-theme='ashtec']) [class*='border-[#'] {
   border-color: hsl(var(--border)) !important;
 }
 
+/* The five looks above paint their sidebar and their card edge with fixed light
+   colours instead of the semantic variables, so those rules have no dark
+   counterpart and won in dark mode: the sidebar stayed cream and every card kept
+   a pale outline, on the themes page and anywhere else that draws a card.
+   Restated here against the dark palette, so each look keeps its own dark tone
+   rather than borrowing one. */
+html.dark[data-theme]:not([data-theme='ashtec']) .app-sidebar {
+  background: hsl(var(--card) / 0.6);
+  border-right-color: hsl(var(--border));
+}
+html.dark[data-theme]:not([data-theme='ashtec']) .bg-card {
+  border-color: hsl(var(--border));
+}
+/* Cakeshop's card edge is a second, offset block rather than a shadow, and the
+   light one reads as a bright rim against a dark page. */
+html.dark[data-theme='cakeshop'] .bg-card {
+  box-shadow: 3px 3px 0 hsl(var(--border) / 0.55);
+}
+
 /* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
    the app chrome (sidebar, help button, toasts) is rendered by the shell for
    every route, so hide it globally when printing rather than per view. */
