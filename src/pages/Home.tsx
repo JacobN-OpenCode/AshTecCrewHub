@@ -8,8 +8,6 @@ import { useMe } from '../lib/me';
 import { pv } from '../lib/preview';
 import { memberViewOn } from '../lib/memberView';
 import { pendingForms } from '../lib/reminders';
-import { shellThemeId, useTheme } from '../lib/theme';
-import { DASHES } from '../themes';
 import {
   Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
   Radio, Rocket, Sparkles, Ticket, Users, Wrench,
@@ -75,10 +73,9 @@ const relTime = (iso: string) => {
  * reads an existing endpoint so the numbers match the dedicated pages.
  */
 export default function Home() {
-  const { choice } = useTheme();
-  const ThemedDash = DASHES[shellThemeId(choice)];
-  // Each theme draws its own home page. The original one is the component below.
-  return ThemedDash ? <ThemedDash /> : <HomeInner />;
+  // One home page for every theme. A theme changes the colours, type and card
+  // styling underneath this layout; it never changes the layout itself.
+  return <HomeInner />;
 }
 
 function HomeInner() {

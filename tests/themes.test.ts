@@ -1,7 +1,7 @@
 /**
  * The theme layer is the part nobody can typecheck their way out of: a missing
- * palette, a variable that is not a colour, or a theme with no shell all look
- * fine to tsc and wrong on screen.
+ * palette, a variable that is not a colour, or a theme that quietly stops sharing
+ * the layout all look fine to tsc and wrong on screen.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -91,10 +91,17 @@ test('an unknown theme or palette falls back instead of throwing', () => {
   assert.equal(findPalette(DEFAULT_THEME).id, DEFAULT_PALETTE === 'amber' ? 'amber' : findPalette(DEFAULT_THEME).id);
 });
 
-test('every theme has a shell and a dashboard wired up', () => {
-  const registry = readFileSync(join(import.meta.dirname, '../src/themes/index.ts'), 'utf8');
+test('every theme shares one layout instead of shipping its own shell', () => {
+  const appShell = readFileSync(join(import.meta.dirname, '../src/components/AppShell.tsx'), 'utf8');
+  const home = readFileSync(join(import.meta.dirname, '../src/pages/Home.tsx'), 'utf8');
+  const css = readFileSync(join(import.meta.dirname, '../src/index.css'), 'utf8');
+
+  assert.ok(!/SHELLS/.test(appShell), 'AppShell.tsx still picks a shell per theme');
+  assert.ok(!/DASHES/.test(home), 'Home.tsx still picks a dashboard per theme');
+  assert.ok(!/ThemeBand/.test(appShell), 'AppShell.tsx still renders a per-theme band');
+
+  // Ticket 1bbe2d65: a look may repaint the page, never re-measure it.
   for (const t of THEMES) {
-    if (t.id === DEFAULT_THEME) continue; // the original keeps the normal app shell
-    assert.ok(registry.includes(t.id), `src/themes/index.ts has no shell for "${t.id}"`);
+    assert.ok(!new RegExp(`\\[data-theme=['\"]${t.id}['\"]\\]\\s*\\.app-(main|sidebar)[^{]*\\{[^}]*max-width`).test(css), `index.css still gives "${t.id}" its own page width`);
   }
 });

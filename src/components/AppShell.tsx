@@ -23,10 +23,8 @@ import { previewId, exitPreview, pv } from '../lib/preview';
 import { memberViewOn, setMemberView } from '../lib/memberView';
 import { getActAs, stopActAs, type ActAsState } from '../lib/actAs';
 import { useSidebarCollapsed, useDensity } from '../lib/uiPrefs';
-import { shellThemeId, useTheme } from '../lib/theme';
-import ThemeBand from './ThemeBand';
+import { useTheme } from '../lib/theme';
 import { cn } from '@project/components/lib/utils';
-import { SHELLS } from '../themes';
 import { ThemeModeToggle } from '../themes/ThemeModeToggle';
 import { useMe } from '../lib/me';
 import { useAppSettings } from '../lib/appSettings';
@@ -122,10 +120,10 @@ function Shell() {
   usePageView(loc.pathname);
   const { session } = useLivePresence();
   const [collapsedPref, setCollapsed] = useSidebarCollapsed();
-  // Ticket 1bbe2d65: periwinkle is an icon rail by design, so its theme forces
-  // the narrow sidebar. The collapse button still remembers the preference.
-  const { choice: themeChoice, mode: themeMode, toggleMode: toggleThemeMode } = useTheme();
-  const collapsed = collapsedPref || themeChoice.theme === 'periwinkle';
+  // Every theme uses this one shell, so the sidebar width is purely the
+  // collapse preference. Colours and type come from the theme, never geometry.
+  const { mode: themeMode, toggleMode: toggleThemeMode } = useTheme();
+  const collapsed = collapsedPref;
   // Ticket 710307e1: the nav groups fold away, so a member can keep only the
   // things they actually use on screen. Remembered per browser, like the other
   // layout choices, and a group holding the page you are on always stays open.
@@ -374,39 +372,6 @@ function Shell() {
     </button>
   ) : null;
 
-  // Five themes replace the whole chrome, not just the colours. Anything else
-  // (including the original AshTec look) keeps the layout below untouched.
-  const ThemedShell = SHELLS[shellThemeId(themeChoice)];
-  if (ThemedShell) {
-    return (
-      <ThemedShell
-        groups={groups}
-        me={{ firstName: me.firstName, lastName: me.lastName, avatarUrl: me.avatarUrl, isAdmin: me.isAdmin }}
-        platformName={platformName}
-        collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed(!collapsed)}
-        isDarkMode={themeMode === 'dark'}
-        onToggleThemeMode={toggleThemeMode}
-        onSearch={() => setPalette(true)}
-        onSignOut={signOut}
-        memberViewToggle={memberViewToggle}
-      >
-        {(acting || previewId() || memberView) && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-[#141310] px-4 py-2 text-sm text-white">
-            {acting && <span>Signed in as <strong>{acting.name}</strong>. Changes are saved as them.</span>}
-            {previewId() && <span>Previewing as <strong>{me.firstName} {me.lastName}</strong>.</span>}
-            {memberView && <span>Member view is on.</span>}
-            <button type="button" className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-medium text-black"
-              onClick={() => { if (acting) void stopActAs(); else if (previewId()) exitPreview(); else setMemberView(false); }}>
-              {acting ? 'Leave' : previewId() ? 'Exit preview' : 'Back to admin'}
-            </button>
-          </div>
-        )}
-        <main className="mx-auto min-w-0"><Outlet key={loc.pathname} /></main>
-      </ThemedShell>
-    );
-  }
-
   return (
     <div className="min-h-screen spotlight">
       {acting && (
@@ -600,7 +565,6 @@ function Shell() {
           </header>
 
           <main className="app-main mx-auto max-w-7xl px-4 pt-6 lg:px-8 lg:pt-8">
-            <ThemeBand />
             <OfflineBanner />
             <PresenceBanner hide={loc.pathname === '/attendance'} />
             {/* Keyed on the path so each page fades/slides in when you navigate.

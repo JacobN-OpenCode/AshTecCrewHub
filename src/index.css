@@ -254,11 +254,11 @@
 
 
 /* Ticket 1bbe2d65: five looks, one per pin.
-   A theme is not a palette here. `data-theme` on <html> swaps the shell (rail or
-   labelled, black or white), the card language (flat, filled, floating, chunky),
-   the type, the texture behind everything, and the band at the top of the page
-   (that last one lives in ThemeBand.tsx). Colour still comes from the variables.
-   Everything is scoped, so the original look is untouched. */
+   A theme here is colour, type, texture and card language, never geometry.
+   Every look renders the same shell and the same page layout (AppShell.tsx,
+   Home.tsx): same sidebar, same header, same page widths. So anything below may
+   change how a theme feels, but no rule may change where things sit or how wide
+   they are. Scoped, so the original look is untouched. */
 
 /* Periwinkle: pastel page, white floating cards, icon rail, coral buttons. */
 [data-theme='periwinkle'] .spotlight {
@@ -275,7 +275,6 @@
   border-color: hsl(232 38% 89%);
   box-shadow: 0 22px 46px -36px hsl(234 45% 32% / 0.85);
 }
-[data-theme='periwinkle'] .app-main { max-width: 80rem; }
 
 /* Quiet: cream and sage, serif headings, flatter and roomier. */
 [data-theme='quiet'] .spotlight {
@@ -295,7 +294,6 @@
   font-weight: 500;
   letter-spacing: -0.01em;
 }
-[data-theme='quiet'] .app-main { max-width: 68rem; }
 
 /* Intelly: black labelled sidebar, cream page, butter-filled cards, serif headings. */
 [data-theme='intelly'] .spotlight {
@@ -318,7 +316,6 @@
   font-weight: 500;
   letter-spacing: -0.02em;
 }
-[data-theme='intelly'] .app-main { max-width: 78rem; }
 
 /* School: everything in one white shell on a pink-to-mint gradient. */
 [data-theme='school'] body {
@@ -337,7 +334,6 @@
   box-shadow: 0 30px 60px -52px hsl(250 40% 30% / 0.95);
 }
 [data-theme='school'] :is(h1, h2) { letter-spacing: -0.025em; font-weight: 700; }
-[data-theme='school'] .app-main { max-width: 72rem; }
 
 /* Cakeshop: cream card stock, dot texture, red ribbon, hand-lettered headings. */
 [data-theme='cakeshop'] body {
@@ -363,7 +359,6 @@
   font-size: 1.3em;
   letter-spacing: 0.01em;
 }
-[data-theme='cakeshop'] .app-main { max-width: 74rem; }
 
 /* Dark mode for the standalone theme shells, whose palettes use fixed colors
    rather than the app's semantic background utilities. */
@@ -398,7 +393,6 @@ html.dark[data-theme]:not([data-theme='ashtec']) [class*='text-black/'] {
 html.dark[data-theme]:not([data-theme='ashtec']) [class*='border-[#'] {
   border-color: hsl(var(--border)) !important;
 }
-[data-theme='quiet'] .admin-settings-page { max-width: 76rem; }
 
 /* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
    the app chrome (sidebar, help button, toasts) is rendered by the shell for
