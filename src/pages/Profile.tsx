@@ -16,10 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, Palette, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
+import { Lock, Palette, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List, Link2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
-import { FONTS, useFont } from '../lib/fonts';
+import { CUSTOM_FONT_ID, FONTS, clearCustomFont, customFontStack, loadCustomFont, setCustomFont, useCustomFont, useFont } from '../lib/fonts';
+import { fontFamilyFromLink, fontLinkHost } from '../lib/fontLink';
 import MemberAvatar from '../components/MemberAvatar';
 import Fold from '../components/Fold';
 import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
@@ -897,11 +898,16 @@ function Preferences() {
  * Batch 6: accessibility. Larger text and higher contrast, both per-device like
  * the density choice. The switches write to uiPrefs, which sets `data-text` /
  * `data-contrast` on <html>; the rules live in index.css.
+ *
+ * The font sits here too, since it is the same kind of choice. Ticket 0c2dcf15
+ * added the sixth option: paste a font link of your own (`CustomFontLink`), and
+ * the tile appears beside the five built in.
  */
 function AccessibilitySettings() {
   const [text, setText] = useTextScale();
   const [contrast, setContrast] = useHighContrast();
   const [font, setFont] = useFont();
+  const custom = useCustomFont();
   return (
     <Fold page="settings" id="accessibility" pad="p-6" bodyClass="space-y-5"
       header={<>
@@ -936,7 +942,7 @@ function AccessibilitySettings() {
       <div className="space-y-2">
         <p className="flex items-center gap-2 text-sm font-medium"><Type className="h-4 w-4" />Font</p>
         <p className="text-xs text-muted-foreground">
-          Outfit is the original. Inter is plainer, Caladea is the free Constantia, and Google Sans is the one asked for on ticket 00bdfc48.
+          Outfit is the original. Inter is plainer, Caladea is the free Constantia, and Google Sans is the one asked for on ticket 00bdfc48. For anything else, paste a font link under Advanced.
         </p>
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Font">
           {FONTS.map((f) => (
@@ -955,7 +961,23 @@ function AccessibilitySettings() {
               <span className="block text-xs text-muted-foreground mt-0.5">{f.blurb}</span>
             </button>
           ))}
+          {custom && (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={font === CUSTOM_FONT_ID}
+              onClick={() => setFont(CUSTOM_FONT_ID)}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-left transition-colors',
+                font === CUSTOM_FONT_ID ? 'border-primary bg-primary/10' : 'hover:bg-muted/60',
+              )}
+            >
+              <span className="block text-sm font-medium" style={{ fontFamily: customFontStack(custom) }}>{custom.family}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">Your own link, from {fontLinkHost(custom.url) || 'a pasted stylesheet'}.</span>
+            </button>
+          )}
         </div>
+        <CustomFontLink active={font === CUSTOM_FONT_ID} />
       </div>
 
       <label className="flex items-start justify-between gap-4 cursor-pointer">
@@ -968,6 +990,117 @@ function AccessibilitySettings() {
         <Switch checked={contrast} onCheckedChange={setContrast} aria-label="Use high contrast" />
       </label>
     </Fold>
+  );
+}
+
+/**
+ * Ticket 0c2dcf15: "advanced settings option in Accessibility ... paste a font
+ * link to use instead of the default choice of 5".
+ *
+ * One box for the link and one for the name, because not every stylesheet says
+ * which family it carries. Google Fonts links name the family in the URL, so
+ * that case is a single paste: the name box fills itself with a placeholder.
+ * Saving loads the stylesheet first, so a typo or a host that says no is
+ * reported here rather than silently leaving the app in its fallback font.
+ */
+function CustomFontLink({ active }: { active: boolean }) {
+  const custom = useCustomFont();
+  const [link, setLink] = useState(custom?.url ?? '');
+  const [family, setFamily] = useState(custom?.family ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const guessed = fontFamilyFromLink(link);
+
+  // Load a saved link when the fold opens, so the tile and the preview are set
+  // in the real font rather than whatever the fallback stack happens to be.
+  useEffect(() => {
+    if (custom) void loadCustomFont(custom.url).catch(() => { /* the tile just falls back */ });
+  }, [custom?.url]);
+
+  const save = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const saved = await setCustomFont(link, family);
+      setLink(saved.url);
+      setFamily(saved.family);
+      toast.success(`Now using ${saved.family}`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = () => {
+    clearCustomFont();
+    setLink('');
+    setFamily('');
+    setError('');
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-dashed px-3 py-3">
+      <p className="flex items-center gap-2 text-sm font-medium"><Link2 className="h-4 w-4" />Advanced: use any font from a link</p>
+      <p className="text-xs text-muted-foreground">
+        Paste the stylesheet link for any font (Google Fonts, Bunny, your own server) and the whole app wears it instead of the five above. Still just this browser.
+      </p>
+      <form
+        className="space-y-2"
+        onSubmit={(e) => { e.preventDefault(); if (!busy) void save(); }}
+      >
+        <div className="space-y-1">
+          <Label htmlFor="custom-font-link" className="text-xs">Font link</Label>
+          <Input
+            id="custom-font-link"
+            value={link}
+            onChange={(e) => { setLink(e.target.value); setError(''); }}
+            placeholder="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap"
+            spellCheck={false}
+            autoComplete="off"
+            inputMode="url"
+            disabled={busy}
+          />
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[10rem] flex-1 space-y-1">
+            <Label htmlFor="custom-font-family" className="text-xs">Font name</Label>
+            <Input
+              id="custom-font-family"
+              value={family}
+              onChange={(e) => { setFamily(e.target.value); setError(''); }}
+              placeholder={guessed || 'e.g. Open Sans'}
+              spellCheck={false}
+              autoComplete="off"
+              disabled={busy}
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={busy || !link.trim()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Use this font
+          </Button>
+          {custom && (
+            <Button type="button" size="sm" variant="outline" onClick={remove} disabled={busy}>
+              <X className="h-4 w-4" />Remove
+            </Button>
+          )}
+        </div>
+      </form>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {custom ? (
+        <div className="rounded-lg bg-muted/50 px-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            {active ? 'In use' : 'Ready'} · {custom.family} from {fontLinkHost(custom.url) || 'your link'}
+          </p>
+          <p className="mt-1 text-base leading-snug" style={{ fontFamily: customFontStack(custom) }}>
+            Aa — The quick brown fox, 09:30 call time.
+          </p>
+        </div>
+      ) : null}
+      {!custom && guessed && !error ? (
+        <p className="text-xs text-muted-foreground">That link is for {guessed}.</p>
+      ) : null}
+    </div>
   );
 }
 
