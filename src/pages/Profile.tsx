@@ -178,7 +178,7 @@ export default function Profile() {
           min-w-0 on the columns is what stops a long unbroken string (an email,
           a subscription endpoint in diagnostics) forcing the whole grid wider
           than the screen on a phone. */}
-      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="grid min-w-0 gap-6">
         <div className="min-w-0 space-y-6">
           <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
             <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />

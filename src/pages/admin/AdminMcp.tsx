@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ask } from '../../lib/dialogs';
+
+const VIDEO =
+  'https://user-cdn.hackclub-assets.com/01a1fe58-a7e4-7935-8d4e-79ccee13e40f4/Recording%202026-11-21%20at%2013.01.23.mp4';
 import { adminGetMcp, adminMcpKey, type AdminGetMcpOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
@@ -11,7 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@project/components/ui/dialog';
 import { cn } from '@project/components/lib/utils';
-import { Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Trash2 , PlayCircle } from 'lucide-react';
 
 type Data = AdminGetMcpOutputType;
 
@@ -142,6 +145,29 @@ export default function AdminMcp() {
             Nothing can connect while it is off. Make a key, or switch an old one back on.
           </p>
         )}
+      </section>
+
+      {/* Ticket 3805477d: the walkthrough, plus who owns this build. */}
+      <section className="space-y-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <PlayCircle className="h-4 w-4" />How to connect
+        </h2>
+        <div className="overflow-hidden rounded-2xl border bg-card">
+          <video controls preload="metadata" className="aspect-video w-full bg-black" src={VIDEO}>
+            Your browser will not play this video. The file is at {VIDEO}
+          </video>
+          <div className="space-y-1 p-4 text-sm text-muted-foreground">
+            <p>Make a key below, paste it into your client, and it acts as you.</p>
+            <p>
+              The site is open source at{' '}
+              <a className="underline" href="https://github.com/SmartSparkCoding/AshTecCrewHub" target="_blank" rel="noreferrer">
+                SmartSparkCoding/AshTecCrewHub
+              </a>
+              , looked after by Jacob Navaratne. Pull requests are welcome, as long as the description starts with a
+              short plain-English TLDR of what it changes.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-2">
