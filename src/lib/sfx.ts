@@ -20,6 +20,7 @@ export type SfxName =
   | 'send'      // a message went out
   | 'pop'       // a small toggle
   | 'badge'     // an achievement landed
+  | 'nom'       // the cat ate something (ticket f3260834)
   | 'error';    // something refused
 
 let ctx: AudioContext | null = null;
@@ -71,6 +72,8 @@ const RECIPES: Record<SfxName, () => void> = {
   pop: () => { playNote(440, 0, 0.06, 'square', 0.06); },
   // Sparkle: three fast ascending notes.
   badge: () => { playNote(700, 0, 0.12, 'triangle', 0.11); playNote(900, 0.08, 0.12, 'triangle', 0.11); playNote(1180, 0.16, 0.2, 'triangle', 0.1); },
+  // Two slow chews, low and blunt.
+  nom: () => { playNote(180, 0, 0.12, 'square', 0.07); playNote(150, 0.14, 0.14, 'square', 0.06); },
   // Descending buzz.
   error: () => { playNote(220, 0, 0.2, 'sawtooth', 0.08); playNote(160, 0.08, 0.24, 'sawtooth', 0.07); },
 };

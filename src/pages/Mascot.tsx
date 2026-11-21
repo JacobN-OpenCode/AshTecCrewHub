@@ -74,7 +74,7 @@ export default function Mascot() {
       <section className="flex items-center justify-between gap-4 rounded-2xl border bg-card p-5">
         <div>
           <h3 className="font-semibold">Roaming the app</h3>
-          <p className="text-sm text-muted-foreground">Show {catName} in the corner of every page. It is per device, so a shared computer need not have a cat.</p>
+          <p className="text-sm text-muted-foreground">Show {catName} in the corner of every page. It is per device, so a shared computer need not have a cat. There is food next to it on desktop: drag it over, or click it, and {catName} eats it.</p>
         </div>
         <Switch checked={!hidden} onCheckedChange={(on) => { setHidden(!on); playSfx('pop'); }} aria-label="Show the cat on every page" />
       </section>

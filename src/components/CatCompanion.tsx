@@ -6,6 +6,8 @@ import { MASCOT } from '../lib/mascot';
 import { useAppSettings } from '../lib/appSettings';
 import { useCatHidden } from '../lib/uiPrefs';
 import { playSfx } from '../lib/sfx';
+import { hitsCat, nextSnack, pageBox, type Snack } from '../lib/catSnack';
+import { SnackIcon } from './CatFood';
 
 /**
  * The crew cat, out of the feedback forms and onto every page (Batch 8).
@@ -42,6 +44,43 @@ export default function CatCompanion() {
   const taps = useRef<number[]>([]);
   const goTimer = useRef<number | null>(null);
   const [chopped, setChopped] = useState(false);
+
+  /**
+   * Ticket f3260834: J So asked for a snack you can drag onto the cat, after
+   * which it eats it and says "yummy". A burger or steak sits in the corner next
+   * to the cat; drop it on the cat (or click it, which is the keyboard and touch
+   * way) and it is gone, chewed, with a "Yummy" in the bubble, and a different
+   * one turns up a few seconds later.
+   */
+  const [meal, setMeal] = useState<Snack | null>(() => nextSnack(null));
+  const [eating, setEating] = useState(false);
+  const eatTimers = useRef<number[]>([]);
+  const catRef = useRef<HTMLButtonElement | null>(null);
+
+  // A page that unmounts mid-chew should not leave a timer running.
+  useEffect(() => () => { eatTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
+
+  function feed() {
+    if (!meal || eating) return;
+    const eaten = meal;
+    // Cleared straight away, so the same snack cannot be eaten twice.
+    setMeal(null);
+    setEating(true);
+    playSfx('nom');
+    setLine(eaten.line);
+    eatTimers.current.push(
+      window.setTimeout(() => setEating(false), 950),
+      window.setTimeout(() => setMeal(nextSnack(eaten.id)), 2800),
+    );
+  }
+
+  /** framer-motion ends a drag in page coordinates; the cat's box is in viewport ones. */
+  function droppedAt(point: { x: number; y: number }) {
+    const cat = catRef.current;
+    if (!cat) return;
+    const box = pageBox(cat.getBoundingClientRect(), { x: window.scrollX, y: window.scrollY });
+    if (hitsCat(point, box)) feed();
+  }
 
   function chop() {
     taps.current = [];
@@ -83,14 +122,41 @@ export default function CatCompanion() {
   // Ticket 608099ef: on desktop the help button sits bottom-right too, so the
   // cat parks just to its left rather than underneath it (they used to overlap).
   return (
-    <div className="fixed bottom-5 right-20 z-40 hidden items-end gap-2 lg:flex">
+    // The snack and the bubble are positioned around the cat rather than sitting
+    // in the row with it: as row items, a bubble appearing shoved the snack a
+    // couple of hundred pixels sideways, which made it a moving target to drag.
+    <div className="fixed bottom-5 right-20 z-40 hidden h-14 w-14 lg:block">
+      <AnimatePresence>
+        {meal && (
+          <motion.button
+            type="button"
+            key={meal.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.4 }}
+            transition={{ duration: 0.25 }}
+            drag
+            dragSnapToOrigin
+            dragMomentum={false}
+            whileDrag={{ scale: 1.2, cursor: 'grabbing' }}
+            onDragEnd={(_event, info) => droppedAt(info.point)}
+            onClick={feed}
+            title={`Drag ${meal.label} onto ${catName}`}
+            aria-label={`Feed ${catName} ${meal.label}`}
+            className="absolute bottom-1.5 right-[calc(100%+6px)] z-10 cursor-grab rounded-xl p-0.5 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <SnackIcon id={meal.id} className="h-8 w-8 drop-shadow-md" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {line && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 8 }}
-            className="mb-2 max-w-[220px] rounded-2xl rounded-br-sm border bg-card px-3 py-2 text-sm shadow-lg"
+            className="absolute bottom-[calc(100%+6px)] right-0 z-20 w-max max-w-[220px] rounded-2xl rounded-br-sm border bg-card px-3 py-2 text-sm shadow-lg"
           >
             <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
               <Cat className="h-3 w-3" />{catName}
@@ -110,6 +176,7 @@ export default function CatCompanion() {
       </AnimatePresence>
 
       <button
+        ref={catRef}
         type="button"
         onClick={tap}
         title={chopped ? `${catName} has left` : `${catName}, the crew cat`}
@@ -158,8 +225,16 @@ export default function CatCompanion() {
             width={56}
             height={58}
             draggable={false}
-            animate={{ y: [0, -4, 0] }}
-            transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
+            animate={
+              eating
+                ? { scale: [1, 1.12, 0.96, 1.1, 1], rotate: [0, -4, 4, -2, 0] }
+                : { y: [0, -4, 0] }
+            }
+            transition={
+              eating
+                ? { duration: 0.9, ease: 'easeInOut' }
+                : { repeat: Infinity, duration: 3.4, ease: 'easeInOut' }
+            }
             className="h-14 w-14 drop-shadow-lg transition-transform hover:scale-105"
           />
         )}
