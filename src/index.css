@@ -365,6 +365,41 @@
 }
 [data-theme='cakeshop'] .app-main { max-width: 74rem; }
 
+/* Dark mode for the standalone theme shells, whose palettes use fixed colors
+   rather than the app's semantic background utilities. */
+html.dark[data-theme]:not([data-theme='ashtec']) {
+  color-scheme: dark;
+}
+html.dark[data-theme]:not([data-theme='ashtec']) body {
+  background-color: hsl(var(--background)) !important;
+  background-image: none !important;
+  color: hsl(var(--foreground));
+}
+html.dark[data-theme]:not([data-theme='ashtec']) [class~='min-h-screen'] {
+  background-color: hsl(var(--background)) !important;
+}
+html.dark[data-theme='school'] [class*='bg-[linear-gradient'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='background-image:'] {
+  background-image: none !important;
+}
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='bg-[#'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class~='bg-white'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='bg-white/'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class~='bg-black'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='bg-black/'] {
+  background-color: hsl(var(--card)) !important;
+  background-image: none !important;
+}
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='text-[#'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class~='text-black'],
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='text-black/'] {
+  color: hsl(var(--foreground)) !important;
+}
+html.dark[data-theme]:not([data-theme='ashtec']) [class*='border-[#'] {
+  border-color: hsl(var(--border)) !important;
+}
+[data-theme='quiet'] .admin-settings-page { max-width: 76rem; }
+
 /* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
    the app chrome (sidebar, help button, toasts) is rendered by the shell for
    every route, so hide it globally when printing rather than per view. */

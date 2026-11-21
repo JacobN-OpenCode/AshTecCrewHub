@@ -83,7 +83,7 @@ export default function AdminSettings() {
   ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="admin-settings-page mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
           <Settings2 className="h-7 w-7 text-primary" /> ATCMS Settings

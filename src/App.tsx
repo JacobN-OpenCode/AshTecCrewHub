@@ -60,7 +60,6 @@ import ThemeBuilder from './pages/ThemeBuilder';
 import { applyChoice } from './lib/theme';
 import { applyFont, getFont } from './lib/fonts';
 
-document.documentElement.classList.add('dark');
 // Ticket 8051f385: apply the saved density (roomy/compact) before first paint
 // so the layout does not flash the default. Batch 6 folds density, text scale
 // and high contrast into one call so all three land before the first paint.

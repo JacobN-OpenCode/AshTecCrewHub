@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Bell, CalendarDays, ClipboardList, LogOut, MessageSquare, Search, Sparkles, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
+import { AdminMenu } from './AdminMenu';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
 const rail =
@@ -12,7 +14,7 @@ const railOn = 'bg-[#6c72d6] text-white shadow-[0_10px_22px_-10px_rgba(108,114,2
  * rail with no labels at all, the content sits on a lilac page in white cards,
  * and there is a real right-hand column for what needs your attention.
  */
-export function Shell({ groups, me, platformName, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
+export function Shell({ groups, me, platformName, isDarkMode, onToggleThemeMode, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
   const items = flatNav(groups).slice(0, 12);
   return (
     <div className="flex min-h-screen bg-[#ebedf9] text-[#24263a]">
@@ -21,6 +23,8 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
           <Sparkles className="h-5 w-5" />
         </Link>
         <Link to="/theme" title="Themes" aria-label="Themes" className={rail}><Palette className="h-4 w-4" /></Link>
+        <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className={rail} />
+        <AdminMenu groups={groups} />
         <button type="button" onClick={onSearch} title="Search" className={rail}>
           <Search className="h-5 w-5" />
         </button>
@@ -48,7 +52,11 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
       <div className="min-w-0 flex-1">
         <header className="flex items-center justify-between gap-3 px-4 pt-4 lg:hidden">
           <span className="font-semibold">{platformName}</span>
-          <button type="button" onClick={onSearch} className="rounded-xl bg-white p-2"><Search className="h-4 w-4" /></button>
+          <div className="flex items-center gap-2">
+            <AdminMenu groups={groups} />
+            <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className="rounded-xl bg-white p-2" />
+            <button type="button" onClick={onSearch} className="rounded-xl bg-white p-2"><Search className="h-4 w-4" /></button>
+          </div>
         </header>
         <div className="px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">{children}</div>
       </div>

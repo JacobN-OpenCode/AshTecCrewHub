@@ -21,6 +21,8 @@ export type ShellProps = {
   platformName: string;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  isDarkMode: boolean;
+  onToggleThemeMode: () => void;
   onSearch: () => void;
   onSignOut: () => void;
   memberViewToggle: ReactNode;

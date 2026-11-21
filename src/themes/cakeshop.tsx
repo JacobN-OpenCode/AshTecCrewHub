@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { LogOut, Search, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
+import { AdminMenu } from './AdminMenu';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
 /** The shop cat: line art, white, red collar. Drawn here so it can sit anywhere. */
@@ -27,7 +29,7 @@ function ShopCat({ className = '' }: { className?: string }) {
  * that looks like a shop sign, panels in pale blue with a hard red edge, and
  * the shop cat drawn in the corner.
  */
-export function Shell({ groups, me, platformName, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
+export function Shell({ groups, me, platformName, isDarkMode, onToggleThemeMode, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
   return (
     <div className="min-h-screen bg-[#fbf3e4] text-[#1d1a17] [background-image:radial-gradient(#e9d9c4_1.1px,transparent_1.1px)] [background-size:14px_14px]">
       <div className="flex">
@@ -56,6 +58,7 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
             {memberViewToggle}
           </nav>
           <div className="mt-3 border-t-2 border-dashed border-[#e0cfb6] pt-3">
+            <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className="mb-2 rounded-lg border border-[#e0cfb6] p-2" />
             <Link to="/profile" className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#1d1a17] bg-white font-hand text-sm">{initials(me.firstName, me.lastName)}</span>
               <span className="font-hand text-base leading-tight">{me.firstName}</span>
@@ -68,8 +71,12 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
           <header className="flex items-center gap-3 border-b-2 border-[#1d1a17] bg-[#fdf7ea] px-4 py-3 lg:hidden">
             <ShopCat className="h-7 w-7" />
             <span className="font-hand text-xl">{platformName}</span>
-            <Link to="/theme" title="Themes" aria-label="Themes" className="ml-auto"><Palette className="h-4 w-4" /></Link>
-            <button type="button" onClick={onSearch} className="ml-auto"><Search className="h-4 w-4" /></button>
+            <div className="ml-auto flex items-center gap-3">
+              <AdminMenu groups={groups} />
+              <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} />
+              <Link to="/theme" title="Themes" aria-label="Themes"><Palette className="h-4 w-4" /></Link>
+              <button type="button" onClick={onSearch}><Search className="h-4 w-4" /></button>
+            </div>
           </header>
           <div className="px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-10">{children}</div>
         </div>

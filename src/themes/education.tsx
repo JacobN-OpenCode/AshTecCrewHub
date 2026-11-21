@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Bell, ChevronRight, LogOut, Search, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
+import { AdminMenu } from './AdminMenu';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
 /**
@@ -8,7 +10,7 @@ import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
  * gradient. Navigation runs across the top of the shell as pills, there is no
  * sidebar, and the page inside has its own generous padding.
  */
-export function Shell({ groups, me, platformName, onSearch, onSignOut, children }: ShellProps) {
+export function Shell({ groups, me, platformName, isDarkMode, onToggleThemeMode, onSearch, onSignOut, children }: ShellProps) {
   const items = flatNav(groups);
   return (
     <div className="min-h-screen bg-[linear-gradient(135deg,#ffd9e6_0%,#ffe7ef_38%,#dff5e8_100%)] p-3 sm:p-6 lg:p-8">
@@ -30,6 +32,8 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, children 
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <AdminMenu groups={groups} />
+            <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className="rounded-full p-2 text-[#4b4b4b] hover:bg-[#f4f4f4]" />
             <Link to="/theme" title="Themes" aria-label="Themes" className="rounded-full p-2 text-[#4b4b4b] hover:bg-[#f4f4f4]"><Palette className="h-4 w-4" /></Link>
             <button type="button" onClick={onSearch} className="rounded-full p-2 text-[#4b4b4b] hover:bg-[#f4f4f4]"><Search className="h-4 w-4" /></button>
             <Link to="/profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f4f4] text-xs font-semibold">{initials(me.firstName, me.lastName)}</Link>

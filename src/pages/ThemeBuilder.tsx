@@ -69,7 +69,8 @@ function ThemeBuilder() {
           </h1>
           <p className="text-muted-foreground">
             Five looks taken off the pins, plus the original. Each one changes the shell, the cards
-            and the type, not just the colour. It moves as you click.
+            and the type, not just the colour. It moves as you click. Switch between light and dark
+            mode from the theme controls in the app header.
           </p>
         </div>
         <Button

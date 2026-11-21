@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ChevronDown, LogOut, Plus, Search, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
+import { AdminMenu } from './AdminMenu';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
 /**
@@ -8,7 +10,7 @@ import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
  * different colours, black pill buttons and a timeline down the right. High
  * contrast, no rounded-glass softness anywhere.
  */
-export function Shell({ groups, me, platformName, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
+export function Shell({ groups, me, platformName, isDarkMode, onToggleThemeMode, onSearch, onSignOut, memberViewToggle, children }: ShellProps) {
   return (
     <div className="flex min-h-screen bg-[#f6efe4] text-[#15130f]">
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col bg-[#141310] px-4 py-6 text-[#f6efe4] lg:flex">
@@ -49,10 +51,14 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3 border-b border-[#e6dccc] bg-[#f6efe4] px-4 py-3 lg:px-8">
           <span className="font-serif lg:hidden">{platformName}</span>
-          <Link to="/theme" title="Themes" aria-label="Themes" className="ml-auto rounded-full border border-[#e0d5c2] p-2 text-[#6f675a]"><Palette className="h-4 w-4" /></Link>
-          <button type="button" onClick={onSearch} className="ml-auto flex items-center gap-2 rounded-full border border-[#e0d5c2] px-3 py-1.5 text-xs text-[#6f675a]">
-            <Search className="h-3.5 w-3.5" /> Search
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <AdminMenu groups={groups} />
+            <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className="rounded-full border border-[#e0d5c2] p-2 text-[#6f675a]" />
+            <Link to="/theme" title="Themes" aria-label="Themes" className="rounded-full border border-[#e0d5c2] p-2 text-[#6f675a]"><Palette className="h-4 w-4" /></Link>
+            <button type="button" onClick={onSearch} className="flex items-center gap-2 rounded-full border border-[#e0d5c2] px-3 py-1.5 text-xs text-[#6f675a]">
+              <Search className="h-3.5 w-3.5" /> Search
+            </button>
+          </div>
         </div>
         <div className="px-4 pb-24 pt-6 lg:px-8 lg:pb-10">{children}</div>
       </div>

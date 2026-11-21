@@ -27,6 +27,7 @@ import { useTheme } from '../lib/theme';
 import ThemeBand from './ThemeBand';
 import { cn } from '@project/components/lib/utils';
 import { SHELLS } from '../themes';
+import { ThemeModeToggle } from '../themes/ThemeModeToggle';
 import { useMe } from '../lib/me';
 import { useAppSettings } from '../lib/appSettings';
 import { PLATFORM, MOD_KEY_LABEL, fmtDate } from '../lib/constants';
@@ -123,7 +124,7 @@ function Shell() {
   const [collapsedPref, setCollapsed] = useSidebarCollapsed();
   // Ticket 1bbe2d65: periwinkle is an icon rail by design, so its theme forces
   // the narrow sidebar. The collapse button still remembers the preference.
-  const { choice: themeChoice } = useTheme();
+  const { choice: themeChoice, mode: themeMode, toggleMode: toggleThemeMode } = useTheme();
   const collapsed = collapsedPref || themeChoice.theme === 'periwinkle';
   // Ticket 710307e1: the nav groups fold away, so a member can keep only the
   // things they actually use on screen. Remembered per browser, like the other
@@ -384,6 +385,8 @@ function Shell() {
         platformName={platformName}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
+        isDarkMode={themeMode === 'dark'}
+        onToggleThemeMode={toggleThemeMode}
         onSearch={() => setPalette(true)}
         onSignOut={signOut}
         memberViewToggle={memberViewToggle}
@@ -451,6 +454,11 @@ function Shell() {
             >
               {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
             </button>
+            <ThemeModeToggle
+              isDarkMode={themeMode === 'dark'}
+              onToggle={toggleThemeMode}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            />
           </div>
 
           <button
@@ -577,6 +585,11 @@ function Shell() {
               >
                 <Search className="h-5 w-5" />
               </button>
+              <ThemeModeToggle
+                isDarkMode={themeMode === 'dark'}
+                onToggle={toggleThemeMode}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              />
               {specialNote ? (
                 <GlowNote text={specialNote} align="right">
                   <span className="glow-pulse text-sm font-semibold text-amber-300">{me.firstName}</span>

@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Search, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
+import { AdminMenu } from './AdminMenu';
+import { ThemeModeToggle } from './ThemeModeToggle';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
 /** A line of small pine trees, drawn rather than imported. */
@@ -30,8 +32,9 @@ function Pines() {
  * across the top, pines drawn underneath, then a single measured column of
  * writing. Nothing floats, nothing casts a shadow.
  */
-export function Shell({ groups, me, platformName, onSearch, onSignOut, children }: ShellProps) {
+export function Shell({ groups, me, platformName, isDarkMode, onToggleThemeMode, onSearch, onSignOut, children }: ShellProps) {
   const items = flatNav(groups);
+  const isSettingsPage = useLocation().pathname === '/admin/settings';
   return (
     <div className="min-h-screen bg-[#f7f4ec] text-[#2f352f]">
       <header className="border-b border-[#e2ddcc] bg-[#f7f4ec]/95 backdrop-blur">
@@ -43,6 +46,8 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, children 
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            <AdminMenu groups={groups} />
+            <ThemeModeToggle isDarkMode={isDarkMode} onToggle={onToggleThemeMode} className="text-[#5d665c] hover:text-[#2f352f]" />
             <Link to="/theme" title="Themes" aria-label="Themes" className="text-[#5d665c] hover:text-[#2f352f]"><Palette className="h-4 w-4" /></Link>
             <button type="button" onClick={onSearch} title="Search" className="text-[#5d665c] hover:text-[#2f352f]"><Search className="h-4 w-4" /></button>
             <Link to="/profile" title="My settings" className="flex h-8 w-8 items-center justify-center rounded-full border border-[#cfc9b4] font-serif text-xs">{initials(me.firstName, me.lastName)}</Link>
@@ -51,7 +56,7 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, children 
         </div>
         <Pines />
       </header>
-      <div className="mx-auto max-w-3xl px-5 pb-24 pt-10 lg:pb-16">{children}</div>
+      <div className={`mx-auto ${isSettingsPage ? 'max-w-7xl' : 'max-w-3xl'} px-5 pb-24 pt-10 lg:pb-16`}>{children}</div>
       <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[#e2ddcc] bg-[#f7f4ec]/95 py-2 backdrop-blur lg:hidden">
         {items.slice(0, 4).map((i) => (
           <Link key={i.to} to={i.to} className="px-3 py-1 text-[11px] text-[#5d665c]">{i.label}</Link>
