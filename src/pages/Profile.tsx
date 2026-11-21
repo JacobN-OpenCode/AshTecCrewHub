@@ -1,84 +1,145 @@
 import { previewId, pv } from '../lib/preview';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { updateMyProfile, updateMyAvatar, getCalendar } from 'zitejs/api';
-import { useUpload } from 'zitejs/upload';
+import {
+  updateMyProfile, getCalendar, getCalendarFeed, getMyCatLoginStatus, setMyAdminSecret, memberGetMyTickets, memberEditTicket,
+  saveNotificationPrefs, getNotificationHistory, exportMyData, getSettings, getMySessions, revokeSessions,
+  saveSupportEmailMode,
+  type GetNotificationHistoryOutputType, type GetMySessionsOutputType,
+} from '#api';
+import { logout } from '#auth';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@project/components/ui/avatar';
-import { Lock, CalendarPlus, ExternalLink, Camera, Loader2, Trash2 } from 'lucide-react';
+import { Switch } from '@project/components/ui/switch';
+import { Textarea } from '@project/components/ui/textarea';
+import { cn } from '@project/components/lib/utils';
+import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
-import { ROLES, SELF_YEARS } from '../lib/constants';
+import MemberAvatar from '../components/MemberAvatar';
+import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
+import { useAppSettings } from '../lib/appSettings';
+import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { shrinkImage } from '../lib/image';
+import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, useCatHidden, ACCENTS } from '../lib/uiPrefs';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
+import { useSfxMuted, playSfx } from '../lib/sfx';
+import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
+import { SUPPORT_MESSAGE_MAX } from '../lib/emails';
+import { TYPE_STYLE, STATUS_STYLE } from '../lib/supportStyle';
+import { isStandalone, openPwaWelcome, notificationState } from '../components/PwaWelcome';
+import { setAdminNotificationsEnabled, sendTest, currentEndpoint, diagnostics } from '../lib/pushClient';
+import { uploadAvatar } from '../lib/avatarUpload';
 
 export default function Profile() {
-  const { me, refreshMe } = useMe();
+  const { me, mentor, refreshMe } = useMe();
+  // Feedback round 2: the role and year pickers draw from the admin-curated lists.
+  const { lists } = useAppSettings();
+  const roleOptions = lists.roles;
+  const yearOptions = lists.years.filter((y) => y !== 'Staff');
   const [firstName, setFirstName] = useState(me.firstName);
   const [lastName, setLastName] = useState(me.lastName);
   const [year, setYear] = useState(me.year);
   const [email, setEmail] = useState(me.email);
   const [p1, setP1] = useState(me.preferredRole1);
   const [p2, setP2] = useState(me.preferredRole2);
+  const [avatarUrl, setAvatarUrl] = useState(me.avatarUrl);
+  const [statusText, setStatusText] = useState(me.statusText ?? '');
+  const [statusEmoji, setStatusEmoji] = useState(me.statusEmoji ?? '');
+  const [birthday, setBirthday] = useState(me.birthday ?? '');
+  const [contactShare, setContactShare] = useState(!!me.contactShare);
+  const [parentEmail, setParentEmail] = useState((me as unknown as { parentEmail?: string }).parentEmail ?? '');
+  const [skillsTeach, setSkillsTeach] = useState<string[]>(parseList(me.skillsTeach));
+  const [skillsLearn, setSkillsLearn] = useState<string[]>(parseList(me.skillsLearn));
+  const [privacy, setPrivacy] = useState<Privacy>(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
+  const [skillOptions, setSkillOptions] = useState<string[]>([]);
+  const [skillsEditable, setSkillsEditable] = useState(true);
+  const [sessions, setSessions] = useState<GetMySessionsOutputType['sessions'] | null>(null);
+  const [sessionBusy, setSessionBusy] = useState('');
+
+  const loadSessions = useCallback(async () => {
+    try { const r = await getMySessions({}); setSessions(r.sessions); }
+    catch { setSessions([]); }
+  }, []);
+  useEffect(() => { void loadSessions(); }, [loadSessions]);
+
+  const removeSession = async (publicId?: string, isCurrent?: boolean, scope?: 'one' | 'others' | 'all') => {
+    setSessionBusy(publicId ?? scope ?? '');
+    try {
+      if (isCurrent) { await logout(); return; }
+      await revokeSessions({ scope: scope ?? 'one', publicId });
+      toast.success('Signed out');
+      await loadSessions();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSessionBusy(''); }
+  };
   const [busy, setBusy] = useState(false);
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const { upload } = useUpload();
   const [previewing, setPreviewing] = useState(false);
+  // Ticket 171e29fa: upload our own copy instead of requiring a public URL.
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const pickPicture = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await uploadAvatar(file);
+      setAvatarUrl(url);
+      toast.success('Picture uploaded', { description: 'Save your profile to apply it.' });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   // Editing is locked during a preview so nobody edits the wrong member.
   useEffect(() => { setPreviewing(!!previewId()); }, []);
 
   useEffect(() => {
     setFirstName(me.firstName); setLastName(me.lastName); setYear(me.year); setEmail(me.email);
-    setP1(me.preferredRole1); setP2(me.preferredRole2);
+    setP1(me.preferredRole1); setP2(me.preferredRole2); setAvatarUrl(me.avatarUrl);
+    setStatusText(me.statusText ?? ''); setStatusEmoji(me.statusEmoji ?? ''); setBirthday(me.birthday ?? '');
+    setContactShare(!!me.contactShare);
+    setParentEmail((me as unknown as { parentEmail?: string }).parentEmail ?? '');
+    setSkillsTeach(parseList(me.skillsTeach)); setSkillsLearn(parseList(me.skillsLearn));
+    setPrivacy(parsePrivacy((me as unknown as { privacy?: unknown }).privacy));
   }, [me]);
 
+  // The admin-curated skill options, and whether members may edit their own.
+  useEffect(() => {
+    let live = true;
+    getSettings({})
+      .then((s) => { if (live) { setSkillOptions(s.skillOptions ?? []); setSkillsEditable(s.skillsEditable !== false); } })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
   const save = async () => {
+    // Ticket 76cf803c: check the picture link here so a typo is caught before the
+    // save, with the same wording the server uses. It used to surface as a failed
+    // API call, which read as "the crew hub broke" over a mistyped URL.
+    const pic = avatarUrl.trim();
+    // Ticket 3bf93c2e: an uploaded picture is a relative /api/uploads/... path,
+    // so this has to accept our own files as well as pasted links.
+    if (pic && !isAvatarUrl(pic)) {
+      toast.error(AVATAR_URL_MESSAGE);
+      return;
+    }
     setBusy(true);
     try {
-      const r = await updateMyProfile({ firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2 });
+      const r = await updateMyProfile({
+        avatarUrl: pic, firstName, lastName, year, schoolEmail: email, preferredRole1: p1, preferredRole2: p2,
+        statusText, statusEmoji, birthday, contactShare, parentEmail, skillsTeach, skillsLearn, privacy,
+      });
       await refreshMe();
       toast.success(r.emailChanged ? 'Profile saved. Your old email still signs you in if you need it.' : 'Profile saved');
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
-  };
-
-  const pickAvatar = async (file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Pick an image file, like a JPG or PNG.');
-      return;
-    }
-    setAvatarBusy(true);
-    try {
-      const small = await shrinkImage(file);
-      const { url } = await upload(small, `avatar-${me.id}.jpg`);
-      await updateMyAvatar({ url });
-      await refreshMe();
-      toast.success('Picture saved');
-    } catch (e) {
-      toast.error((e as Error).message || 'That upload did not work. Try a smaller picture.');
-    } finally {
-      setAvatarBusy(false);
-      if (fileInput.current) fileInput.current.value = '';
-    }
-  };
-
-  const clearAvatar = async () => {
-    setAvatarBusy(true);
-    try {
-      await updateMyAvatar({ url: '' });
-      await refreshMe();
-      toast.success('Picture removed');
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setAvatarBusy(false);
-    }
   };
 
   const Field = ({ k, v }: { k: string; v: React.ReactNode }) => (
@@ -87,8 +148,8 @@ export default function Profile() {
 
   if (previewing) {
     return (
-      <div className="max-w-2xl space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+      <div className="mx-auto max-w-2xl space-y-6 lg:max-w-3xl">
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-6 flex gap-3">
           <Lock className="h-5 w-5 shrink-0 text-orange-400" />
           <div className="space-y-1">
@@ -107,62 +168,79 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">My Profile</h1>
+    <div className="mx-auto w-full max-w-2xl space-y-6 lg:max-w-5xl">
+      <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
 
-      <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
-        <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />
-        <Field k="Member type" v={me.memberType} />
-        <Field k="Assigned roles" v={me.roles.length ? <div className="flex flex-wrap gap-1">{me.roles.map((r) => <Badge key={r} variant="outline">{r}</Badge>)}</div> : null} />
-        <Field k="Head of" v={me.headOf.length ? <div className="flex flex-wrap gap-1">{me.headOf.map((r) => <Badge key={r} className="bg-primary/20 text-primary border-primary/30" variant="outline">{r}</Badge>)}</div> : null} />
-      </div>
-
-      <div className="rounded-2xl border bg-card p-6 space-y-4">
-        <div>
-          <h2 className="font-semibold text-lg">Your picture</h2>
-          <p className="text-sm text-muted-foreground">Shown next to your name in the crew hub. Only you can change it.</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 border">
-            {me.profilePictureUrl ? <AvatarImage src={me.profilePictureUrl} alt="" /> : null}
-            <AvatarFallback className="text-lg">{`${me.firstName.slice(0, 1)}${me.lastName.slice(0, 1)}`.toUpperCase() || '?'}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => pickAvatar(e.target.files?.[0])}
+      {/* Two columns on desktop: the editable details on the left, the toggles
+          and extras on the right, instead of one narrow strip down the middle.
+          min-w-0 on the columns is what stops a long unbroken string (an email,
+          a subscription endpoint in diagnostics) forcing the whole grid wider
+          than the screen on a phone. */}
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-6">
+          <div className="rounded-2xl border bg-card p-6 grid sm:grid-cols-2 gap-5">
+            <Field k="Username" v={<span className="font-mono">{me.shortUsername}</span>} />
+            <Field k="Member type" v={me.memberType} />
+            <Field k="Assigned roles" v={me.roles.length ? <div className="flex flex-wrap gap-1">{me.roles.map((r) => <Badge key={r} variant="outline">{r}</Badge>)}</div> : null} />
+            <Field k="Head of" v={me.headOf.length ? <div className="flex flex-wrap gap-1">{me.headOf.map((r) => <Badge key={r} className="bg-primary/20 text-primary border-primary/30" variant="outline">{r}</Badge>)}</div> : null} />
+            <Field
+              k="Your mentor"
+              v={mentor ? (
+                <span>
+                  {mentor.firstName}{mentor.lastName ? ' ' + mentor.lastName : ''}
+                  {mentor.email && <> · <a className="underline hover:text-foreground" href={`mailto:${mentor.email}`}>{mentor.email}</a></>}
+                </span>
+              ) : null}
             />
-            <Button
-              variant="outline"
-              disabled={avatarBusy || previewing}
-              onClick={() => fileInput.current?.click()}
-            >
-              {avatarBusy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}
-              {me.profilePictureUrl ? 'Change picture' : 'Upload a picture'}
-            </Button>
-            {me.profilePictureUrl && (
-              <Button variant="ghost" disabled={avatarBusy || previewing} onClick={clearAvatar}>
-                <Trash2 className="mr-2 h-4 w-4" />Remove
-              </Button>
-            )}
           </div>
-        </div>
-        <p className="text-xs text-muted-foreground">Square pictures look best. Big ones are shrunk before they are uploaded.</p>
-      </div>
 
-      <div className="rounded-2xl border bg-card p-6 space-y-5">
+          <div className="rounded-2xl border bg-card p-6 space-y-5">
         <div>
           <h2 className="font-semibold text-lg">Your details</h2>
           <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
         </div>
 
+        {/* Ticket 171e29fa: upload a picture (stored on our server) or paste a
+            link if it already lives somewhere. Either way the profile stores a
+            URL and the browser loads the image. */}
+        <div className="flex items-center gap-4">
+          <MemberAvatar url={avatarUrl} firstName={firstName} lastName={lastName} size="xl" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label htmlFor="avatar">Profile picture</Label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => void pickPicture(e.target.files?.[0])}
+              />
+              <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Upload className="h-4 w-4 mr-1.5" />}
+                {uploading ? 'Uploading…' : 'Upload a picture'}
+              </Button>
+              {avatarUrl && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setAvatarUrl('')} disabled={uploading}>
+                  <X className="h-4 w-4 mr-1.5" />Remove
+                </Button>
+              )}
+            </div>
+            <Input
+              id="avatar"
+              type="url"
+              inputMode="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="…or paste https://example.com/me.jpg"
+            />
+            <p className="text-xs text-muted-foreground">Upload a PNG, JPG or WebP up to 2 MB, or paste a link. Leave it blank to use your initials.</p>
+          </div>
+        </div>
+
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="fn">First name</Label>
-            <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={80} />
+            <Label htmlFor="fn">First initial</Label>
+            <Input id="fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={2} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ln">Last name</Label>
@@ -173,7 +251,7 @@ export default function Profile() {
             <Select value={year || undefined} onValueChange={setYear}>
               <SelectTrigger id="yr"><SelectValue placeholder="Choose a year" /></SelectTrigger>
               <SelectContent>
-                {SELF_YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 {/* An admin-set Staff year must still display, just not be selectable here. */}
                 {year === 'Staff' && <SelectItem value="Staff" disabled>Staff (set by a crew admin)</SelectItem>}
               </SelectContent>
@@ -187,29 +265,973 @@ export default function Profile() {
           </div>
         </div>
 
+        {!me.isAdmin && (
+          <div className="border-t pt-5 space-y-4">
+            <div>
+              <h3 className="font-semibold">Preferred roles</h3>
+              <p className="text-sm text-muted-foreground">Pick your top two. Admins make the final assignments.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[{ v: p1, set: setP1, l: '1st choice' }, { v: p2, set: setP2, l: '2nd choice' }].map((c) => (
+                <div key={c.l} className="space-y-1">
+                  <Label>{c.l}</Label>
+                  <Select value={c.v || undefined} onValueChange={c.set}>
+                    <SelectTrigger><SelectValue placeholder="Choose a role" /></SelectTrigger>
+                    <SelectContent>{roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+            {p1 && p1 === p2 && <p className="text-sm text-destructive">Choose two different roles.</p>}
+          </div>
+        )}
+
+        {/* Status, birthday and contact sharing: the personal bits the roster
+            and the contact sheet read from. Kept deliberately short. */}
         <div className="border-t pt-5 space-y-4">
           <div>
-            <h3 className="font-semibold">Preferred roles</h3>
-            <p className="text-sm text-muted-foreground">Pick your top two. Admins make the final assignments.</p>
+            <h3 className="font-semibold">Status</h3>
+            <p className="text-sm text-muted-foreground">A short line the roster shows next to your name. Leave it blank to show nothing.</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {[{ v: p1, set: setP1, l: '1st choice' }, { v: p2, set: setP2, l: '2nd choice' }].map((c) => (
-              <div key={c.l} className="space-y-1">
-                <Label>{c.l}</Label>
-                <Select value={c.v || undefined} onValueChange={c.set}>
-                  <SelectTrigger><SelectValue placeholder="Choose a role" /></SelectTrigger>
-                  <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            ))}
+          <div className="grid sm:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="stx">Status</Label>
+              <Input id="stx" value={statusText} onChange={(e) => setStatusText(e.target.value)} maxLength={120} placeholder="On lighting desk tonight" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="sem">Emoji</Label>
+              <Input id="sem" value={statusEmoji} onChange={(e) => setStatusEmoji(e.target.value)} maxLength={4} placeholder="🎧" />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="bd">Birthday (month &amp; day only)</Label>
+              <Input id="bd" value={birthday} onChange={(e) => setBirthday(e.target.value)} maxLength={5} placeholder="MM-DD, e.g. 03-14" />
+              <p className="text-xs text-muted-foreground">Year is never stored — only the day, so the crew can shout it out.</p>
+            </div>
           </div>
-          {p1 && p1 === p2 && <p className="text-sm text-destructive">Choose two different roles.</p>}
         </div>
 
-        <Button data-tour="profile-save" onClick={save} disabled={busy || !p1 || !p2 || p1 === p2}>{busy ? 'Saving…' : 'Save profile'}</Button>
+        <div className="border-t pt-5 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold">Contact sheet</h3>
+              <p className="text-sm text-muted-foreground">Share your school email with the crew so people can reach you.</p>
+            </div>
+            <Switch checked={contactShare} onCheckedChange={setContactShare} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {contactShare
+              ? 'Your school email is on the contact sheet. Turn this off any time and you disappear from it.'
+              : 'Off, so you are not on the contact sheet.'}{' '}
+            {/* Ticket 19ffa650: "Where?" - the switch never said where. */}
+            <Link to="/contacts" className="underline hover:text-foreground">
+              See the contact sheet
+            </Link>
+            .
+          </p>
+        </div>
+
+        {/* For parents: the address a parent types on the public For parents
+            page to see this member's dates. Nothing is ever sent to it. */}
+        <div className="border-t pt-5 space-y-3">
+          <div>
+            <h3 className="font-semibold">For parents</h3>
+            <p className="text-sm text-muted-foreground">
+              Add a parent or guardian email, and they can look your dates up on the For parents page. Nothing is sent to them.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="pe">Parent or guardian email</Label>
+            <Input
+              id="pe"
+              type="email"
+              value={parentEmail}
+              onChange={(e) => setParentEmail(e.target.value)}
+              maxLength={200}
+              placeholder="parent@example.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Two parents? Separate the addresses with a comma. Nothing is verified, so only add an address you are happy for
+              someone to type in. Anyone with it sees your first name and your dates, nothing else.
+            </p>
+          </div>
+        </div>
+
+        {/* Feedback round 2: skills are chosen from the list an admin curates,
+            not typed as free text. */}
+        <div className="border-t pt-5 space-y-4">
+          <div>
+            <h3 className="font-semibold">Skills</h3>
+            <p className="text-sm text-muted-foreground">
+              {skillsEditable || me.isAdmin
+                ? 'Pick from the list. They show on your profile when someone taps your name.'
+                : 'Skills are managed by a crew admin.'}
+            </p>
+          </div>
+          {skillOptions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No skills have been set up yet.</p>
+          ) : (
+            <>
+              <SkillPicker label="Things I can teach" options={skillOptions} value={skillsTeach} onChange={setSkillsTeach} disabled={!skillsEditable && !me.isAdmin} />
+              <SkillPicker label="Things I want to learn" options={skillOptions} value={skillsLearn} onChange={setSkillsLearn} disabled={!skillsEditable && !me.isAdmin} />
+            </>
+          )}
+        </div>
+
+        {/* Feedback round 2: privacy. Hide your picture, email or skills from
+            the whole crew, or from admins only. Admins always see everything. */}
+        <div className="border-t pt-5 space-y-4">
+          <div>
+            <h3 className="font-semibold">Privacy</h3>
+            <p className="text-sm text-muted-foreground">Choose who can see each part of your profile. Admins can always see everything.</p>
+          </div>
+          {(['avatar', 'email', 'skills'] as const).map((field) => (
+            <div key={field} className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor={`privacy-${field}`}>{field === 'avatar' ? 'Profile picture' : field === 'email' ? 'Email address' : 'Skills'}</Label>
+              <Select value={privacy[field]} onValueChange={(v) => setPrivacy((p) => ({ ...p, [field]: v as PrivacyLevel }))}>
+                <SelectTrigger id={`privacy-${field}`} className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['crew', 'admins', 'none'] as PrivacyLevel[]).map((lvl) => (
+                    <SelectItem key={lvl} value={lvl}>{PRIVACY_LABEL[lvl]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">Hiding your email never stops you signing in or receiving important mail.</p>
+        </div>
+
+        {/* Feedback round 2: the devices you are signed in on. */}
+        <div className="border-t pt-5 space-y-3">
+          <div>
+            <h3 className="font-semibold">Signed-in devices</h3>
+            <p className="text-sm text-muted-foreground">Everywhere your account is signed in. Sign out any you do not recognise.</p>
+          </div>
+          {!sessions ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <ul className="space-y-2">
+              {sessions.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm">
+                  <MonitorSmartphone className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="font-medium">{s.name}</span>
+                  {s.current && <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30">This device</Badge>}
+                  <span className="text-xs text-muted-foreground">
+                    Last used {new Date(s.lastSeenAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                  <Button size="sm" variant="outline" className="ml-auto" disabled={sessionBusy === s.id}
+                    onClick={() => removeSession(s.id, s.current)}>
+                    {s.current ? 'Sign out' : 'Sign out this device'}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button size="sm" variant="outline" disabled={!sessions || sessions.length < 2 || sessionBusy === 'others'}
+            onClick={() => removeSession(undefined, false, 'others')}>
+            Sign out all other devices
+          </Button>
+        </div>
+
+        {/* Ticket 2ffb3a6d: admins assign their own roles, so they never see the
+            preferred-roles picker. Saving their details must not then demand two
+            choices it does not show them. */}
+        {/* Feedback round 2: roles are optional, so the save is only blocked when
+            two roles are chosen AND they are the same. Previously a member with
+            no roles picked could not save a picture, initials, surname or year
+            change at all. */}
+        <Button data-tour="profile-save" onClick={save} disabled={busy || (!me.isAdmin && !!p1 && p1 === p2)}>{busy ? 'Saving…' : 'Save profile'}</Button>
+          </div>
+
+          <CalendarIntegration />
+
+          <YourTickets />
+        </div>
+
+        <div className="min-w-0 space-y-6">
+          <Preferences />
+
+          <AccessibilitySettings />
+
+          <SoundSettings />
+
+          {me.isAdmin && <EmergencySignIn />}
+
+          <PwaSettings />
+
+          {me.isAdmin && <AdminPageLayout />}
+
+          <NotificationTuning />
+
+          <SupportEmailSettings />
+
+          <NotificationHistory />
+
+          <DeviceViews />
+
+          <DataExport />
+
+          <WhatsAppCommunity />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Admin-only emergency sign-in (cat login), ticket 8cd13381.
+ *
+ * Each admin manages their own passphrase from this card. The cleartext
+ * never touches the database - it is hashed server-side - and no other admin
+ * can see whether yours is set, what it is, or how many attempts have been
+ * made against it. There are deliberately no strength requirements: the
+ * opening ticket says "no password/PIN requirements" and a 4-digit PIN is
+ * fine.
+ */
+function EmergencySignIn() {
+  const [hasSecret, setHasSecret] = useState<boolean>(false);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getMyCatLoginStatus({}).then((r) => { if (alive) setHasSecret(!!r.hasSecret); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await setMyAdminSecret({ value });
+      setHasSecret(!!r.hasSecret);
+      setValue('');
+      setRevealed(false);
+      toast.success(r.hasSecret ? 'Passphrase saved' : 'Passphrase cleared');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const clear = async () => {
+    setBusy(true);
+    try {
+      const r = await setMyAdminSecret({ value: '' });
+      setHasSecret(!!r.hasSecret);
+      toast.success('Passphrase cleared');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const placeholder = useMemo(() => (hasSecret ? 'Enter a new passphrase to replace it' : 'Choose a passphrase or PIN'), [hasSecret]);
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Cat className="h-5 w-5 text-primary" />
+        <h2 className="font-semibold text-lg">Emergency sign-in (cat)</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        For when the magic-link email can&rsquo;t get through (school mail filter, no signal on the phone). Tap the crew cat five times on
+        the sign-in screen and use this passphrase. Other admins can&rsquo;t see it, and it lives only in your account.
+      </p>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-medium">Status</span>
+        {hasSecret ? (
+          <Badge variant="outline" className="border-emerald-500/40 text-emerald-400"><KeyRound className="h-3 w-3 mr-1" />Set</Badge>
+        ) : (
+          <Badge variant="outline" className="border-amber-500/40 text-amber-400">Not set</Badge>
+        )}
       </div>
 
-      <CalendarIntegration />
+      <div className="space-y-1">
+        <Label htmlFor="cat-secret">New passphrase</Label>
+        <div className="flex gap-2">
+          <Input
+            id="cat-secret"
+            type={revealed ? 'text' : 'password'}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholder}
+            autoComplete="new-password"
+            disabled={busy}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setRevealed((r) => !r)}
+            disabled={!value}
+          >
+            {revealed ? 'Hide' : 'Show'}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Leave blank and click <strong>Clear</strong> to remove the existing passphrase. There are no strength requirements: a 4-digit PIN is fine.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={save} disabled={busy || !value}>
+          {hasSecret ? 'Replace passphrase' : 'Save passphrase'}
+        </Button>
+        {hasSecret && (
+          <Button variant="outline" onClick={clear} disabled={busy}>
+            Clear
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PWA settings: whether the app is installed, the notification state, the admin
+ * notifications switch, a way to re-open the welcome, and install instructions
+ * when it is not installed yet.
+ */
+function PwaSettings() {
+  const { me, refreshMe } = useMe();
+  const [installed] = useState(() => isStandalone());
+  const [notif, setNotif] = useState(() => notificationState());
+  const [adminNotifs, setAdminNotifs] = useState<boolean>(me.adminNotifications);
+  // Whether THIS device actually holds a push subscription - the thing that
+  // decides if a notification can arrive, as opposed to the stored preference.
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [diag, setDiag] = useState<Record<string, string> | null>(null);
+
+  // Look for a real browser subscription when the panel opens.
+  useEffect(() => {
+    let alive = true;
+    currentEndpoint().then((ep) => { if (alive) setSubscribed(!!ep); });
+    return () => { alive = false; };
+  }, []);
+
+  // Re-read permission when you come back from the browser's own settings.
+  useEffect(() => {
+    const onVisible = () => setNotif(notificationState());
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, []);
+
+  const canToggleAdmin = me.isAdmin || me.isMaintainer;
+
+  const flip = async (next: boolean) => {
+    setBusy(true);
+    setNote(null);
+    try {
+      // Turning on opens the subscription and asks the OS; turning off drops it.
+      const r = await setAdminNotificationsEnabled(next);
+      if (!r.ok) {
+        setNote(
+          r.reason === 'needs-install'
+            ? 'Add the app to your home screen first, then turn this on.'
+            : r.reason === 'denied'
+              ? 'Your browser is blocking notifications. Allow them in browser settings, then try again.'
+              : 'This browser cannot do notifications.',
+        );
+        // Permission not granted means no subscription, so reflect that.
+        if (next) setAdminNotifs(false);
+        return;
+      }
+      setAdminNotifs(next);
+      setNotif(notificationState());
+      setSubscribed(!!(await currentEndpoint()));
+      await refreshMe();
+    } catch (e) {
+      setNote((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stateLabel: Record<string, string> = {
+    granted: 'On',
+    denied: 'Blocked in your browser settings',
+    default: 'Not switched on yet',
+    unsupported: 'Not supported on this browser',
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Smartphone className="h-5 w-5 text-primary" />
+          App &amp; notifications
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {installed
+            ? 'You are using the installed app.'
+            : 'You are on the website. Install the app to get the home-screen icon, full-screen view and notifications.'}
+        </p>
+      </div>
+
+      {!installed && (
+        <p className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
+          To install: open this site in Safari, tap the Share button, then <strong>Add to Home Screen</strong>.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-3 border-t pt-4">
+        <div>
+          <p className="text-sm font-medium">Notifications</p>
+          <p className="text-xs text-muted-foreground">{stateLabel[notif]}</p>
+        </div>
+        <Badge variant="outline" className={notif === 'granted' ? 'border-emerald-500/40 text-emerald-400' : undefined}>
+          {notif === 'granted' ? 'On' : 'Off'}
+        </Badge>
+      </div>
+
+      {/* Only admins and maintainers have operational notifications to receive. */}
+      {canToggleAdmin && (
+        <label className="flex items-start justify-between gap-4 border-t pt-4 cursor-pointer">
+          <span>
+            <span className="block font-medium text-sm">Admin notifications</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              {me.isMaintainer
+                ? 'New bug reports, replies, and people waiting at venue check-in.'
+                : 'New support tickets, replies, and people waiting for you to approve a venue check-in.'}
+            </span>
+            {/* Distinguish the preference from whether THIS device can receive. */}
+            <span className="block text-xs text-muted-foreground mt-1">
+              {subscribed
+                ? 'This device is set up to receive them.'
+                : 'This device is not subscribed yet — switch this on to allow notifications here.'}
+            </span>
+          </span>
+          <Switch
+            checked={subscribed}
+            disabled={busy}
+            onCheckedChange={flip}
+            aria-label="Admin notifications"
+          />
+        </label>
+      )}
+
+      {!canToggleAdmin && (
+        <p className="border-t pt-4 text-xs text-muted-foreground">
+          You will get notifications about your own commitments — forms due, response deadlines, and checking in to the
+          venue.
+        </p>
+      )}
+
+      {note && <p className="text-xs text-amber-400">{note}</p>}
+
+      <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row">
+        <Button
+          variant="outline"
+          className="flex-1"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setNote(null);
+            try {
+              const r = await sendTest();
+              setNote(
+                r.sent > 0
+                  ? `Sent to ${r.sent} of your ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}. Check your notifications.`
+                  : r.subscriptions === 0
+                    ? 'No device is subscribed yet. Turn on admin notifications above (or the switch), and allow the permission prompt.'
+                    // Ticket 3a431f75: say why the push service refused, rather
+                  // than leaving it at "could not deliver".
+                  : `Could not deliver to ${r.subscriptions} device${r.subscriptions === 1 ? '' : 's'}${r.error ? ` (${r.error})` : ''}. Toggle notifications off and on again, or send this to Mr Navaratne so the reason can be looked at.`,
+              );
+            } catch (e) {
+              setNote((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Bell className="mr-2 h-4 w-4" />
+          Send test notification
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={async () => setDiag(await diagnostics())}
+        >
+          <Info className="mr-2 h-4 w-4" />
+          Why no notifications?
+        </Button>
+      </div>
+
+      {diag && (
+        <pre className="w-full overflow-x-auto rounded-xl border bg-muted/30 p-3 text-[11px] leading-relaxed">
+          {Object.entries(diag).map(([k, v]) => `${k}: ${v}`).join('\n')}
+        </pre>
+      )}
+
+      <Button variant="ghost" size="sm" className="w-full" onClick={openPwaWelcome}>
+        Show the PWA welcome again
+      </Button>
+    </div>
+  );
+}
+
+/** Ticket d6b098db: a one-click way into the club's WhatsApp community. */
+function WhatsAppCommunity() {
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" />
+          WhatsApp community
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Crew announcements and quick questions live in the club&apos;s WhatsApp community.
+        </p>
+      </div>
+      <Button asChild>
+        <a href={WHATSAPP_COMMUNITY_URL} target="_blank" rel="noreferrer">
+          Join the WhatsApp community
+          <ExternalLink className="ml-2 h-4 w-4" />
+        </a>
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Per-device look-and-feel. Stored in this browser only, so changing it on a
+ * school machine does not follow the account home. Ticket 9c895ffb.
+ */
+function Preferences() {
+  const [collapsed, setCollapsed] = useSupportCollapsed();
+  const [accent, setAccent] = useAccent();
+  const [sameTab, setSameTab] = useSupportSameTab();
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const [density, setDensity] = useDensity();
+  const [catHidden, setCatHidden] = useCatHidden();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold text-lg">Preferences</h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Accent colour</p>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Accent colour">
+          {ACCENTS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="radio"
+              aria-checked={accent === a.id}
+              aria-label={a.label}
+              title={a.label}
+              onClick={() => setAccent(a.id)}
+              className={cn(
+                'h-9 w-9 rounded-full border-2 transition-transform',
+                accent === a.id ? 'border-foreground scale-110' : 'border-transparent hover:scale-105',
+              )}
+              style={{ backgroundColor: `hsl(${a.hsl})` }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Keep the crew cat quiet</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Stops the cat popping up in the corner with things to say. Its page is still under Club → The cat.
+          </span>
+        </span>
+        <Switch checked={catHidden} onCheckedChange={setCatHidden} aria-label="Keep the crew cat quiet" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Collapse the help button to an icon</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Shrinks the floating “Help &amp; feedback” button down to just its icon, so it stays out of the way.
+          </span>
+        </span>
+        <Switch checked={collapsed} onCheckedChange={setCollapsed} aria-label="Collapse the help button to an icon" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Open support tickets in the same tab</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            The support list opens a ticket in a new tab by default. Turn this on to open it here instead.
+          </span>
+        </span>
+        <Switch checked={sameTab} onCheckedChange={setSameTab} aria-label="Open support tickets in the same tab" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Collapse the sidebar into icons</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Shrinks the navigation sidebar to a narrow icon rail so the page gets the width back. Hover an icon to see its name. Desktop only.
+          </span>
+        </span>
+        <Switch checked={sidebarCollapsed} onCheckedChange={setSidebarCollapsed} aria-label="Collapse the sidebar into icons" />
+      </label>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="block font-medium text-sm">Compact density</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Tightens spacing across the app and puts the account, help and sign-out on a single row in the sidebar.
+          </span>
+        </span>
+        <Switch checked={density === 'compact'} onCheckedChange={(v) => setDensity(v ? 'compact' : 'roomy')} aria-label="Use compact spacing" />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: accessibility. Larger text and higher contrast, both per-device like
+ * the density choice. The switches write to uiPrefs, which sets `data-text` /
+ * `data-contrast` on <html>; the rules live in index.css.
+ */
+function AccessibilitySettings() {
+  const [text, setText] = useTextScale();
+  const [contrast, setContrast] = useHighContrast();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Type className="h-5 w-5 text-primary" />Accessibility
+        </h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Text size</p>
+        <div className="flex gap-2" role="radiogroup" aria-label="Text size">
+          {([['default', 'Default'], ['large', 'Large'], ['larger', 'Larger']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={text === id}
+              onClick={() => setText(id)}
+              className={cn(
+                'flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
+                text === id ? 'border-primary bg-primary/10 text-foreground' : 'hover:bg-muted/60',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="flex items-center gap-2 font-medium text-sm"><Contrast className="h-4 w-4" />High contrast</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Strengthens borders and dividers and brightens dimmed text, so structure is easier to see.
+          </span>
+        </span>
+        <Switch checked={contrast} onCheckedChange={setContrast} aria-label="Use high contrast" />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Batch 8: sound effects. Little synthesised noises on a few satisfying actions,
+ * per device, off with one switch. There is a preview button so you know what
+ * you are signing up for (and what you are switching off).
+ */
+function SoundSettings() {
+  const [muted, setMuted] = useSfxMuted();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Volume2 className="h-5 w-5 text-primary" />Sound effects
+        </h2>
+        <p className="text-sm text-muted-foreground">Just for this browser. A few small noises when things happen.</p>
+      </div>
+      <label className="flex items-start justify-between gap-4 cursor-pointer">
+        <span>
+          <span className="flex items-center gap-2 font-medium text-sm">{muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}Play sounds</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">Sending a message, posting an announcement, and other little moments.</span>
+        </span>
+        <Switch checked={!muted} onCheckedChange={(on) => setMuted(!on)} aria-label="Play sound effects" />
+      </label>
+      <Button variant="outline" size="sm" onClick={() => { if (muted) setMuted(false); playSfx('success'); }}>
+        Preview
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: push tuning. The member's own per-kind switches for the personal
+ * notifications, saved server-side so they apply on every device. Absent means
+ * on, so turning everything back on stores an empty set. Admin/operational
+ * pushes are governed by the admin-notifications switch in the card above.
+ */
+function NotificationTuning() {
+  const { me, notificationPrefs, refreshMe } = useMe();
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(notificationPrefs);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setPrefs(notificationPrefs), [notificationPrefs]);
+
+  const toggle = async (kind: string, next: boolean) => {
+    const optimistic = { ...prefs, [kind]: next };
+    setPrefs(optimistic);
+    setBusy(true);
+    try {
+      const r = await saveNotificationPrefs({ prefs: optimistic });
+      setPrefs(r.prefs ?? optimistic);
+      await refreshMe();
+      toast.success(next ? 'Notification turned on' : 'Notification turned off');
+    } catch (e) {
+      setPrefs(prefs);
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" />Push notifications
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Choose which of your own notifications reach you. These follow your account to every device.
+        </p>
+      </div>
+      <div className="space-y-4">
+        {NOTIFICATION_KINDS.map((k) => (
+          <label key={k.id} className="flex items-start justify-between gap-4 cursor-pointer">
+            <span>
+              <span className="block font-medium text-sm">{k.label}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{k.hint}</span>
+            </span>
+            <Switch
+              checked={prefs[k.id] !== false}
+              disabled={busy}
+              onCheckedChange={(v) => void toggle(k.id, v)}
+              aria-label={k.label}
+            />
+          </label>
+        ))}
+      </div>
+      {me.isAdmin || me.isMaintainer ? (
+        <p className="text-xs text-muted-foreground">
+          Ticket and venue alerts are operational and use the switch in the “Notifications” card above.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Ticket 26239458: "all the per device settings should be in the profile". The
+ * admin cards-or-lists choice is per device, so it belongs here with the other
+ * device settings rather than in the site-wide settings page.
+ */
+function AdminPageLayout() {
+  const [layout, setLayout] = useAdminLayout();
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <LayoutGrid className="h-5 w-5 text-primary" />Admin pages
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Cards or lists on the crew, support, events and overview dashboards. Just for this browser.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
+          <button key={id} type="button" onClick={() => setLayout(id)}
+            className={cn('inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium', layout === id ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>
+            <Icon className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tickets d1ae2a76 "Personalised email settings" and 09b3e402 "Summary vs per
+ * ticket emails": support-ticket email is now a per-account choice. The site-wide
+ * switch in Admin settings only sets the default for anyone who has not picked.
+ */
+function SupportEmailSettings() {
+  const { me, refreshMe } = useMe();
+  const [busy, setBusy] = useState(false);
+  const current = (me as unknown as { supportEmailMode?: string }).supportEmailMode ?? '';
+
+  const choose = async (mode: '' | 'per-ticket' | 'daily') => {
+    setBusy(true);
+    try {
+      await saveSupportEmailMode({ mode });
+      await refreshMe();
+      toast.success('Support email preference saved');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  const OPTIONS: { value: '' | 'per-ticket' | 'daily'; label: string; hint: string }[] = [
+    { value: '', label: 'Follow the site default', hint: 'Whatever an admin has set for everyone.' },
+    { value: 'per-ticket', label: 'Every ticket, as it is raised', hint: 'One email each time a new ticket comes in.' },
+    { value: 'daily', label: 'One summary a day', hint: 'A single email each morning listing the last day of tickets.' },
+  ];
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Mail className="h-5 w-5 text-primary" />Support ticket email
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          How you want to hear about new support tickets. This is yours alone, and it follows your account to every device.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {OPTIONS.map((o) => (
+          <label key={o.value || 'default'} className="flex items-start justify-between gap-4 cursor-pointer">
+            <span>
+              <span className="block font-medium text-sm">{o.label}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{o.hint}</span>
+            </span>
+            <input type="radio" name="support-email-mode" className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+              checked={current === o.value} disabled={busy} onChange={() => void choose(o.value)}
+              aria-label={o.label} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: notification history. What was pushed to this member recently, so
+ * someone who was offline can see what they missed. Read-only and scoped to the
+ * signed-in member.
+ */
+function NotificationHistory() {
+  const [items, setItems] = useState<GetNotificationHistoryOutputType['items'] | null>(null);
+  useEffect(() => {
+    let live = true;
+    getNotificationHistory({ limit: 30 })
+      .then((r) => { if (live) setItems(r.items ?? []); })
+      .catch(() => { if (live) setItems([]); });
+    return () => { live = false; };
+  }, []);
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <History className="h-5 w-5 text-primary" />Recent notifications
+        </h2>
+        <p className="text-sm text-muted-foreground">Your last 30 pushes, so you can catch up on anything you missed.</p>
+      </div>
+      {items === null ? (
+        <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing yet. Notifications you receive will show up here.</p>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((n) => (
+            <li key={n.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+              <Link to={n.url || '/'} className="block rounded-lg transition-colors hover:bg-muted/40">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium text-sm">{n.title}</span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{new Date(n.sentAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                {n.body ? <p className="mt-0.5 text-sm text-muted-foreground">{n.body}</p> : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Batch 6: the compact views. Both live outside the shell so they can be added
+ * to a home screen; this card is just a way to find them and explains what they
+ * are for.
+ */
+function DeviceViews() {
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <MonitorSmartphone className="h-5 w-5 text-primary" />Compact views
+        </h2>
+        <p className="text-sm text-muted-foreground">Lightweight pages for a phone home screen or a second screen.</p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Link to="/widget" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
+          <LayoutPanelTop className="h-4 w-4 text-primary" />Next-call widget
+        </Link>
+        <Link to="/watch" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
+          <Watch className="h-4 w-4 text-primary" />Watch companion
+        </Link>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Tip: open one of these and use your browser’s “Add to Home Screen”.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Batch 6: export data. One download of everything the hub holds about you.
+ * The endpoint returns structured rows; the client turns them into a JSON file
+ * so nothing is lost in a flattening step.
+ */
+function DataExport() {
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    setBusy(true);
+    try {
+      const data = await exportMyData({});
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ashtec-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Your data has been downloaded');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div>
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Download className="h-5 w-5 text-primary" />Export your data
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Download everything the hub holds about you: your profile, show responses, attendance, support tickets, availability and rota sign-ups.
+        </p>
+      </div>
+      <Button variant="outline" onClick={download} disabled={busy}>
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+        Download my data (JSON)
+      </Button>
     </div>
   );
 }
@@ -225,6 +1247,30 @@ export default function Profile() {
  */
 function CalendarIntegration() {
   const [calBusy, setCalBusy] = useState(false);
+  const [feed, setFeed] = useState<{ url: string; webcal: string } | null>(null);
+
+  // Ticket ab308aca: the live subscribe feed.
+  // Ticket 65aaf306: "it shows it as an invalid token". The feed URL is built
+  // from APP_URL on the server, so if that is unset the link comes back pointing
+  // at localhost and no calendar app can fetch it. Rewrite it to the address the
+  // member is actually using, which is the one that works.
+  const fixHost = (u: string) => {
+    try {
+      const parsed = new URL(u, window.location.origin);
+      if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        return `${window.location.origin}${parsed.pathname}${parsed.search}`;
+      }
+      return parsed.toString();
+    } catch { return u; }
+  };
+  useEffect(() => {
+    getCalendarFeed({})
+      .then((f) => {
+        const g = f as { url: string; webcal: string };
+        setFeed({ url: fixHost(g.url), webcal: fixHost(g.webcal) });
+      })
+      .catch(() => {});
+  }, []);
 
   const download = async () => {
     setCalBusy(true);
@@ -243,6 +1289,16 @@ function CalendarIntegration() {
     }
   };
 
+  const copy = async () => {
+    if (!feed) return;
+    try {
+      await navigator.clipboard.writeText(feed.url);
+      toast.success('Subscribe link copied');
+    } catch {
+      toast.error('Could not copy — select the link and copy it manually.');
+    }
+  };
+
   return (
     <div className="rounded-2xl border bg-card p-6 space-y-4">
       <div>
@@ -251,14 +1307,36 @@ function CalendarIntegration() {
           Add the crew calendar to yours
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Download your dates as a calendar file and they will sit next to your school timetable. Rehearsals and
-          performances you are in are included; hidden events are not.
+          Rehearsals and performances you are in, next to your school timetable. Hidden events are not included.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
+        <p className="text-sm font-medium">Subscribe (updates automatically)</p>
+        <p className="text-xs text-muted-foreground">
+          Add this once in Apple, Google or Outlook Calendar and it keeps itself in sync — no re-importing when a
+          rehearsal moves.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {feed ? (
+            <Button size="sm" asChild>
+              <a href={feed.webcal}>Subscribe in your calendar app</a>
+            </Button>
+          ) : (
+            <Button size="sm" disabled>Loading…</Button>
+          )}
+          <Button size="sm" variant="outline" onClick={copy} disabled={!feed}>Copy link</Button>
+        </div>
+        {feed && <p className="break-all font-mono text-[11px] text-muted-foreground">{feed.url}</p>}
+        <p className="text-xs text-muted-foreground">
+          Google Calendar does not take the <span className="font-mono">webcal</span> button: use <strong>Copy link</strong>, then
+          Other calendars → From URL and paste it. Apple and Outlook can use the button.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <Button variant="outline" onClick={download} disabled={calBusy} data-tour="profile-calendar">
-          {calBusy ? 'Building…' : 'Download calendar (.ics)'}
+          {calBusy ? 'Building…' : 'Download once (.ics)'}
         </Button>
         <Button variant="ghost" asChild>
           <a href="/calendar" target="_blank" rel="noreferrer">
@@ -269,8 +1347,273 @@ function CalendarIntegration() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        This is a snapshot, not a live subscription. If a date changes you will need to download it again.
+        The download is a one-off snapshot — if a date changes you would download it again. The subscribe link above
+        does not have that problem.
       </p>
+    </div>
+  );
+}
+
+/**
+ * The sender's view of their own support tickets (5b5f0c2a). Shows what is
+ * still editable - an Open or In Progress ticket can be corrected or fleshed
+ * out - and lets the member do it in place. Editing tells the maintainers so a
+ * change never quietly rewrites what they were already answering.
+ */
+function YourTickets() {
+  const [tickets, setTickets] = useState<Awaited<ReturnType<typeof memberGetMyTickets>>['tickets'] | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  // Ticket 0a5d31a8: one "view" control picks the subset (all / open / last N
+  // days) and the ordering (newest first / by category). Tickets 651e522e &
+  // 0a5d31a8 also want these to stick, so they persist per browser.
+  const [view, setView] = useTicketView();
+  // Ticket bb37a31b: vast ticket histories flattened the card, so the list is
+  // truncated with a reveal button for the rest.
+  // Ticket 06a23d57 + 651e522e: the reader picks how many to see first
+  // (3/5/10 or a custom count) and that choice now saves.
+  const [expanded, setExpanded] = useState(false);
+  const [sizeMode, setSizeMode] = useTicketPageSize();
+  const [customCount, setCustomCount] = useTicketCustomCount();
+  const [customDays, setCustomDays] = useState('3');
+  const { me } = useMe();
+  const [sameTab] = useSupportSameTab();
+  const load = () => memberGetMyTickets({}).then((r) => setTickets(r.tickets)).catch(() => setTickets([]));
+  useEffect(() => { load(); }, []);
+
+  // Ticket c94884d3: the card has its own sort. "Newest first" mirrors the
+  // server order; "By category" groups the types together, newest first inside
+  // each group. Sorts in place, so editing still works exactly as before.
+  // Must run on every render (not below the early return) so the hook count
+  // never changes once the ticket list arrives -- an early-returned loader
+  // skips useMemo and the next render explodes with "more hooks than before".
+  const TYPE_ORDER = ['Bug Report', 'Feature Request', 'General Support'];
+  const shown = useMemo(() => {
+    const all = tickets ?? [];
+    const newestFirst = (list: typeof all) => [...list].sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    const since = (days: number) => Date.now() - Math.max(1, days) * 86_400_000;
+    const submittedSince = (list: typeof all, days: number) =>
+      list.filter((t) => { const ts = Date.parse(t.submittedAt); return !Number.isNaN(ts) && ts >= since(days); });
+    if (view === 'open') return newestFirst(all.filter((t) => ['Open', 'In Progress'].includes(t.status)));
+    if (view.startsWith('day')) return newestFirst(submittedSince(all, Number(view.slice(3)) || 1));
+    if (view === 'custom') return newestFirst(submittedSince(all, Math.floor(Number(customDays)) || 1));
+    if (view === 'category') {
+      return [...all].sort((a, b) => {
+        const aa = TYPE_ORDER.indexOf(a.type);
+        const bb = TYPE_ORDER.indexOf(b.type);
+        return (aa === -1 ? TYPE_ORDER.length : aa) - (bb === -1 ? TYPE_ORDER.length : bb) ||
+          b.submittedAt.localeCompare(a.submittedAt);
+      });
+    }
+    return newestFirst(all);
+  }, [tickets, view, customDays]);
+
+  if (tickets === null) return <div className="rounded-2xl border bg-card p-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+
+  // The hook-discipline version of the trim: slice below the early return.
+  const pageSize = (() => {
+    if (sizeMode !== 'custom') return Number(sizeMode);
+    const n = Math.floor(Number(customCount));
+    return Number.isFinite(n) && n > 0 ? n : 5;
+  })();
+  const visible = expanded ? shown : shown.slice(0, pageSize);
+
+  const startEdit = (t: typeof tickets[number]) => { setEditing(t.id); setSubject(t.subject); setMessage(t.message); };
+  const save = async (t: typeof tickets[number]) => {
+    setSaving(true);
+    try {
+      await memberEditTicket({ id: t.id, subject, message });
+      toast.success('Ticket updated', { description: 'The crew has been told about the change.' });
+      setEditing(null);
+      await load();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <LifeBuoy className="h-5 w-5 text-primary" />
+            Your support tickets
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
+            crew is told automatically.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v); setExpanded(false); }}>
+            <SelectTrigger className="w-full sm:w-[130px]" aria-label="How many tickets to show">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">Show 3</SelectItem>
+              <SelectItem value="5">Show 5</SelectItem>
+              <SelectItem value="10">Show 10</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+          {sizeMode === 'custom' && (
+            <Input
+              type="number"
+              min={1}
+              max={200}
+              value={customCount}
+              onChange={(e) => { setCustomCount(e.target.value); setExpanded(false); }}
+              className="w-[90px]"
+              aria-label="Custom number of tickets"
+            />
+          )}
+          <Select value={view} onValueChange={(v) => { setView(v); setExpanded(false); }}>
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Which tickets to show">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recency">Newest first</SelectItem>
+              <SelectItem value="open">My open tickets</SelectItem>
+              <SelectItem value="day1">Last 1 day</SelectItem>
+              <SelectItem value="day2">Last 2 days</SelectItem>
+              <SelectItem value="day3">Last 3 days</SelectItem>
+              <SelectItem value="day5">Last 5 days</SelectItem>
+              <SelectItem value="custom">Last N days…</SelectItem>
+              <SelectItem value="category">By category</SelectItem>
+            </SelectContent>
+          </Select>
+          {view === 'custom' && (
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={customDays}
+              onChange={(e) => { setCustomDays(e.target.value); setExpanded(false); }}
+              className="w-[90px]"
+              aria-label="Number of days to look back"
+              placeholder="Days"
+            />
+          )}
+        </div>
+      </div>
+
+      {shown.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {(tickets?.length ?? 0) > 0 ? 'No tickets match this view.' : 'You have not raised any tickets yet.'}
+        </p>
+      )}
+
+      <ul className="space-y-3">
+        {visible.map((t) => (
+          <li key={t.id} className="rounded-xl border p-4 space-y-3">
+            {editing === t.id ? (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="t-subject">Subject</Label>
+                  <Input id="t-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={200} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="t-message">What you want the crew to know</Label>
+                  <Textarea id="t-message" value={message} onChange={(e) => setMessage(e.target.value)} maxLength={SUPPORT_MESSAGE_MAX} rows={4} />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={saving || !subject.trim() || !message.trim()} onClick={() => save(t)}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}Save changes
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)} disabled={saving}>
+                    <X className="h-4 w-4 mr-1.5" />Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Ticket 1e19f93d: an admin can open any of their tickets
+                      straight from here, honouring the same-tab preference. */}
+                  {me.isAdmin ? (
+                    <Link
+                      to={`/admin/support/${t.id}`}
+                      target={sameTab ? undefined : '_blank'}
+                      rel={sameTab ? undefined : 'noopener noreferrer'}
+                      title="Open in the support page"
+                      className="font-medium min-w-0 truncate flex-1 hover:underline inline-flex items-center gap-1.5"
+                    >
+                      {t.subject}
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </Link>
+                  ) : (
+                    <p className="font-medium min-w-0 truncate flex-1">{t.subject}</p>
+                  )}
+                  {t.editable && (
+                    <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
+                  <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+                  {t.submittedAt && <span>· {new Date(t.submittedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>}
+                  <span>· {t.replyCount} {t.replyCount === 1 ? 'reply' : 'replies'}</span>
+                </div>
+                {!t.editable && <p className="text-xs text-muted-foreground">Finished, so it is locked.</p>}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {shown.length > pageSize && (
+        <Button variant="outline" size="sm" className="w-full" onClick={() => setExpanded((e) => !e)}>
+          {expanded ? 'Show fewer' : `Show all ${shown.length} tickets`}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A chip picker for a controlled list (feedback round 2). Clicking a chip
+ * toggles it; the chosen ones are sent as an array and the server keeps only
+ * real options.
+ */
+function SkillPicker({ label, options, value, onChange, disabled }: {
+  label: string;
+  options: string[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  disabled?: boolean;
+}) {
+  const chosen = new Set(value.map((v) => v.toLowerCase()));
+  const toggle = (opt: string) => {
+    const has = chosen.has(opt.toLowerCase());
+    onChange(has ? value.filter((v) => v.toLowerCase() !== opt.toLowerCase()) : [...value, opt]);
+  };
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const on = chosen.has(opt.toLowerCase());
+          return (
+            <button
+              key={opt}
+              type="button"
+              disabled={disabled}
+              onClick={() => toggle(opt)}
+              aria-pressed={on}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                on ? 'border-primary bg-primary/15 text-primary' : 'bg-card hover:bg-muted/60',
+              )}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {disabled && <p className="text-xs text-muted-foreground">An admin manages these.</p>}
     </div>
   );
 }

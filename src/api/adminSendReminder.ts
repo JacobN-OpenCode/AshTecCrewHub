@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
-import { requireAdmin, ids, mapShow, mapSubEvent } from '../lib/server';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
+import { requireAdmin, ids, isStaff, mapShow, mapSubEvent } from '../lib/server';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
 import { pendingForms } from '../lib/reminders';
 
@@ -22,6 +22,10 @@ export default createEndpoint({
     if (!member?.schoolEmail) throw new Error('Member has no email address.');
     if (member.isPreviewAccount) throw new Error('Preview accounts can’t receive emails.');
     if (member.memberType === 'Actor') throw new Error('Actors don’t have crew forms.');
+    if (isStaff(member)) throw new Error('Staff don’t have crew forms.');
+    // Ticket ffe32315. Admins assign their own roles, so a form reminder to an
+    // admin is just noise. Never send one.
+    if (member.isAdmin) throw new Error('Admins are never sent form reminders.');
     const [shows, subs, resps, att] = await Promise.all([
       zite.shows.findAll({ limit: 200 }),
       zite.subEvents.findAll({ limit: 2000 }),
@@ -54,7 +58,7 @@ export default createEndpoint({
       subject,
       body: [
         { type: 'text', content: text },
-        { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.ZITE_APP_URL },
+        { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.APP_URL },
       ],
     });
     await zite.emailLog.create({
@@ -66,6 +70,7 @@ export default createEndpoint({
         shows: [...new Set(pending.flatMap((p) => p.showIds))],
         body: text,
         sentBy: `${admin.firstName ?? ''} ${admin.lastName ?? ''}`.trim(),
+        sentAt: new Date().toISOString(),
       },
     });
     return { sent: pending.length };

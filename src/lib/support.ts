@@ -1,4 +1,4 @@
-import type { CrewMembersRecordType } from 'zitejs/db';
+import type { CrewMembersRecordType } from '#db';
 import { isEmailable, isStaff } from './server';
 
 export const REPLY_KIND = { toUser: 'To User', note: 'Internal Note', fromUser: 'From User' } as const;
@@ -39,6 +39,16 @@ export function isDueForEscalation(t: { submittedAt?: string | null; lastReplyAt
   return sinceEscalation >= ESCALATION_HOURS * 3600_000;
 }
 
-export const ticketUrl = (id: string) => `${process.env.ZITE_APP_URL}/admin/support/${id}`;
+export const ticketUrl = (id: string) => `${process.env.APP_URL}/admin/support/${id}`;
 
 export const fullName = (m: { firstName?: string | null; lastName?: string | null }) => `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+
+
+/**
+ * What to say after pressing "remind the maintainers" (ticket 9db2a2a0).
+ *
+ * The button used to only speak up when an email went out, so an admin whose
+ * nudge was skipped got no feedback at all and assumed it was broken. Every
+ * outcome now has words: sent, skipped because nobody is waiting on a
+ * maintainer, or skipped because nobody has an address we can use.
+ */

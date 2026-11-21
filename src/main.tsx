@@ -23,11 +23,11 @@ function RuntimeErrorFallback(props: { error: Error }) {
     <div className="fixed inset-0 grid place-items-center">
       <div className="relative w-full max-w-xl rounded border-t-4 border-t-red-500 bg-white p-4 shadow-lg">
         <h3 className="mb-2 flex items-center gap-2 font-medium">
-          Issue rendering app
+          Issue rendering the app
         </h3>
         <p className="mb-4 text-sm text-gray-600">
           {allowAiFix
-            ? 'Try asking Zite to fix the issue or find a workaround.'
+            ? 'The app hit an unexpected error. You can try reloading the page.'
             : 'Something went wrong while loading this app. You can try reloading the page.'}
         </p>
 
@@ -69,3 +69,15 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 );
+
+// Register the service worker for the installed PWA (offline shell + push).
+// Production always; in dev only when explicitly asked, because otherwise it
+// serves stale bundles and fights Vite's HMR. Set VITE_ENABLE_SW=1 in dev when
+// you need to test notifications or offline behaviour specifically.
+if ('serviceWorker' in navigator && (import.meta.env.PROD || import.meta.env.VITE_ENABLE_SW === '1')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // A failed registration just means no offline shell or push; the app works.
+    });
+  });
+}

@@ -1,6 +1,8 @@
 // Backend-only helpers shared by endpoints in src/api/.
-import { zite } from 'zitejs/db';
-import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from 'zitejs/db';
+import { zite } from '#db';
+import { ZiteError } from '#backend';
+import type { CrewMembersRecordType, SubEventsRecordType, ShowsRecordType } from '#db';
+import { hasPermission, parsePermissionState, type PermissionKey, type PermissionSubject } from './permissions';
 
 export const ids = (v?: string | string[] | null): string[] => (v ? (Array.isArray(v) ? v : [v]) : []);
 
@@ -36,14 +38,43 @@ export async function adminCount(): Promise<number> {
 
 export async function requireMember(email: string) {
   const m = await findMemberByEmail(email);
-  if (!m) throw new Error('Your email is not on the AshTec crew list. Ask an admin to add you.');
+  if (!m) throw new ZiteError({ code: 'FORBIDDEN', message: 'Your email is not on the AshTec crew list. Ask an admin to add you.' });
   return m;
 }
 
 export async function requireAdmin(email: string) {
   const m = await requireMember(email);
-  if (!m.isAdmin) throw new Error('Admins only.');
+  if (!m.isAdmin) throw new ZiteError({ code: 'FORBIDDEN', message: 'Admins only.', userFacingMessage: 'Admins only.' });
   return m;
+}
+
+/**
+ * Loads a show for the workspace pages. Hidden shows only exist for staff and
+ * admins, and a missing show reads as not found either way so the two cases are
+ * indistinguishable from outside.
+ */
+export async function requireShowAccess(email: string, showId: string) {
+  const me = await requireMember(email);
+  const show = await zite.shows.findOne({ id: showId }).catch(() => null);
+  if (!show) throw new Error('Show not found.');
+  const mapped = mapShow(show);
+  if (mapped.hidden && !me.isAdmin && !me.isStaff) throw new Error('Show not found.');
+  return { me, show, mapped };
+}
+
+/**
+ * Feedback round 2: normal members are read-only in the show workspaces and
+ * admins can grant or revoke permissions per person. Endpoints call this so the
+ * rule holds even if the UI is bypassed.
+ */
+export function assertPermission(m: CrewMembersRecordType, key: PermissionKey): void {
+  if (!hasPermission(m as unknown as PermissionSubject, key)) {
+    throw new ZiteError({
+      code: 'FORBIDDEN',
+      message: 'You do not have permission to do that.',
+      userFacingMessage: 'You do not have permission to do that.',
+    });
+  }
 }
 
 /** Acting as yourself, or (admins only) on behalf of another member. */
@@ -67,9 +98,23 @@ export async function actingMember(email: string, previewAs?: string) {
   return m;
 }
 
-/** Real people who can receive email (no preview accounts). */
-export const isEmailable = (m: CrewMembersRecordType) => !!m.schoolEmail && !m.isPreviewAccount;
-export const isStaff = (m: CrewMembersRecordType) => m.memberType === 'Teacher' || m.year === 'Staff';
+/**
+ * Real people who can receive email (no preview accounts).
+ *
+ * Feedback round 2: staff are never emailed unless they are a maintainer. This
+ * is a student-led department, and staff should only ever hear from us when
+ * they sign in. Login mail does not go through here (see server/auth.ts), so a
+ * teacher can still sign in normally.
+ */
+export const isEmailable = (m: CrewMembersRecordType) =>
+  !!m.schoolEmail && !m.isPreviewAccount && (!isStaff(m) || !!m.isMaintainer);
+// Contractors are external (ticket 00c0715c): they get the platform and their
+// own attendance, nothing else. A contractor must never be treated as staff even
+// if the record still carries year "Staff" (e.g. an existing staff member
+// converted, or a saved default), otherwise they inherit the roster and every
+// other staff-only view. This is the reported hole in ticket b89e3fd2.
+export const isStaff = (m: CrewMembersRecordType) =>
+  m.memberType !== 'Contractor' && (m.memberType === 'Teacher' || m.year === 'Staff');
 
 export const mapShow = (s: ShowsRecordType) => ({
   id: s.id,
@@ -79,6 +124,7 @@ export const mapShow = (s: ShowsRecordType) => ({
   dueDate: s.responseDueDate ?? null,
   dueUnknown: !!s.dueDateUnknown,
   hidden: !!s.hidden,
+  techLocked: !!(s as unknown as { techLocked?: boolean }).techLocked,
 });
 
 export const mapSubEvent = (e: SubEventsRecordType) => ({
@@ -91,19 +137,36 @@ export const mapSubEvent = (e: SubEventsRecordType) => ({
   dateTbc: !!e.dateTbc,
   description: e.description ?? '',
   meetTime: e.meetTime ?? '',
-  timings: e.timings ?? '',
+  // Structured start/end, both "HH:MM" 24-hour or null. The calendar feed
+  // uses these directly; admin pages and the member event row show them as
+  // "19:00 - 21:00" rather than the old free-text "timings" string.
+  startTime: e.startTime ?? null,
+  endTime: e.endTime ?? null,
   thingsToBring: e.thingsToBring ?? '',
   importance: e.importance ?? 'Medium',
   dueDate: e.responseDueDate ?? null,
   dueUnknown: !!e.dueDateUnknown,
   hidden: !!e.hidden,
+  // Ticket 00c0715c: admins can flag an event as needing contractors, pick
+  // which contractors to invite, and attach a note. Invited contractors see
+  // the event (and their own attendance only) on their home page.
+  needsContractors: !!e.needsContractors,
+  contractorIds: ids(e.contractors),
+  contractorMessage: e.contractorMessage ?? '',
+  // Ticket 57ce12eb: instances of a repeating event share recurrenceGroup, and
+  // recurrenceRule ('weekly' | 'fortnightly' | 'monthly') describes the series.
+  // Both live outside the generated record type until the schema is regenerated.
+  recurrenceGroup: (e as unknown as { recurrenceGroup?: string | null }).recurrenceGroup ?? null,
+  recurrenceRule: (e as unknown as { recurrenceRule?: string }).recurrenceRule ?? '',
 });
 
 export const mapMember = (m: CrewMembersRecordType) => ({
   id: m.id,
   firstName: m.firstName ?? '',
   lastName: m.lastName ?? '',
-  shortUsername: `${(m.lastName ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')}${(m.firstName ?? '').slice(0, 1).toLowerCase()}` || (m.schoolEmail ?? '').split('@')[0],
+  // Username is the local part of the email address, so it can never collide
+  // with another member and matches what people already type to sign in.
+  shortUsername: (m.schoolEmail ?? '').split('@')[0] || 'member',
   year: m.year ?? '',
   email: m.schoolEmail ?? '',
   isAdmin: !!m.isAdmin,
@@ -117,14 +180,37 @@ export const mapMember = (m: CrewMembersRecordType) => ({
   adminNotes: m.adminNotes ?? '',
   isMaintainer: !!m.isMaintainer,
   isPreview: !!m.isPreviewAccount,
-  // Cast because the column is added in the Zite editor, not in this repo.
-  profilePictureUrl: (m as { profilePictureUrl?: string | null }).profilePictureUrl ?? '',
+  // Profile picture, a URL the member sets in Settings. Lives outside the
+  // generated record type until the schema is regenerated, so read it by cast.
+  avatarUrl: (m as unknown as { avatarUrl?: string | null }).avatarUrl ?? '',
+  // Skills directory tags (Batch 7): free-text lists the member edits itself.
+  skillsTeach: (m as unknown as { skillsTeach?: string }).skillsTeach ?? '',
+  skillsLearn: (m as unknown as { skillsLearn?: string }).skillsLearn ?? '',
+  statusText: (m as unknown as { statusText?: string }).statusText ?? '',
+  statusEmoji: (m as unknown as { statusEmoji?: string }).statusEmoji ?? '',
+  birthday: (m as unknown as { birthday?: string }).birthday ?? '',
+  contactShare: !!(m as unknown as { contactShare?: boolean }).contactShare,
+  // For parents: the address a parent can type on the public For parents page.
+  // Comma-separated, never emailed, never shown anywhere else.
+  parentEmail: (m as unknown as { parentEmail?: string }).parentEmail ?? '',
+  mentorId: (m as unknown as { mentorId?: string | null }).mentorId ?? null,
+  isMentor: !!(m as unknown as { isMentor?: boolean }).isMentor,
+  // Contractors (ticket 00c0715c) are external: they get the platform and
+  // their own attendance, but no stage layout or student information.
+  isContractor: m.memberType === 'Contractor',
+  // Unset means "follow the default": on for admins, off for everyone else.
+  adminNotifications: m.adminNotifications === null || m.adminNotifications === undefined ? !!m.isAdmin : !!m.adminNotifications,
+  // Feedback round 2: per-member permission overrides (granted/revoked).
+  permissions: parsePermissionState((m as unknown as { permissions?: unknown }).permissions),
+  // Ticket d1ae2a76 / 09b3e402: '' means "follow the site-wide support email
+  // setting"; 'per-ticket' or 'daily' is this member's own choice.
+  supportEmailMode: (m as unknown as { supportEmailMode?: string }).supportEmailMode ?? '',
 });
 
 const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
 export async function upsertAttendance(
-  rows: { memberId: string; subEventId: string; status: string; reason?: string; byAdmin?: boolean }[],
+  rows: { memberId: string; subEventId: string; status: string; reason?: string; byAdmin?: boolean; registerState?: string }[],
 ) {
   for (const batch of chunk(rows)) {
     await zite.attendance.bulkCreate({
@@ -135,6 +221,9 @@ export async function upsertAttendance(
         status: r.status,
         reason: r.reason ?? '',
         enteredByAdmin: !!r.byAdmin,
+        // Green / yellow / red on the venue register, so a half-taken register
+        // reopens with the same colours. '' means nobody has marked this row.
+        registerState: r.registerState ?? '',
       })) as never,
       matchOn: ['attendanceKey'],
     });
@@ -142,23 +231,40 @@ export async function upsertAttendance(
 }
 
 /**
- * Keeps "Not Attending Event" in sync: a sub-event is auto-marked for a member
- * when they answered "No" to every show it belongs to, and the auto mark is
- * cleared when that stops being true.
+ * Keeps per-event attendance in step with show responses.
+ *
+ * Show-level answers ("Yes / Maybe / No" to the whole production) and
+ * per-event attendance ("Expected Arrival / Maybe / Not Attending") are two
+ * separate questions, so the per-event row is what the stage manager actually
+ * reads. Without this sync the two sides drift: a member says "Yes" to the
+ * show and the count on /admin/events for that performance stays at 0 until
+ * they set a per-event choice too - the exact complaint in ticket b4be3495.
+ *
+ * Rules:
+ *  - "No" to every show the event belongs to -> set "Not Attending Event".
+ *  - "Yes" to at least one show the event belongs to (and no existing row)
+ *    -> set "Expected Arrival". This is the fix for the mismatch.
+ *  - All "Maybe" (and no existing row) -> set "Maybe". Same fix.
+ *  - Existing rows are NEVER overwritten: a member who explicitly marked
+ *    "Not Attending" on a specific event keeps it even though they said
+ *    "Yes" to the wider show.
+ *  - If the auto "Not Attending Event" mark is on a sub-event that the
+ *    member has somehow stopped declining, the mark is cleared.
+ *
+ * Returns counts so adminRecomputeAttendance can show the user what happened.
  */
 export async function syncAutoAttendance(scope: { memberId?: string; subEventId?: string }) {
-  const [{ records: subs }, { records: resps }, { records: att }] = await Promise.all([
-    scope.subEventId
-      ? zite.subEvents.findOne({ id: scope.subEventId }).then((r) => ({ records: r ? [r] : [] }))
-      : zite.subEvents.findAll({ limit: 2000 }),
+  const { records: subs } = await zite.subEvents.findAll({ limit: 2000 });
+  const wantedSubs = scope.subEventId ? subs.filter((s) => s.id === scope.subEventId) : subs;
+  const [{ records: resps }, { records: att }] = await Promise.all([
     scope.memberId
-      ? zite.showResponses.findAll({ filters: { member: scope.memberId }, limit: 2000 })
-      : zite.showResponses.findAll({ limit: 2000 }),
+      ? await zite.showResponses.findAll({ filters: { member: scope.memberId }, limit: 2000 })
+      : await zite.showResponses.findAll({ limit: 2000 }),
     scope.memberId
-      ? zite.attendance.findAll({ filters: { member: scope.memberId }, limit: 2000 })
+      ? await zite.attendance.findAll({ filters: { member: scope.memberId }, limit: 2000 })
       : scope.subEventId
-        ? zite.attendance.findAll({ filters: { subEvent: scope.subEventId }, limit: 2000 })
-        : zite.attendance.findAll({ limit: 2000 }),
+        ? await zite.attendance.findAll({ filters: { subEvent: scope.subEventId }, limit: 2000 })
+        : await zite.attendance.findAll({ limit: 2000 }),
   ]);
   let memberIds: string[];
   if (scope.memberId) memberIds = [scope.memberId];
@@ -168,17 +274,37 @@ export async function syncAutoAttendance(scope: { memberId?: string; subEventId?
   const attMap = new Map(att.map((a) => [`${ids(a.member)[0]}:${ids(a.subEvent)[0]}`, a]));
   const toSet: Parameters<typeof upsertAttendance>[0] = [];
   const toDelete: string[] = [];
-  for (const s of subs) {
+  let added = 0;
+  let autoSet = 0;
+  let clearedAuto = 0;
+  for (const s of wantedSubs) {
     const showIds = ids(s.shows);
     if (!showIds.length) continue;
     for (const mid of memberIds) {
-      const declined = showIds.every((sh) => respMap.get(`${mid}:${sh}`) === 'No');
+      const responses = showIds.map((sh) => respMap.get(`${mid}:${sh}`));
+      const hasYes = responses.some((r) => r === 'Yes');
+      const allMaybe = responses.every((r) => r === 'Maybe');
+      const declined = responses.length > 0 && responses.every((r) => r === 'No');
       const existing = attMap.get(`${mid}:${s.id}`);
-      if (declined && existing?.status !== 'Not Attending Event')
+      if (declined && existing?.status !== 'Not Attending Event') {
         toSet.push({ memberId: mid, subEventId: s.id, status: 'Not Attending Event', reason: 'Not taking part in this show' });
+        autoSet++;
+      }
       if (!declined && existing?.status === 'Not Attending Event') toDelete.push(existing.id);
+      if (existing) continue;
+      if (hasYes) {
+        toSet.push({ memberId: mid, subEventId: s.id, status: 'Expected Arrival' });
+        added++;
+      } else if (allMaybe) {
+        toSet.push({ memberId: mid, subEventId: s.id, status: 'Maybe' });
+        added++;
+      }
     }
   }
   await upsertAttendance(toSet);
-  for (const id of toDelete) await zite.attendance.delete({ id });
+  for (const id of toDelete) {
+    await zite.attendance.delete({ id });
+    clearedAuto++;
+  }
+  return { added, autoSet, clearedAuto };
 }

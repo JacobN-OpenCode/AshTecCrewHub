@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { adminGetEmailLog, type AdminGetEmailLogOutputType } from 'zitejs/api';
+import { adminGetEmailLog, type AdminGetEmailLogOutputType } from '#api';
 import { Input } from '@project/components/ui/input';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -29,6 +29,12 @@ export default function EmailLog() {
   useEffect(() => { loadLog(); }, []);
 
   const name = (id: string) => { const m = data?.members.find((x) => x.id === id); return m ? `${m.firstName} ${m.lastName}` : 'Unknown'; };
+  // Old rows can carry an empty or unparseable sentAt; "Invalid Date" in the
+  // list made emails look missing, so fall back rather than render garbage.
+  const fmtWhen = (iso: string) => {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? 'Unknown' : d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  };
   const purposes = [...new Set((emails ?? []).map((e) => e.purpose).filter(Boolean))];
   const list = useMemo(() => (emails ?? []).filter((e) =>
     (member === 'all' || e.memberId === member) && (purpose === 'all' || e.purpose === purpose) &&
@@ -48,9 +54,11 @@ export default function EmailLog() {
     if (g) g.push(e); else batches.set(e.batchId, [e]);
   }
   const byNewest = (a: Mail[], b: Mail[]) => (b[0]?.sentAt ?? '').localeCompare(a[0]?.sentAt ?? '');
-  for (const g of batches.values()) g.sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-  const groups = [...batches.values()].sort(byNewest);
-  groups.push(...singles.map((e) => [e]).sort(byNewest));
+  for (const g of batches.values()) g.sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''));
+  // Ticket f2a36393: batches used to be listed above every single send, so a
+  // newer one-off email sank below an older batch. Merge both into one
+  // newest-first list so the whole log reads in date order.
+  const groups = [...batches.values(), ...singles.map((e) => [e])].sort(byNewest);
   const shown = groups.slice(0, page * PAGE);
   const Row = ({ e, nested }: { e: Mail; nested?: boolean }) => (
     <button onClick={() => setOpen(e)} className={`w-full text-left p-4 flex flex-col md:flex-row md:items-center gap-2 hover:bg-muted/40 ${nested ? 'pl-10 bg-muted/20' : ''}`}>
@@ -65,7 +73,7 @@ export default function EmailLog() {
     <div className="flex flex-wrap gap-1.5 items-center">
       <Badge variant="outline" className="border-primary/40 text-primary">{e.purpose}</Badge>
       {e.showIds.map((id) => <Badge key={id} variant="secondary">{data.shows.find((s) => s.id === id)?.code || '?'}</Badge>)}
-      <span className="text-xs font-mono text-muted-foreground ml-2">{new Date(e.sentAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+      <span className="text-xs font-mono text-muted-foreground ml-2">{fmtWhen(e.sentAt)}</span>
     </div>
   );
 
@@ -76,7 +84,7 @@ export default function EmailLog() {
         <Button onClick={() => setCompose(true)}><PenSquare className="h-4 w-4 mr-1.5" />New message</Button>
       </div>
       <ComposeDialog open={compose} data={data} onClose={() => setCompose(false)} onSent={() => { setCompose(false); loadLog(); }} />
-      <div className="grid sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="relative"><Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" /><Input data-tour="emails-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <Select value={member} onValueChange={setMember}><SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="all">All members</SelectItem>{data.members.map((m) => <SelectItem key={m.id} value={m.id}>{m.firstName} {m.lastName}</SelectItem>)}</SelectContent></Select>

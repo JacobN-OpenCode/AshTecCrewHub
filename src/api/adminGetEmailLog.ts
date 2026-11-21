@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
 
 export default createEndpoint({
@@ -22,7 +22,11 @@ export default createEndpoint({
           showIds: ids(e.shows),
           body: e.body ?? '',
           sentBy: e.sentBy ?? '',
-          sentAt: e.sentAt ?? '',
+          // Rows written before sentAt was filled in had a NULL there. Fall back
+          // to createdAt so they still sort and render as real dates instead of
+          // sinking to the bottom of the list as "Invalid Date".
+          sentAt: e.sentAt || e.createdAt || '',
+          createdAt: e.createdAt ?? '',
           batchId: e.batchId ?? '',
         }))
         .sort((a, b) => b.sentAt.localeCompare(a.sentAt)),

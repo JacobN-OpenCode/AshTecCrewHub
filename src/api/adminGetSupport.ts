@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
 import { REPLY_KIND } from '../lib/support';
 
@@ -14,9 +14,11 @@ export default createEndpoint({
   outputSchema: z.object({
     tickets: z.array(z.object({
       id: z.string(), subject: z.string(), type: z.string(), message: z.string(), status: z.string(),
-      adminNotes: z.string(), page: z.string(), submittedById: z.string(), submittedAt: z.string(),
+      severity: z.string(), adminNotes: z.string(), page: z.string(), submittedById: z.string(), submittedAt: z.string(),
       assignedMaintainerIds: z.array(z.string()), replyCount: z.number(), awaitingReply: z.boolean(),
+      maintainerTurn: z.boolean(),
       referToOpencode: z.boolean(),
+      pinned: z.boolean(),
       lastReplyAt: z.string(), lastReplyFrom: z.string(), escalatedAt: z.string(),
     })),
   }),
@@ -39,15 +41,23 @@ export default createEndpoint({
         const newest = replies[0];
         return {
           id: t.id, subject: t.subject ?? '', type: t.type ?? 'General Support', message: t.message ?? '',
-          status: t.status ?? 'Open', adminNotes: t.adminNotes ?? '', page: t.page ?? '',
-          submittedById: ids(t.submittedBy)[0] ?? '', submittedAt: t.submittedAt ?? '',
+          status: t.status ?? 'Open', severity: (t as { severity?: string }).severity ?? '',
+          adminNotes: t.adminNotes ?? '', page: t.page ?? '',
+          submittedById: ids(t.submittedBy)[0] ?? '', submittedAt: t.submittedAt ?? t.createdAt ?? '',
           assignedMaintainerIds: ids(t.assignedMaintainers),
           replyCount: replies.length,
           referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,
+          pinned: !!(t as { pinned?: boolean }).pinned,
           // Nobody has answered since the ticket was raised or last replied.
           // Finished tickets can keep an unanswered last word, so they must not
           // count - this has to agree with the badge count in getMe.
           awaitingReply: ACTIVE_STATUSES.includes(t.status ?? 'Open') && (!newest || newest.kind === REPLY_KIND.toUser),
+          // The maintainer's turn, by the same rule the "Remind maintainers"
+          // digest uses: still active, and the last real message is not from a
+          // maintainer (ticket edf25b3d - the old filter bound this to
+          // awaitingReply, which is the opposite question and so never matched
+          // the checkbox's label).
+          maintainerTurn: ACTIVE_STATUSES.includes(t.status ?? 'Open') && (!newest || newest.kind === REPLY_KIND.fromUser),
           lastReplyAt: t.lastReplyAt ?? '', lastReplyFrom: t.lastReplyFrom ?? '', escalatedAt: t.escalatedAt ?? '',
         };
       }).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)),

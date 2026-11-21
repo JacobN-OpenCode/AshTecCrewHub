@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminGetTicket, adminNoteTicket, adminReplyTicket, adminUpdateTicket } from 'zitejs/api';
+import { adminGetTicket, adminNoteTicket, adminReplyTicket, adminUpdateTicket, adminRemindMaintainers } from '#api';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
-import { ArrowLeft, Loader2, Mail, MessageSquare, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
-import { TYPE_STYLE, STATUS_STYLE, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
-import { OPENCODE_TAG_TYPES } from '../../api/adminUpdateTicket';
+import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, Pin, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
+import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
+import { remindOutcome } from '../../lib/remindOutcome';
 import { useMe } from '../../lib/me';
 
 type Status = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
@@ -60,6 +60,11 @@ export default function Ticket() {
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
+          {t.severity && (
+            <Badge variant="outline" className={SEVERITY_STYLE[t.severity]}>
+              <Flag className="h-3 w-3 mr-1" />{t.severity}
+            </Badge>
+          )}
           {t.referToOpencode && (
             <Badge variant="outline" className={OPENCODE_TAG_STYLE}>
               <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
@@ -67,14 +72,31 @@ export default function Ticket() {
           )}
           <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
           <Badge variant="outline" className={STATUS_STYLE[t.status]}>{t.status}</Badge>
+          {t.pinned && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+              <Pin className="h-3 w-3 mr-1" />Pinned
+            </Badge>
+          )}
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-6">
-        <div className="space-y-6">
-          <section className="space-y-2">
+        <div className="space-y-6 min-w-0">
+          <section className="space-y-2 min-w-0">
             <h2 className="text-sm font-semibold text-muted-foreground">Original message</h2>
-            <p className="whitespace-pre-wrap text-sm rounded-2xl bg-muted/40 p-4">{t.message}</p>
+            <p className="whitespace-pre-wrap break-words text-sm rounded-2xl bg-muted/40 p-4">{t.message}</p>
+            {/* Ticket 5a04aaf1: pictures the submitter attached. */}
+            {Array.isArray(t.attachments) && t.attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {t.attachments.map((url: string) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer"
+                    className="block h-24 w-24 overflow-hidden rounded-xl border hover:border-primary"
+                    title="Open the full picture">
+                    <img src={url} alt="Attachment" className="h-full w-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">
@@ -88,7 +110,7 @@ export default function Ticket() {
                   <Badge variant="outline" className={REPLY_KIND_STYLE[r.kind]}>{r.kind}</Badge>
                   <span className="text-xs text-muted-foreground ml-auto">{when(r.sentAt)}</span>
                 </header>
-                <p className="whitespace-pre-wrap text-sm">{r.body}</p>
+                <p className="whitespace-pre-wrap break-words text-sm">{r.body}</p>
               </article>
             ))}
           </section>
@@ -114,7 +136,47 @@ export default function Ticket() {
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6 h-fit">
+        <aside className="space-y-4 lg:sticky lg:top-6 h-fit min-w-0">
+          <div className="rounded-2xl border bg-card p-4 space-y-2">
+            <label className="text-sm">Severity</label>
+            <Select value={t.severity || 'none'} onValueChange={(v) => run('severity', () => adminUpdateTicket({ id: t.id, severity: (v === 'none' ? '' : v) as '' | 'Low' | 'Medium' | 'High' | 'Urgent' }), () => toast.success('Severity updated'))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Not rated</SelectItem>
+                {SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {['Open', 'In Progress'].includes(t.status) && (
+            <div className="rounded-2xl border bg-card p-4 space-y-2">
+              <Button variant="outline" className="w-full" disabled={busy === 'remind'}
+                onClick={() => run('remind', async () => {
+                  const r = await adminRemindMaintainers({ ids: [t.id] });
+                  const out = remindOutcome(r);
+                  if (out.kind === 'success') toast.success(out.text);
+                  else if (out.kind === 'error') toast.error(out.text);
+                  else toast.info(out.text);
+                }, () => {})}>
+                {busy === 'remind' ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BellRing className="h-4 w-4 mr-2" />}
+                Remind maintainers about this ticket
+              </Button>
+              <p className="text-xs text-muted-foreground">Emails whoever is assigned here, or every maintainer if nobody is.</p>
+            </div>
+          )}
+
+          <div className="rounded-2xl border bg-card p-4 space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={t.pinned}
+                disabled={busy === 'pin'}
+                onCheckedChange={(c) => run('pin', () => adminUpdateTicket({ id: t.id, pinned: !!c }), () => toast.success(c ? 'Ticket pinned' : 'Ticket unpinned'))}
+              />
+              Pin to the top of the ticket list
+            </label>
+            <p className="text-xs text-muted-foreground">Pinned tickets sit above everything else, whatever the sort.</p>
+          </div>
+
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <label className="text-sm">Status</label>
             <Select value={t.status} onValueChange={(v) => run('status', () => adminUpdateTicket({ id: t.id, status: v as Status }), () => toast.success('Status updated'))}>
@@ -125,7 +187,7 @@ export default function Ticket() {
 
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-sm">Emails for this ticket</label>
+              <label className="text-sm">Assigned to</label>
               {busy === 'assign' && <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</span>}
             </div>
             {data.maintainers.length === 0 && <p className="text-xs text-muted-foreground">No admins available to assign.</p>}
@@ -144,12 +206,7 @@ export default function Ticket() {
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t.assignedMaintainerIds.length === 0
-                ? 'Nobody ticked, so this ticket’s emails go to every maintainer.'
-                : `Only ${t.assignedMaintainerIds.map((id) => data.maintainers.find((m) => m.id === id)?.name ?? 'someone').join(', ')} ${t.assignedMaintainerIds.length === 1 ? 'is' : 'are'} emailed about this ticket.`}
-            </p>
-            <p className="text-xs text-muted-foreground">Ticking someone also assigns the ticket to them, and stops the 12-hour reminders.</p>
+            <p className="text-xs text-muted-foreground">Reminders go to whoever is ticked here. With nobody ticked they go to all maintainers.</p>
           </div>
 
           {OPENCODE_TAG_TYPES.includes(t.type) && (

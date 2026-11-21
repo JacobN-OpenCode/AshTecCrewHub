@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireAdmin, ids, isEmailable } from '../lib/server';
 import { REPLY_KIND, notifyTargets, isDueForEscalation, ticketUrl, fullName } from '../lib/support';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
 
-const APP = process.env.ZITE_APP_URL;
+const APP = process.env.APP_URL;
 
 export default createEndpoint({
   description: 'Hourly job that nudges maintainers about support tickets nobody has answered for 12 hours',
@@ -53,7 +53,7 @@ export default createEndpoint({
           });
           sent++;
           await zite.emailLog.create({
-            record: { subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Support Reply', body, sentBy: 'AshTec Support', batchId: targets.length > 1 ? ticket.id : '' } as never,
+            record: { subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Support Reply', body, sentBy: 'AshTec Support', sentAt: new Date().toISOString(), batchId: targets.length > 1 ? ticket.id : '' } as never,
           });
         } catch { /* keep going */ }
       }

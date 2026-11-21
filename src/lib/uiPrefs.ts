@@ -1,0 +1,343 @@
+/**
+ * Small per-device UI preferences.
+ *
+ * Deliberately localStorage rather than columns on CrewMembers: these only change
+ * how the app looks on the machine you are sitting at. A crew member on a shared
+ * school computer should not drag their layout choices onto everyone else's
+ * account, and a layout preference is not worth a schema migration.
+ */
+import { useEffect, useState } from 'react';
+
+const SUPPORT_COLLAPSED = 'ashtec-support-collapsed';
+const SUPPORT_SAME_TAB = 'ashtec-support-same-tab';
+const COLLAPSE_TOP_TABS = 'ashtec-collapse-top-tabs';
+const EVENT = 'ashtec-uiprefs';
+
+const read = (key: string) => {
+  try { return localStorage.getItem(key) === '1'; } catch { return false; }
+};
+const write = (key: string, value: boolean) => {
+  try { localStorage.setItem(key, value ? '1' : '0'); } catch {}
+  window.dispatchEvent(new Event(EVENT));
+};
+
+function useBoolPref(key: string) {
+  const [value, setValue] = useState(() => read(key));
+  useEffect(() => {
+    // `storage` covers a second tab; the custom event covers this one, because
+    // storage events do not fire in the tab that made the change.
+    const sync = () => setValue(read(key));
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [key]);
+  return [value, (next: boolean) => write(key, next)] as const;
+}
+
+function useStringPref(key: string, fallback: string) {
+  const readStr = () => {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  };
+  const [value, setValue] = useState<string>(readStr);
+  useEffect(() => {
+    const sync = () => setValue(readStr());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const set = (next: string) => {
+    try { localStorage.setItem(key, next); } catch {}
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+/** Ticket 9c895ffb: whether the floating help button is shrunk to just its icon. */
+export const useSupportCollapsed = () => useBoolPref(SUPPORT_COLLAPSED);
+
+/**
+ * Ticket 651e522e: "My support tickets" page size (3/5/10/custom) kept per
+ * browser so it does not have to be re-picked on every visit. Same storage
+ * pattern as the other per-device preferences.
+ */
+export const useTicketPageSize = () => useStringPref('ashtec-ticket-size', '5');
+export const useTicketCustomCount = () => useStringPref('ashtec-ticket-custom', '8');
+/** Ticket 0a5d31a8: the member ticket view (subset + ordering) persists too. */
+export const useTicketView = () => useStringPref('ashtec-ticket-view', 'recency');
+
+/** Ticket e9993904: whether the ticket list opens a ticket in this tab instead of a new one. */
+export const useSupportSameTab = () => useBoolPref(SUPPORT_SAME_TAB);
+
+/**
+ * Ticket e9889d62, redesign: shrink the desktop sidebar down to a narrow icon
+ * rail so the content gets the width back. The storage key is kept from when
+ * this controlled the old top tabs, so an existing choice still applies.
+ */
+export const useSidebarCollapsed = () => useBoolPref(COLLAPSE_TOP_TABS);
+
+/**
+ * Ticket ad8dee46: the accent colour. The whole theme is driven by --primary, so
+ * overriding that (plus --ring and --primary-foreground for contrast) restyles
+ * buttons, links, the calendar and the tour in one go. Stored per browser for the
+ * same reason as the button preference above.
+ */
+export type AccentId = 'amber' | 'red' | 'orange' | 'green' | 'blue' | 'purple' | 'pink';
+
+export const ACCENTS: { id: AccentId; label: string; hsl: string; fg: string }[] = [
+  { id: 'amber', label: 'Amber', hsl: '38 96% 56%', fg: '230 30% 7%' },
+  { id: 'red', label: 'Red', hsl: '0 72% 55%', fg: '0 0% 100%' },
+  { id: 'orange', label: 'Orange', hsl: '25 95% 55%', fg: '25 40% 8%' },
+  { id: 'green', label: 'Green', hsl: '145 60% 45%', fg: '150 40% 6%' },
+  { id: 'blue', label: 'Blue', hsl: '210 90% 58%', fg: '210 40% 6%' },
+  { id: 'purple', label: 'Purple', hsl: '265 70% 62%', fg: '265 40% 8%' },
+  { id: 'pink', label: 'Pink', hsl: '330 80% 62%', fg: '330 40% 8%' },
+];
+
+const ACCENT_KEY = 'ashtec-accent';
+const isAccent = (v: unknown): v is AccentId => ACCENTS.some((a) => a.id === v);
+
+export function getAccent(): AccentId {
+  try {
+    const v = localStorage.getItem(ACCENT_KEY);
+    return isAccent(v) ? v : 'amber';
+  } catch {
+    return 'amber';
+  }
+}
+
+/** Inline styles beat the `.dark` rule, so this wins without touching the stylesheet. */
+export function applyAccent(id: AccentId): void {
+  const a = ACCENTS.find((x) => x.id === id) ?? ACCENTS[0];
+  const root = document.documentElement.style;
+  root.setProperty('--primary', a.hsl);
+  root.setProperty('--ring', a.hsl);
+  root.setProperty('--primary-foreground', a.fg);
+}
+
+export function useAccent() {
+  const [id, setId] = useState<AccentId>(() => getAccent());
+  useEffect(() => {
+    const sync = () => {
+      const next = getAccent();
+      setId(next);
+      applyAccent(next);
+    };
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: AccentId) => {
+    try { localStorage.setItem(ACCENT_KEY, next); } catch {}
+    applyAccent(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [id, set] as const;
+}
+
+/**
+ * Ticket 8051f385: a per-device density choice. Roomy is the existing layout;
+ * compact tightens padding/gaps via `[data-density='compact']` rules in
+ * index.css and turns the sidebar account block into a single row. Kept here
+ * with the other per-browser preferences rather than on the member record.
+ */
+export type Density = 'roomy' | 'compact';
+const DENSITY_KEY = 'ashtec-density';
+const isDensity = (v: unknown): v is Density => v === 'roomy' || v === 'compact';
+
+export function getDensity(): Density {
+  try {
+    const v = localStorage.getItem(DENSITY_KEY);
+    return isDensity(v) ? v : 'roomy';
+  } catch {
+    return 'roomy';
+  }
+}
+
+/** `data-density` on <html>; the stylesheet keys off the attribute. */
+export function applyDensity(d: Density): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.density = d;
+}
+
+export function useDensity() {
+  const [value, setValue] = useState<Density>(() => getDensity());
+  useEffect(() => {
+    const sync = () => {
+      const next = getDensity();
+      setValue(next);
+      applyDensity(next);
+    };
+    applyDensity(getDensity());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: Density) => {
+    try { localStorage.setItem(DENSITY_KEY, next); } catch {}
+    applyDensity(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+/**
+ * Batch 6: accessibility. A larger-text step and a high-contrast switch, both
+ * per-device like the density choice. `data-text` scales the root font size
+ * (everything here sizes off rem / Tailwind's text-* which are rem-based) and
+ * `data-contrast` raises borders and dims nothing, per the rules in index.css.
+ */
+export type TextScale = 'default' | 'large' | 'larger';
+const TEXT_SCALE_KEY = 'ashtec-text-scale';
+const isTextScale = (v: unknown): v is TextScale => v === 'default' || v === 'large' || v === 'larger';
+
+export function getTextScale(): TextScale {
+  try {
+    const v = localStorage.getItem(TEXT_SCALE_KEY);
+    return isTextScale(v) ? v : 'default';
+  } catch {
+    return 'default';
+  }
+}
+export function applyTextScale(s: TextScale): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.text = s;
+}
+
+export function useTextScale() {
+  const [value, setValue] = useState<TextScale>(() => getTextScale());
+  useEffect(() => {
+    const sync = () => {
+      const next = getTextScale();
+      setValue(next);
+      applyTextScale(next);
+    };
+    applyTextScale(getTextScale());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: TextScale) => {
+    try { localStorage.setItem(TEXT_SCALE_KEY, next); } catch {}
+    applyTextScale(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+const CONTRAST_KEY = 'ashtec-high-contrast';
+
+export function getHighContrast(): boolean {
+  try {
+    return localStorage.getItem(CONTRAST_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+export function applyHighContrast(on: boolean): void {
+  if (typeof document !== 'undefined') document.documentElement.dataset.contrast = on ? 'high' : 'normal';
+}
+
+export function useHighContrast() {
+  const [value, setValue] = useState<boolean>(() => getHighContrast());
+  useEffect(() => {
+    const sync = () => {
+      const next = getHighContrast();
+      setValue(next);
+      applyHighContrast(next);
+    };
+    applyHighContrast(getHighContrast());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: boolean) => {
+    try { localStorage.setItem(CONTRAST_KEY, next ? '1' : '0'); } catch {}
+    applyHighContrast(next);
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+/** Applied once at boot (in App/tour) so a saved choice is in place before paint. */
+export function applyAccessibilityPrefs(): void {
+  applyTextScale(getTextScale());
+  applyHighContrast(getHighContrast());
+  applyDensity(getDensity());
+}
+
+const CAT_KEY = 'ashtec-cat-hidden';
+
+/** Batch 8: whether the floating crew cat is hidden on this device. */
+export function getCatHidden(): boolean {
+  try { return localStorage.getItem(CAT_KEY) === '1'; } catch { return false; }
+}
+
+export function useCatHidden() {
+  const [value, setValue] = useState<boolean>(() => getCatHidden());
+  useEffect(() => {
+    const sync = () => setValue(getCatHidden());
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: boolean) => {
+    try { localStorage.setItem(CAT_KEY, next ? '1' : '0'); } catch { /* private mode */ }
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}
+
+/**
+ * Feedback round 2: how an admin likes lists — as cards or as rows. Per device,
+ * like the other layout choices, and only ever read by the admin pages.
+ */
+export type AdminLayout = 'cards' | 'lists';
+const ADMIN_LAYOUT_KEY = 'ashtec-admin-layout';
+
+export function useAdminLayout() {
+  const [value, setValue] = useState<AdminLayout>(() => {
+    try { return localStorage.getItem(ADMIN_LAYOUT_KEY) === 'lists' ? 'lists' : 'cards'; } catch { return 'cards'; }
+  });
+  useEffect(() => {
+    const sync = () => {
+      try { setValue(localStorage.getItem(ADMIN_LAYOUT_KEY) === 'lists' ? 'lists' : 'cards'); } catch { /* ignore */ }
+    };
+    window.addEventListener(EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+  const set = (next: AdminLayout) => {
+    try { localStorage.setItem(ADMIN_LAYOUT_KEY, next); } catch { /* private mode */ }
+    setValue(next);
+    window.dispatchEvent(new Event(EVENT));
+  };
+  return [value, set] as const;
+}

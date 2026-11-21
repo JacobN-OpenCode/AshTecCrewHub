@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Direction A - Sidebar Console (Mobile)</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 4h9v16H5z"/><path d="M8 12h9"/><path d="m14 9 3 3-3 3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v3M16 3v3"/></symbol>
+  <symbol id="i-stage" viewBox="0 0 24 24"><path d="M3 4h18v16H3z"/><path d="M3 15h18"/><path d="M9 15v5"/><path d="M15 15v5"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 6"/><path d="M18.5 20a5 5 0 0 0-3.2-4.7"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-life" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="m6.2 6.2 3.6 3.6M14.2 14.2l3.6 3.6M17.8 6.2l-3.6 3.6M9.8 14.2l-3.6 3.6"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M18.5 5.5l-1.4 1.4M6.9 17.1l-1.4 1.4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.5 9a5.5 5.5 0 0 1 11 0c0 4.5 1.8 6 1.8 6H4.7s1.8-1.5 1.8-6"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M15.5 4a5 5 0 0 0-4.4 7.3L4.5 17.9 6.6 20l6.6-6.6A5 5 0 0 0 20 8.5L17.4 11l-2.4-.6-.6-2.4z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7-4.6-7-9.4A3.6 3.6 0 0 1 12 8a3.6 3.6 0 0 1 7 2.6C19 15.4 12 20 12 20z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 20v-6M12 20v-9M16 20v-4"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4 14L16 12h5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 4l7 2.7V12c0 4.2-3 7.4-7 8.6-4-1.2-7-4.4-7-8.6V6.7z"/><path d="m9 12 2 2 4-4"/></symbol>
+</svg>
+
+<div class="sheet">
+  <div class="sheet-head">
+    <div>
+      <h1>Direction A &middot; Sidebar Console &mdash; Mobile</h1>
+      <div class="sub">Four bottom tabs for the everyday pages. Everything else lives in the drawer &ndash; including the full Admin group, no dropdown.</div>
+    </div>
+    <span class="pill pl">iPhone 390 &times; 844</span>
+  </div>
+
+  <div class="row">
+    <!-- PHONE 1: home -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="p-status"><span>9:41</span><span class="ic-group" style="display:flex;gap:6px"><svg class="ic"><use href="#i-bell"/></svg></span></div>
+      <div class="p-appbar">
+        <svg class="ic" style="color:var(--dim)"><use href="#i-menu"/></svg>
+        <h2>Home</h2>
+        <svg class="ic" style="color:var(--dim)"><use href="#i-search"/></svg>
+        <div class="avat" style="width:30px;height:30px;font-size:11px">JN</div>
+      </div>
+      <div class="p-scroll">
+        <div class="p-h1">Hi Jacob</div>
+        <div class="p-sub">Tuesday 11 November &middot; 4 events this week</div>
+        <div class="statrow">
+          <div class="pstat"><div class="l">Next</div><div class="v">Tech Run</div></div>
+          <div class="pstat"><div class="l">Responses</div><div class="v">2 due</div></div>
+          <div class="pstat"><div class="l">Support</div><div class="v" style="color:var(--amber)">3</div></div>
+        </div>
+        <div class="sechead">Coming up <span class="tag blue" style="margin-left:auto">4</span></div>
+        <div class="pev">
+          <div class="r1"><span class="tag pri">Tech</span><div class="ttl">Christmas Show &middot; Tech Run</div></div>
+          <div class="meta"><svg class="ic sm" style="color:var(--faint)"><use href="#i-cal"/></svg>Thu 14 Nov &middot; 18:00 &middot; Main Hall</div>
+          <div class="presp"><span class="yes">Yes</span><span>Maybe</span><span>No</span></div>
+        </div>
+        <div class="pev">
+          <div class="r1"><span class="tag blue">Sound</span><div class="ttl">Winter Concert</div></div>
+          <div class="meta"><svg class="ic sm" style="color:var(--faint)"><use href="#i-cal"/></svg>Sat 16 Nov &middot; 19:00 &middot; Main Hall</div>
+          <div class="presp"><span>Yes</span><span>Maybe</span><span>No</span></div>
+        </div>
+        <div class="pev">
+          <div class="r1"><span class="tag">Lighting</span><div class="ttl">Rehearsal &ndash; Drama</div></div>
+          <div class="meta"><svg class="ic sm" style="color:var(--faint)"><use href="#i-cal"/></svg>Wed 20 Nov &middot; 16:00 &middot; Studio</div>
+          <div class="presp"><span>Yes</span><span>Maybe</span><span>No</span></div>
+        </div>
+      </div>
+      <div class="fab"><svg class="ic"><use href="#i-plus"/></svg></div>
+      <div class="p-tabbar">
+        <div class="tab active"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+        <div class="tab"><span class="dotb"></span><svg class="ic"><use href="#i-check"/></svg>Check-in</div>
+        <div class="tab"><svg class="ic"><use href="#i-cal"/></svg>Calendar</div>
+        <div class="tab"><svg class="ic"><use href="#i-dots"/></svg>More</div>
+      </div>
+    </div>
+
+    <!-- PHONE 2: drawer open -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="p-status" style="position:relative;z-index:9">
+        <span>11:24</span>
+        <span>AshTec</span>
+      </div>
+      <div class="scrim"></div>
+      <div class="drawer">
+        <div class="brand" style="justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:11px">
+            <div class="logo">A</div>
+            <div><div class="nm">AshTec Crew Hub</div><div class="rl">Ashby School</div></div>
+          </div>
+          <svg class="ic" style="color:var(--faint)"><use href="#i-x"/></svg>
+        </div>
+        <div class="cmdk" style="margin:6px 12px 4px">
+          <svg class="ic sm"><use href="#i-search"/></svg>Search or jump to&hellip;
+        </div>
+        <nav class="nav">
+          <div class="nav-label">MAIN</div>
+          <div class="nav-item active"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+          <div class="nav-item"><svg class="ic"><use href="#i-check"/></svg>Check-in<span class="live"><span class="blip"></span>LIVE</span></div>
+          <div class="nav-item"><svg class="ic"><use href="#i-cal"/></svg>Calendar</div>
+          <div class="nav-label">PRODUCTION</div>
+          <div class="nav-item"><svg class="ic"><use href="#i-stage"/></svg>Stage Layout</div>
+          <div class="nav-item"><svg class="ic"><use href="#i-live"/></svg>Live Show</div>
+          <div class="nav-label">CLUB</div>
+          <div class="nav-item"><svg class="ic"><use href="#i-heart"/></svg>For parents</div>
+          <div class="nav-item"><svg class="ic"><use href="#i-wrench"/></svg>Tools</div>
+        </nav>
+        <div class="nav-label" style="padding:8px 21px 4px">ADMIN</div>
+        <div class="nav" style="padding:0 12px;display:grid;grid-template-columns:1fr 1fr;gap:2px 4px;flex:none">
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-chart"/></svg>Overview</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-cal"/></svg>Events</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-users"/></svg>Crew</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-check"/></svg>Venue</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-mail"/></svg>Emails</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-life"/></svg>Support<span class="badge">3</span></div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-live"/></svg>Live Setup</div>
+          <div class="nav-item" style="font-size:12.5px;padding:8px 9px"><svg class="ic sm"><use href="#i-activity"/></svg>Diagnostics</div>
+        </div>
+        <div class="side-foot" style="margin-top:14px">
+          <div class="avat">JN</div>
+          <div><div class="u">Jacob Navaratne</div><div class="r">Tech Crew &middot; Admin</div></div>
+          <div class="grow"></div>
+          <svg class="ic sm" style="color:var(--faint)"><use href="#i-gear"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="notes" style="width:392px">
+      <h3>Mobile &middot; what moves</h3>
+      <p class="muted">Bottom tabs cover the everyday four; everything else lives one tap away in the drawer.</p>
+      <div class="note"><span class="k">1</span><div class="t"><b>Bottom tabs:</b> Home &middot; Check-in &middot; Calendar &middot; More.<div class="m">Badges/dots sit on the tab (check-in live, support unread).</div></div></div>
+      <div class="note"><span class="k">2</span><div class="t"><b>More opens the same grouped drawer</b> as desktop: Main &middot; Production &middot; Club.</div></div>
+      <div class="note"><span class="k">3</span><div class="t"><b>Admin becomes a grid inside the drawer</b>, not a hidden menu. Staff see only Venue Check-in.</div></div>
+      <div class="note"><span class="k">4</span><div class="t"><b>Search (&#8984;K on desktop) is a top-bar icon</b> on mobile.</div></div>
+      <div class="note"><span class="k">5</span><div class="t"><b>The floating help button stays</b> for instant support; Settings sits in the drawer footer.</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

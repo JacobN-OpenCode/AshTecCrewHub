@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminDeleteSubEvent, adminSaveShow } from 'zitejs/api';
+import { adminDeleteSubEvent, adminRecomputeAttendance, adminSaveShow } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -8,28 +9,53 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@project/components/ui/alert-dialog';
-import { EyeOff, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { EyeOff, Pencil, Plus, Recycle, Trash2, Users, ExternalLink } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 import { useAdminData, type AdminSubEvent } from '../../lib/useAdminData';
+import { useAdminLayout } from '../../lib/uiPrefs';
 import { dueLabel, fmtDate, IMPORTANCE_STYLE } from '../../lib/constants';
 import ShowDialog from '../../components/admin/ShowDialog';
 import SubEventDialog from '../../components/admin/SubEventDialog';
 import AttendanceSheet from '../../components/admin/AttendanceSheet';
+import ContractorInviteDialog from '../../components/admin/ContractorInviteDialog';
 
-export default function AdminEvents() {
+/** Synthetic tab id for the club-session category, which has no show row. */
+const CLUB = '__club__';
+
+/**
+ * Manage a show's rehearsals and performances. Standalone it has its own show
+ * tabs and a club-session tab; pass `showId` to pin it to one show and hide
+ * that chrome, which is how the show dashboard embeds it.
+ */
+export default function AdminEvents({ showId: fixedShowId }: { showId?: string } = {}) {
   const { data, reload } = useAdminData();
-  const [showId, setShowId] = useState<string>('');
+  const [showId, setShowId] = useState<string>(fixedShowId ?? '');
   const [showDlg, setShowDlg] = useState<'new' | 'edit' | null>(null);
-  const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null } | null>(null);
+  const [evDlg, setEvDlg] = useState<{ ev: AdminSubEvent | null; club?: boolean } | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: 'show' | 'ev'; id: string; name: string } | null>(null);
+  // Feedback round 2: cards or a list, the admin's choice (default cards).
+  const [layout] = useAdminLayout();
 
-  useEffect(() => { if (data && !data.shows.some((s) => s.id === showId)) setShowId(data.shows[0]?.id ?? ''); }, [data, showId]);
+  useEffect(() => {
+    if (fixedShowId) {
+      if (showId !== fixedShowId) setShowId(fixedShowId);
+      return;
+    }
+    if (!data) return;
+    if (showId === CLUB) return;
+    if (!data.shows.some((s) => s.id === showId)) setShowId(data.shows[0]?.id ?? CLUB);
+  }, [data, showId, fixedShowId]);
   if (!data) return <Skeleton className="h-96 rounded-2xl" />;
 
+  const onClub = showId === CLUB;
   const show = data.shows.find((s) => s.id === showId);
-  const events = data.subEvents.filter((e) => e.showIds.includes(showId));
-  const resp = data.responses.filter((r) => r.showId === showId);
+  // Club sessions are the events with no show, so they get their own tab.
+  const events = onClub
+    ? data.subEvents.filter((e) => e.type === 'Club Session')
+    : data.subEvents.filter((e) => e.showIds.includes(showId));
+  const resp = onClub ? [] : data.responses.filter((r) => r.showId === showId);
   const rc = (r: string) => resp.filter((x) => x.response === r).length;
   const cnt = (id: string, s: string) => data.attendance.filter((a) => a.subEventId === id && a.status === s).length;
 
@@ -43,11 +69,77 @@ export default function AdminEvents() {
     setConfirm(null);
   };
 
+  const EventRow = ({ e, card }: { e: AdminSubEvent; card?: boolean }) => (
+    <div className={card
+      ? 'flex h-full flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary/40'
+      : 'p-4 flex flex-col lg:flex-row lg:items-center gap-3'}>
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{e.title}</span>
+          <Badge variant="outline" className={e.type === 'Performance' ? 'border-pink-500/40 text-pink-400' : e.type === 'Club Session' ? 'border-emerald-500/40 text-emerald-400' : 'border-sky-500/40 text-sky-400'}>{e.subtype || e.type}</Badge>
+          <Badge variant="outline" className={IMPORTANCE_STYLE[e.importance]}>{e.importance}</Badge>
+          {e.hidden && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+              <EyeOff className="h-3 w-3 mr-1" />Hidden
+            </Badge>
+          )}
+          {e.needsContractors && (
+            <Badge variant="outline" className="border-sky-500/40 text-sky-400">
+              <Users className="h-3 w-3 mr-1" />{e.contractorIds.length ? `${e.contractorIds.length} contractor${e.contractorIds.length === 1 ? '' : 's'}` : 'Contractors needed'}
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">{fmtDate(e.date, e.dateTbc)}{e.meetTime && ` · Meet ${e.meetTime}`} · <span className="font-mono text-xs">{dueLabel(e.dueDate, e.dueUnknown)}</span></p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm font-mono">
+        <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
+        <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
+        <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+        {e.date && (
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/calendar?date=${e.date}&event=${e.id}`} title="Open in calendar">
+              <ExternalLink className="h-4 w-4 mr-1" />Calendar
+            </Link>
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={() => setViewing(e.id)}><Users className="h-4 w-4 mr-1" />Attendance</Button>
+        <Button size="icon" variant="ghost" onClick={() => setEvDlg({ ev: e })}><Pencil className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" onClick={() => setConfirm({ kind: 'ev', id: e.id, name: e.title })}><Trash2 className="h-4 w-4" /></Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
+      {!fixedShowId && (<>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Manage Events</h1>
-        <Button data-tour="events-new" variant="outline" onClick={() => setShowDlg('new')}><Plus className="h-4 w-4 mr-1" />New show</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            Ticket b4be3495: a one-shot button that runs the show-response ->
+            per-event attendance sync across the whole database. Existing
+            per-event choices are preserved; only pending rows are filled in.
+            Admins run it once after deploy, then on demand. It is idempotent
+            so running it twice is harmless.
+          */}
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const r = await adminRecomputeAttendance({});
+                toast.success('Attendance recomputed', {
+                  description: `Filled in ${r.added} pending row${r.added === 1 ? '' : 's'}; cleared ${r.clearedAuto} stale automatic decline${r.clearedAuto === 1 ? '' : 's'}.`,
+                });
+                await reload();
+              } catch (e) { toast.error((e as Error).message); }
+            }}
+          >
+            <Recycle className="h-4 w-4 mr-1" />Recompute attendance
+          </Button>
+          <Button data-tour="events-new" variant="outline" onClick={() => setShowDlg('new')}><Plus className="h-4 w-4 mr-1" />New show</Button>
+        </div>
       </div>
       <div className="flex gap-2 flex-wrap">
         {data.shows.map((s) => (
@@ -60,8 +152,35 @@ export default function AdminEvents() {
             {s.name}{s.code && <span className="ml-1.5 font-mono opacity-70">{s.code}</span>}
           </button>
         ))}
+        <button onClick={() => setShowId(CLUB)}
+          className={cn('px-4 py-2 rounded-xl border text-sm font-medium inline-flex items-center gap-1.5',
+            onClub ? 'bg-emerald-600 text-white border-emerald-600' : 'hover:bg-muted')}>
+          Club sessions
+        </button>
       </div>
-      {show && (
+      </>)}
+      {onClub ? (
+        <>
+          <div className="rounded-2xl border bg-card p-5 flex flex-col md:flex-row gap-4 md:items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Club sessions</h2>
+              <p className="text-sm text-muted-foreground mt-1">Regular club meetings, scheduled separately from shows.</p>
+            </div>
+            <Button onClick={() => setEvDlg({ ev: null, club: true })}><Plus className="h-4 w-4 mr-1" />Add club session</Button>
+          </div>
+          {layout === 'cards' ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {events.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} card />)}
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-card divide-y">
+              {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No club sessions yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} />)}
+            </div>
+          )}
+        </>
+      ) : show && (
         <>
           <div className="rounded-2xl border bg-card p-5 flex flex-col md:flex-row gap-4 md:items-center justify-between">
             <div>
@@ -79,48 +198,42 @@ export default function AdminEvents() {
                 <Badge variant="outline">No reply {data.members.length - resp.length}</Badge>
               </div>
             </div>
-            <div className="flex gap-2">
+            {/* flex-wrap: without it this row was 241px wider than a phone, which
+                pushed the page's scrollWidth to 466px and made mobile scale the
+                whole layout down ("the site thinks it's zoomed in"). */}
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" asChild>
+                <Link to={`/show/${show.id}`} title="Open the unified show dashboard">
+                  <ExternalLink className="h-4 w-4 mr-1" />Show dashboard
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={() => setInviteOpen(true)}><Users className="h-4 w-4 mr-1" />Contractor invites</Button>
               <Button variant="outline" onClick={() => setShowDlg('edit')}><Pencil className="h-4 w-4 mr-1" />Edit show</Button>
               <Button variant="outline" onClick={() => setConfirm({ kind: 'show', id: show.id, name: show.name })}><Trash2 className="h-4 w-4" /></Button>
               <Button onClick={() => setEvDlg({ ev: null })}><Plus className="h-4 w-4 mr-1" />Add rehearsal / performance</Button>
             </div>
           </div>
-          <div className="rounded-2xl border bg-card divide-y">
-            {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
-            {events.map((e) => (
-              <div key={e.id} className="p-4 flex flex-col lg:flex-row lg:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{e.title}</span>
-                    <Badge variant="outline" className={e.type === 'Performance' ? 'border-pink-500/40 text-pink-400' : 'border-sky-500/40 text-sky-400'}>{e.subtype || e.type}</Badge>
-                    <Badge variant="outline" className={IMPORTANCE_STYLE[e.importance]}>{e.importance}</Badge>
-                    {e.hidden && (
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-400" title="Hidden from members">
-                        <EyeOff className="h-3 w-3 mr-1" />Hidden
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">{fmtDate(e.date, e.dateTbc)}{e.meetTime && ` · Meet ${e.meetTime}`} · <span className="font-mono text-xs">{dueLabel(e.dueDate, e.dueUnknown)}</span></p>
-                </div>
-                <div className="flex items-center gap-3 text-sm font-mono">
-                  <span className="text-emerald-400" title="Expected arrival">✓ {cnt(e.id, 'Expected Arrival')}</span>
-                  <span className="text-yellow-400" title="Maybe">? {cnt(e.id, 'Maybe')}</span>
-                  <span className="text-red-400" title="Not attending">✕ {cnt(e.id, 'Not Attending') + cnt(e.id, 'Not Attending Event')}</span>
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setViewing(e.id)}><Users className="h-4 w-4 mr-1" />Attendance</Button>
-                  <Button size="icon" variant="ghost" onClick={() => setEvDlg({ ev: e })}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setConfirm({ kind: 'ev', id: e.id, name: e.title })}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            ))}
-          </div>
+          {layout === 'cards' ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {events.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} card />)}
+            </div>
+          ) : (
+            <div className="rounded-2xl border bg-card divide-y">
+              {events.length === 0 && <p className="p-6 text-sm text-muted-foreground">No rehearsals or performances yet.</p>}
+              {events.map((e) => <EventRow key={e.id} e={e} />)}
+            </div>
+          )}
         </>
       )}
       <ShowDialog open={!!showDlg} show={showDlg === 'edit' ? show ?? null : null} onClose={() => setShowDlg(null)}
         onSaved={async (id) => { setShowDlg(null); await reload(); setShowId(id); }} />
-      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows} defaultShowId={showId}
+      <SubEventDialog open={!!evDlg} ev={evDlg?.ev ?? null} shows={data.shows} members={data.members}
+        defaultShowId={evDlg?.club ? undefined : showId}
+        defaultType={evDlg?.club ? 'Club Session' : undefined}
         onClose={() => setEvDlg(null)} onSaved={async () => { setEvDlg(null); await reload(); }} />
+      <ContractorInviteDialog open={inviteOpen} show={show ?? null} events={events} members={data.members}
+        onClose={() => setInviteOpen(false)} onSaved={async () => { setInviteOpen(false); await reload(); }} />
       <AttendanceSheet ev={data.subEvents.find((e) => e.id === viewing) ?? null} data={data} onClose={() => setViewing(null)} reload={reload} />
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>

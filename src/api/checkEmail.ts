@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
+import { createEndpoint } from '#backend';
 import { findMemberByEmail, adminCount } from '../lib/server';
 
 export default createEndpoint({

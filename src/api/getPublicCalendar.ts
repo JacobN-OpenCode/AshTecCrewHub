@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 
 /**
  * The public, unauthenticated calendar.
@@ -65,12 +65,13 @@ export default createEndpoint({
         type: e.type ?? 'Rehearsal',
         subtype: e.subtype ?? '',
         date: e.date as string,
-        meetTime: e.meetTime ?? '',
+        startTime: e.startTime ?? null,
+        endTime: e.endTime ?? null,
         showNames: showsOf(e)
           .map((id) => visibleShows.get(id))
           .filter((n): n is string => !!n),
       }))
-      .sort((a, b) => a.date.localeCompare(b.date) || a.meetTime.localeCompare(b.meetTime));
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'));
 
     return { events };
   },

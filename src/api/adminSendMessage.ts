@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireAdmin, isEmailable } from '../lib/server';
 import { noReplyNotice, automatedFooter } from '../lib/emails';
 
@@ -37,11 +37,11 @@ export default createEndpoint({
           subject,
           body: [
             { type: 'text', content: body },
-            { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.ZITE_APP_URL },
+            { type: 'button', label: 'Open AshTec Crew Hub', href: process.env.APP_URL },
           ],
         });
         sent++;
-        logs.push({ subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Admin Message', body, sentBy: adminName, batchId: targets.length > 1 ? batchId : '' });
+        logs.push({ subject, member: m.id, recipientEmail: m.schoolEmail, purpose: 'Admin Message', body, sentBy: adminName, sentAt: new Date().toISOString(), batchId: targets.length > 1 ? batchId : '' });
       } catch {
         failed++;
       }

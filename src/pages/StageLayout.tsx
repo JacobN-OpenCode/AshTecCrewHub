@@ -4,7 +4,7 @@ import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDraggable, useDroppable,
   pointerWithin, rectIntersection, type CollisionDetection, type DragEndEvent,
 } from '@dnd-kit/core';
-import { getStageLayout, adminMoveRole, type GetStageLayoutOutputType } from 'zitejs/api';
+import { getStageLayout, adminMoveRole, type GetStageLayoutOutputType } from '#api';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { cn } from '@project/components/lib/utils';
 import { Crown, Mail } from 'lucide-react';
@@ -13,7 +13,7 @@ import { useMe } from '../lib/me';
 
 type Data = GetStageLayoutOutputType;
 type Person = Data['members'][number] & { maybe: boolean };
-const AREAS = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Unassigned'];
+const AREAS = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot', 'Unassigned'];
 const collision: CollisionDetection = (a) => { const p = pointerWithin(a); return p.length ? p : rectIntersection(a); };
 
 function Card({ p, area, canDrag, overlay }: { p: Person; area: string; canDrag: boolean; overlay?: boolean }) {
@@ -25,7 +25,7 @@ function Card({ p, area, canDrag, overlay }: { p: Person; area: string; canDrag:
       <div className="flex items-center gap-1.5 font-medium">
         {p.headOf.includes(area) && <Crown className="h-3.5 w-3.5 text-primary" />}{p.name}
       </div>
-      <div className="text-[11px] text-muted-foreground">{p.year}{p.maybe && ' · Maybe'}</div>
+      <div className="text-[11px] text-muted-foreground">{p.memberType === 'Contractor' ? 'Contractor' : p.year}{p.maybe && ' · Maybe'}</div>
     </div>
   );
 }
@@ -57,7 +57,12 @@ export default function StageLayout() {
   if (!data) return <Skeleton className="h-96 rounded-2xl" />;
 
   const resp = new Map(data.responses.filter((r) => r.showId === showId).map((r) => [r.memberId, r.response]));
-  const people: Person[] = data.members.filter((m) => resp.has(m.id) && m.memberType !== 'Actor').map((m) => ({ ...m, maybe: resp.get(m.id) === 'Maybe' }));
+  // Ticket 9f966aab: contractors invited to this production appear to the crew
+  // too, even though they never respond to show forms.
+  const invited = new Set(data.invites.filter((i) => i.showId === showId).map((i) => i.memberId));
+  const people: Person[] = data.members
+    .filter((m) => (resp.has(m.id) || invited.has(m.id)) && m.memberType !== 'Actor')
+    .map((m) => ({ ...m, maybe: resp.get(m.id) === 'Maybe' }));
   const inArea = (a: string) => people.filter((p) => (a === 'Unassigned' ? p.roles.length === 0 : p.roles.includes(a)));
 
   const onEnd = async (e: DragEndEvent) => {
@@ -92,6 +97,7 @@ export default function StageLayout() {
           <Area area="Stage Left" people={inArea('Stage Left')} canDrag={me.isAdmin} onContact={setContact} />
           <div className="rounded-2xl border-2 border-dashed flex items-center justify-center min-h-[140px] text-muted-foreground font-mono tracking-[0.3em] text-sm">STAGE</div>
           <Area area="Stage Right" people={inArea('Stage Right')} canDrag={me.isAdmin} onContact={setContact} />
+          <Area area="Follow Spot" people={inArea('Follow Spot')} canDrag={me.isAdmin} onContact={setContact} />
           <Area area="Unassigned" people={inArea('Unassigned')} canDrag={me.isAdmin} onContact={setContact} className="md:col-span-3" />
         </div>
         <DragOverlay>{activeP && active ? <Card p={activeP} area={active.split('|')[0]} canDrag overlay /> : null}</DragOverlay>
@@ -103,7 +109,7 @@ export default function StageLayout() {
             {data.members.filter((m) => contact && m.headOf.includes(contact)).map((m) => (
               <a key={m.id} href={`mailto:${m.email}`} className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted">
                 <span className="font-medium flex items-center gap-1.5"><Crown className="h-4 w-4 text-primary" />{m.name}</span>
-                <span className="text-sm text-primary flex items-center gap-1"><Mail className="h-4 w-4" />{m.email}</span>
+                <span className="text-sm text-primary flex items-center gap-1" title={m.email}><Mail className="h-4 w-4" />@{m.shortUsername}</span>
               </a>
             ))}
             {contact && !data.members.some((m) => m.headOf.includes(contact)) && <p className="text-sm text-muted-foreground">No head has been assigned to this area yet.</p>}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { adminGetData, type AdminGetDataOutputType } from 'zitejs/api';
+import { adminGetData, type AdminGetDataOutputType } from '#api';
 
 export type AdminData = AdminGetDataOutputType;
 export type AdminMember = AdminData['members'][number];
