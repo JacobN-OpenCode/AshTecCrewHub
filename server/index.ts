@@ -337,6 +337,48 @@ function signInPage(title: string, inner: string): string {
   );
 }
 
+/**
+ * Ticket 0ed284b8: a Mac in Edge clicked the emailed link and got
+ * "connection reset" on /api/auth/verify?token=... The old page POSTed the form
+ * straight from script, so when that one request died the browser was left
+ * sitting on the POST with no way back and no idea what to do. This posts with
+ * fetch instead: it retries a couple of times, and if it still cannot get
+ * through it says so on the page and offers a button, instead of dumping the
+ * person on a bare connection-reset screen.
+ *
+ * The plain form still works with JavaScript off, and the token is only spent
+ * when a POST actually reaches the server.
+ */
+function signInScript(callbackURL: string): string {
+  const target = JSON.stringify(callbackURL);
+  return (
+    '<script>(function(){' +
+    'var f=document.forms[0],btn=f.querySelector("button"),status=document.getElementById("status"),' +
+    'again=document.getElementById("again"),tries=0;' +
+    'function say(t){status.textContent=t}' +
+    'function stop(t){say(t);if(again)again.hidden=false;if(btn)btn.disabled=false}' +
+    'function submit(ev){if(ev)ev.preventDefault();' +
+    'tries++;if(btn)btn.disabled=true;say(tries>1?"Trying again...":"Signing you in...");' +
+    'fetch(f.action,{method:"POST",credentials:"same-origin",redirect:"follow"})' +
+    '.then(function(r){' +
+    'if(r.status===400){stop("That link has expired or has already been used. Ask for a new one below.");return}' +
+    'if(!r.ok){throw new Error("HTTP "+r.status)}' +
+    'window.location.replace(' + target + ')})' +
+    '.catch(function(){if(tries<3){setTimeout(function(){submit()},1200);return}' +
+    'stop("The server did not answer. Nothing was used up, so you can try the button again.")})}' +
+    'f.addEventListener("submit",submit);submit();' +
+    '})();</script>'
+  );
+}
+
+const busyPage = () =>
+  signInPage(
+    'Sign-in is having a moment',
+    '<h1>The server is busy</h1>' +
+      '<p>Your link has <strong>not</strong> been used, so wait a moment and open it again.</p>' +
+      '<p><a href="/">Back to the hub</a></p>'
+  );
+
 const expiredPage = () =>
   signInPage(
     'Sign-in link expired',
@@ -352,7 +394,15 @@ app.get('/api/auth/verify', async (req, res) => {
   const raw = typeof req.query.callbackURL === 'string' ? req.query.callbackURL : '/';
   const callbackURL = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
   res.set('Cache-Control', 'no-store');
-  const who = token ? await peekMagicLink(token) : null;
+  // A failed lookup must not escape as an unhandled rejection: that drops the
+  // connection, which is exactly the "connection reset" page in ticket 0ed284b8.
+  let who: Awaited<ReturnType<typeof peekMagicLink>> = null;
+  try {
+    who = token ? await peekMagicLink(token) : null;
+  } catch (err) {
+    console.error('verify: could not read the link', err);
+    return res.status(503).type('html').send(busyPage());
+  }
   if (!who) return res.status(400).type('html').send(expiredPage());
 
   const action = `/api/auth/verify?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(callbackURL)}`;
@@ -361,10 +411,12 @@ app.get('/api/auth/verify', async (req, res) => {
     signInPage(
       'Signing you in',
       `<h1>Sign in as ${escapeAttr(first)}?</h1>` +
-        '<p>Tap below to finish signing in to the AshTec crew hub.</p>' +
+        '<p id="status">Tap below to finish signing in to the AshTec crew hub.</p>' +
         `<form method="post" action="${escapeAttr(action)}">` +
         '<button type="submit">Sign in</button></form>' +
-        '<script>document.forms[0].submit()</script>'
+        '<p id="again" hidden style="margin-top:18px">' +
+        '<a href="/">Ask for a new sign-in link</a></p>' +
+        signInScript(callbackURL)
     )
   );
 });
@@ -374,10 +426,16 @@ app.post('/api/auth/verify', async (req, res) => {
   const token = String(req.query.token ?? req.body?.token ?? '');
   const raw = String(req.query.callbackURL ?? req.body?.callbackURL ?? '/');
   const callbackURL = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
-  const user = token ? await consumeMagicLink(token, {
-    userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300),
-    ip: String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim().slice(0, 60),
-  }) : null;
+  let user: Awaited<ReturnType<typeof consumeMagicLink>> = null;
+  try {
+    user = token ? await consumeMagicLink(token, {
+      userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300),
+      ip: String(req.headers['x-forwarded-for'] ?? req.ip ?? '').split(',')[0].trim().slice(0, 60),
+    }) : null;
+  } catch (err) {
+    console.error('verify: could not redeem the link', err);
+    return res.status(503).type('html').send(busyPage());
+  }
   if (!user) return res.status(400).type('html').send(expiredPage());
   setSessionCookie(res, user);
   res.redirect(303, callbackURL);
