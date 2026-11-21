@@ -8,6 +8,8 @@ import { useMe } from '../lib/me';
 import { pv } from '../lib/preview';
 import { memberViewOn } from '../lib/memberView';
 import { pendingForms } from '../lib/reminders';
+import { useTheme } from '../lib/theme';
+import { DASHES } from '../themes';
 import {
   Calendar, CalendarDays, ClipboardList, Clock, LayoutGrid, LifeBuoy, Megaphone,
   Radio, Rocket, Sparkles, Ticket, Users, Wrench,
@@ -73,6 +75,13 @@ const relTime = (iso: string) => {
  * reads an existing endpoint so the numbers match the dedicated pages.
  */
 export default function Home() {
+  const { choice } = useTheme();
+  const ThemedDash = DASHES[choice.theme];
+  // Each theme draws its own home page. The original one is the component below.
+  return ThemedDash ? <ThemedDash /> : <HomeInner />;
+}
+
+function HomeInner() {
   const { me, specialNote, liveShowActive, supportAwaiting } = useMe();
   const [upcoming, setUpcoming] = useState<HomeSub[] | null>(null);
   const [pending, setPending] = useState<PendingForm[] | null>(null);

@@ -17,6 +17,7 @@ const tailwindConfig: Config = {
       fontFamily: {
         sans: ['var(--font-sans)', ...defaultTheme.fontFamily.sans],
         serif: ['var(--font-serif)', ...defaultTheme.fontFamily.serif],
+        hand: ['Caveat', 'Segoe Script', 'cursive'],
         mono: ['var(--font-mono)', ...defaultTheme.fontFamily.mono],
       },
       colors: {

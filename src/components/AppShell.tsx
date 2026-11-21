@@ -26,6 +26,7 @@ import { useSidebarCollapsed, useDensity } from '../lib/uiPrefs';
 import { useTheme } from '../lib/theme';
 import ThemeBand from './ThemeBand';
 import { cn } from '@project/components/lib/utils';
+import { SHELLS } from '../themes';
 import { useMe } from '../lib/me';
 import { useAppSettings } from '../lib/appSettings';
 import { PLATFORM, MOD_KEY_LABEL, fmtDate } from '../lib/constants';
@@ -371,6 +372,37 @@ function Shell() {
       <span className="truncate">{memberView ? 'Back to admin' : 'Member view'}</span>
     </button>
   ) : null;
+
+  // Five themes replace the whole chrome, not just the colours. Anything else
+  // (including the original AshTec look) keeps the layout below untouched.
+  const ThemedShell = SHELLS[themeChoice.theme];
+  if (ThemedShell) {
+    return (
+      <ThemedShell
+        groups={groups}
+        me={{ firstName: me.firstName, lastName: me.lastName, avatarUrl: me.avatarUrl, isAdmin: me.isAdmin }}
+        platformName={platformName}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
+        onSearch={() => setPalette(true)}
+        onSignOut={signOut}
+        memberViewToggle={memberViewToggle}
+      >
+        {(acting || previewId() || memberView) && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-[#141310] px-4 py-2 text-sm text-white">
+            {acting && <span>Signed in as <strong>{acting.name}</strong>. Changes are saved as them.</span>}
+            {previewId() && <span>Previewing as <strong>{me.firstName} {me.lastName}</strong>.</span>}
+            {memberView && <span>Member view is on.</span>}
+            <button type="button" className="ml-auto rounded-full bg-white px-3 py-1 text-xs font-medium text-black"
+              onClick={() => { if (acting) void stopActAs(); else if (previewId()) exitPreview(); else setMemberView(false); }}>
+              {acting ? 'Leave' : previewId() ? 'Exit preview' : 'Back to admin'}
+            </button>
+          </div>
+        )}
+        <main className="mx-auto min-w-0"><Outlet key={loc.pathname} /></main>
+      </ThemedShell>
+    );
+  }
 
   return (
     <div className="min-h-screen spotlight">
