@@ -209,7 +209,12 @@ function HomeInner() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* Ticket 390dd14b: the base grid needs an explicit single column. An
+          implicit `auto` track sizes to the widest card's min-content (the
+          nowrap event titles plus their status badge), which is wider than a
+          phone screen, so the whole row overflowed to the right. `grid-cols-1`
+          is minmax(0,1fr), so the track can shrink and the titles truncate. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section className="rounded-2xl border bg-card p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <h2 className="min-w-0 font-semibold flex items-center gap-2"><Calendar className="h-5 w-5 shrink-0 text-primary" /><span className="truncate">Next up</span></h2>
