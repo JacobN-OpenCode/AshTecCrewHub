@@ -38,6 +38,8 @@ import Ticket from './pages/admin/Ticket';
 import Announcements from './pages/Announcements';
 import Documents from './pages/Documents';
 import Contacts from './pages/Contacts';
+import Analytics from './pages/Analytics';
+import { usePageViews } from './lib/tracker';
 import AdminMcp from './pages/admin/AdminMcp';
 import Mascot from './pages/Mascot';
 import Memories from './pages/Memories';
@@ -132,6 +134,8 @@ function SignedIn() {
           <Route path="/documents" element={<Documents />} />
           {/* Ticket 19ffa650: the sheet the Settings switch kept pointing at. */}
           <Route path="/contacts" element={<Contacts />} />
+          {/* What people look at: counts for everyone, names and campaigns for admins. */}
+          <Route path="/analytics" element={<Analytics />} />
           {/* Batch 8: the mascot and the show memories wall. */}
           <Route path="/mascot" element={<Mascot />} />
           <Route path="/memories" element={<Memories />} />
@@ -158,10 +162,21 @@ function SignedIn() {
   );
 }
 
+/**
+ * Counts one page view per route change, for the analytics page. It sits inside
+ * the router and outside both shells, so signed-out visits to the public pages
+ * are counted too, which is the whole point of it.
+ */
+function ViewTracker() {
+  usePageViews();
+  return null;
+}
+
 export default function App() {
   const { user, isLoading } = useAuth();
   return (
     <BrowserRouter>
+      <ViewTracker />
       {isLoading ? <Spinner /> : user ? <SignedIn /> : <SignedOut />}
       <Toaster />
       <PwaWelcome />

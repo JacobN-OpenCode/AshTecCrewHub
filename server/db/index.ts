@@ -86,6 +86,7 @@ const TABLES = {
   documents: { table: 'Documents', arr: ['memberIds'] },
   mcpKeys: { table: 'McpKeys', arr: [] },
   mcpCallLog: { table: 'McpCallLog', arr: [] },
+  pageViews: { table: 'PageViews', arr: [] },
 } as const satisfies Record<string, TableDef>;
 
 export type TableName = keyof typeof TABLES;

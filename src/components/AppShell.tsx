@@ -235,6 +235,8 @@ function Shell() {
     club.push({ to: '/documents', label: 'Documents', icon: FileText });
     // Ticket 19ffa650: the contact sheet the settings switch talks about.
     club.push({ to: '/contacts', label: 'Contact sheet', icon: BookUser });
+    // What people look at. Counts for everyone; names and campaigns for admins.
+    club.push({ to: '/analytics', label: 'Analytics', icon: ChartColumn });
     if (features.tools) club.push({ to: '/tools', label: 'Tools', icon: Wrench });
     // Batch 8: the fun ones.
     if (features.memories) club.push({ to: '/memories', label: 'Memories', icon: Images });

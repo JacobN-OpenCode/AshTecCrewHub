@@ -332,6 +332,13 @@ export type ExportMyDataInputType = NonNullable<_ExportMyDataCfg['inputSchema']>
 export type ExportMyDataOutputType = Awaited<ReturnType<_ExportMyDataCfg['execute']>>;
 export const exportMyData = createCaller<ExportMyDataInputType, ExportMyDataOutputType>('exportMyData');
 
+import type { default as _GetAnalyticsEp } from '../api/getAnalytics';
+
+type _GetAnalyticsCfg = typeof _GetAnalyticsEp;
+export type GetAnalyticsInputType = NonNullable<_GetAnalyticsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_GetAnalyticsCfg['execute']>[0]['input'];
+export type GetAnalyticsOutputType = Awaited<ReturnType<_GetAnalyticsCfg['execute']>>;
+export const getAnalytics = createCaller<GetAnalyticsInputType, GetAnalyticsOutputType>('getAnalytics');
+
 import type { default as _GetAnnouncementsEp } from '../api/getAnnouncements';
 
 type _GetAnnouncementsCfg = typeof _GetAnnouncementsEp;
@@ -906,6 +913,13 @@ export type SupportEscalateInputType = NonNullable<_SupportEscalateCfg['inputSch
 export type SupportEscalateOutputType = Awaited<ReturnType<_SupportEscalateCfg['execute']>>;
 export const supportEscalate = createCaller<SupportEscalateInputType, SupportEscalateOutputType>('supportEscalate');
 
+import type { default as _TrackViewEp } from '../api/trackView';
+
+type _TrackViewCfg = typeof _TrackViewEp;
+export type TrackViewInputType = NonNullable<_TrackViewCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_TrackViewCfg['execute']>[0]['input'];
+export type TrackViewOutputType = Awaited<ReturnType<_TrackViewCfg['execute']>>;
+export const trackView = createCaller<TrackViewInputType, TrackViewOutputType>('trackView');
+
 import type { default as _UpdateMyProfileEp } from '../api/updateMyProfile';
 
 type _UpdateMyProfileCfg = typeof _UpdateMyProfileEp;
@@ -972,6 +986,7 @@ export const api = {
   deletePushSubscription,
   enableLiveShowDevice,
   exportMyData,
+  getAnalytics,
   getAnnouncements,
   getBirthdays,
   getCalendar,
@@ -1054,6 +1069,7 @@ export const api = {
   submitSupport,
   supportDigest,
   supportEscalate,
+  trackView,
   updateMyProfile,
   analyticsLeave,
   analyticsView,

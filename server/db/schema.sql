@@ -1023,4 +1023,34 @@ CREATE TABLE IF NOT EXISTS "McpCallLog" (
 );
 CREATE INDEX IF NOT EXISTS "McpCallLog_created_idx" ON "McpCallLog" ("createdAt");
 
+-- ---------------------------------------------------------------------------
+-- Site analytics. One row per page view, written by the browser. What is NOT
+-- here matters as much as what is: no IP address, no full user agent, and no
+-- query string beyond the five utm fields, because the point is "how many
+-- people looked at what", not "who was where". `member` is only filled in when
+-- that browser was signed in at the time.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "PageViews" (
+  "id"          uuid PRIMARY KEY,
+  "path"        text NOT NULL DEFAULT '/',
+  -- Host only ("news.google.com"), never the full referring URL.
+  "referrer"    text NOT NULL DEFAULT '',
+  "utmSource"   text NOT NULL DEFAULT '',
+  "utmMedium"   text NOT NULL DEFAULT '',
+  "utmCampaign" text NOT NULL DEFAULT '',
+  "utmTerm"     text NOT NULL DEFAULT '',
+  "utmContent"  text NOT NULL DEFAULT '',
+  -- Random per browser tab-session, so repeat visits count once but a refresh
+  -- still counts as a view. Not tied to a person.
+  "sessionId"   text NOT NULL DEFAULT '',
+  "member"      uuid,
+  -- 'phone', 'tablet' or 'desktop', from the viewport width.
+  "device"      text NOT NULL DEFAULT '',
+  "createdAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "PageViews_created_idx" ON "PageViews" ("createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "PageViews_path_idx" ON "PageViews" ("path");
+CREATE INDEX IF NOT EXISTS "PageViews_session_idx" ON "PageViews" ("sessionId");
+CREATE INDEX IF NOT EXISTS "PageViews_member_idx" ON "PageViews" ("member");
+
 COMMIT;
