@@ -149,3 +149,59 @@ test('a look that fixes a shell colour in light mode repaints it in dark mode', 
     }
   }
 });
+
+/**
+ * The ticket asked for two new looks by name: a High School Musical Jr one, and a
+ * Christmas one that is "red, green and gold everywhere" with tree decorations
+ * hanging over it. Colour and decoration are the parts of that a test can hold
+ * still, so keep the three hues and the hanging baubles where the ticket put them.
+ */
+function hueOf(value: string): number {
+  return Number(value.split(' ')[0]);
+}
+
+test('the Christmas look keeps the red, green and gold the ticket asked for', () => {
+  const christmas = findTheme('christmas');
+  assert.equal(christmas.name, 'Christmas');
+  assert.equal(christmas.palettes.length, 3);
+
+  const page = hueOf(christmas.base['--background']);
+  const buttons = hueOf(christmas.base['--primary']);
+  const ring = hueOf(christmas.base['--ring']);
+
+  assert.ok(page >= 140 && page <= 175, 'the page should be pine green');
+  assert.ok(buttons <= 12 || buttons >= 348, 'the buttons should be holly red');
+  assert.ok(ring >= 35 && ring <= 50, 'the focus ring should be gold');
+
+  const gold = findPalette('christmas', 'gold');
+  const goldButton = hueOf(gold.over['--primary']);
+  assert.ok(goldButton >= 35 && goldButton <= 50, 'the gold palette should actually be gold');
+});
+
+test('the Christmas look hangs decorations, not only a new set of colours', () => {
+  const css = readFileSync(join(import.meta.dirname, '../src/index.css'), 'utf8');
+  const rules = cssRules(css);
+
+  // One bauble is a ball plus its thread, so a decoration layer is a radial
+  // gradient and a thread is a repeating gradient in the same rule.
+  const page = rules.find((r) => r.selector.endsWith("[data-theme='christmas'] .spotlight"));
+  assert.ok(page, 'the Christmas look should paint the page itself');
+  assert.ok(/radial-gradient\(circle at 50%/.test(page.body), 'the page should have baubles hanging on it');
+  assert.ok(/repeating-linear-gradient/.test(page.body), 'the baubles should hang from threads');
+
+  const sidebar = rules.find((r) => r.selector.endsWith("[data-theme='christmas'] .app-sidebar"));
+  assert.ok(sidebar && /radial-gradient/.test(sidebar.body), 'the sidebar should carry a garland');
+});
+
+test('the High School Musical Jr look is a lit stage, not another dashboard', () => {
+  const show = findTheme('opening-night');
+  assert.equal(show.name, 'Opening Night');
+  assert.equal(show.palettes.length, 3);
+
+  const css = readFileSync(join(import.meta.dirname, '../src/index.css'), 'utf8');
+  const rules = cssRules(css);
+  const stage = rules.find((r) => r.selector.endsWith("[data-theme='opening-night'] .spotlight"));
+  assert.ok(stage && /radial-gradient/.test(stage.body), 'the page should be lit by a spot');
+  const headings = rules.find((r) => r.selector.endsWith("[data-theme='opening-night'] :is(h1, h2)"));
+  assert.ok(headings && /Fraunces/.test(headings.body), 'headings should be set like a playbill');
+});

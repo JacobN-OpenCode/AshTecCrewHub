@@ -217,7 +217,8 @@ const INSTRUCTIONS = [
   '',
   'Themes are per person. list_themes, save_theme and delete_theme act on the themes of',
   'whoever the key acts as, and nobody else can see them. A theme is a name plus colours laid',
-  'over one of the built-in looks (ashtec, periwinkle, quiet, intelly, school, cakeshop), with',
+  'over one of the built-in looks (ashtec, periwinkle, quiet, intelly, school, cakeshop,',
+  'opening-night, christmas), with',
   'values in the same "280 60% 55%" form the app uses. Saving under a name that already exists',
   'changes that theme instead of making a second one.',
   '',
@@ -851,7 +852,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         name: str('What to call it, e.g. "Midnight plum". Up to 40 characters.'),
-        base: str('Built-in look to start from: ashtec, periwinkle, quiet, intelly, school or cakeshop.'),
+        base: str('Built-in look to start from: ashtec, periwinkle, quiet, intelly, school, cakeshop, opening-night or christmas.'),
         palette: str('Optional palette id on that look, e.g. rose. Leave it out for the main colours.'),
         colours: {
           type: 'object',

@@ -180,6 +180,14 @@ function varsForMode(vars: Record<string, string>, mode: ThemeMode, themeId: str
       '--background': '25 12% 9%', '--foreground': '40 35% 92%', '--card': '25 10% 14%',
       '--border': '25 10% 26%', '--muted': '25 10% 19%', '--muted-foreground': '30 10% 70%',
     },
+    'opening-night': {
+      '--background': '270 32% 8%', '--foreground': '40 28% 94%', '--card': '272 24% 13%',
+      '--border': '272 18% 23%', '--muted': '272 20% 16%', '--muted-foreground': '272 12% 70%',
+    },
+    christmas: {
+      '--background': '158 30% 8%', '--foreground': '40 38% 95%', '--card': '158 26% 13%',
+      '--border': '155 18% 23%', '--muted': '155 22% 15%', '--muted-foreground': '45 16% 74%',
+    },
   };
   Object.assign(dark, darkPalettes[themeId] ?? {});
   for (const key of ['--tint-1', '--tint-2', '--tint-3', '--tint-4']) {

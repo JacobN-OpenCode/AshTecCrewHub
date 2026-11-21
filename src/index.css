@@ -360,6 +360,88 @@
   letter-spacing: 0.01em;
 }
 
+/* Opening Night: house lights down, one gold spot on the stage, red velvet in
+   the wings, a line of marquee bulbs down the sidebar edge. */
+[data-theme='opening-night'] .spotlight {
+  background-image:
+    radial-gradient(ellipse 42% 55% at 50% -8%, hsl(43 92% 68% / 0.3), transparent 62%),
+    radial-gradient(ellipse 30% 42% at 0% -6%, hsl(340 62% 48% / 0.3), transparent 68%),
+    radial-gradient(ellipse 30% 42% at 100% -6%, hsl(340 62% 48% / 0.3), transparent 68%);
+}
+[data-theme='opening-night'] .app-sidebar {
+  background: hsl(272 34% 11%);
+  background-image: radial-gradient(circle, hsl(43 90% 64% / 0.85) 0 1.5px, transparent 2.5px);
+  background-size: 6px 16px;
+  background-position: right 2px top;
+  background-repeat: repeat-y;
+  border-right-color: hsl(43 50% 42% / 0.5);
+}
+/* A playbill rather than a floating card: square-ish, gold hairline, a faint
+   printed rule along the top. */
+[data-theme='opening-night'] .bg-card {
+  border-radius: 8px;
+  border-color: hsl(43 55% 52% / 0.5);
+  box-shadow:
+    inset 0 1px 0 hsl(43 90% 70% / 0.18),
+    0 20px 44px -34px hsl(272 60% 3% / 0.95);
+}
+[data-theme='opening-night'] :is(h1, h2) {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+/* Christmas: evergreen page, gold-edged cards with a red ribbon across the top,
+   a garland of gold and red beads down the sidebar, and baubles on threads hung
+   in a fringe along the top edge of the page. Each bauble is two layers sharing
+   a tile size, one thread and one ball, so the string meets the loop. */
+[data-theme='christmas'] .spotlight {
+  background-color: hsl(var(--background));
+  background-image:
+    radial-gradient(circle at 50% 26px, hsl(0 74% 56%) 0 5px, hsl(0 68% 42%) 5px 6px, transparent 7px),
+    radial-gradient(circle at 50% 16px, hsl(44 92% 62%) 0 4px, hsl(40 86% 47%) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 34px, hsl(150 46% 48%) 0 6px, hsl(150 44% 32%) 6px 7px, transparent 8px),
+    repeating-linear-gradient(90deg, transparent 0 129px, hsl(44 55% 72% / 0.32) 129px 130px),
+    repeating-linear-gradient(90deg, transparent 0 169px, hsl(44 55% 72% / 0.32) 169px 170px),
+    repeating-linear-gradient(90deg, transparent 0 149px, hsl(44 55% 72% / 0.32) 149px 150px),
+    radial-gradient(hsl(45 60% 95% / 0.09) 1px, transparent 1.5px);
+  background-size: 260px 60px, 340px 40px, 300px 74px, 260px 20px, 340px 11px, 300px 27px, 24px 24px;
+  background-position: top center, top center, top center, top center, top center, top center, 0 0;
+  background-repeat: repeat-x, repeat-x, repeat-x, repeat-x, repeat-x, repeat-x, repeat;
+}
+[data-theme='christmas'] .app-sidebar {
+  background: hsl(158 32% 12%);
+  background-image:
+    radial-gradient(circle, hsl(44 92% 62%) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle, hsl(0 74% 58%) 0 1.5px, transparent 2.5px);
+  background-size: 6px 18px;
+  background-position: right 2px top, right 2px 9px;
+  background-repeat: repeat-y, repeat-y;
+  border-right-color: hsl(44 55% 45% / 0.5);
+}
+[data-theme='christmas'] .bg-card {
+  border-radius: 16px;
+  border-color: hsl(44 55% 50% / 0.45);
+  border-width: 1.5px;
+  box-shadow:
+    inset 0 3px 0 hsl(0 70% 48% / 0.7),
+    0 18px 38px -32px hsl(158 60% 3% / 0.95);
+}
+[data-theme='christmas'] :is(h1, h2) {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+/* The generic dark rules give every .min-h-screen wrapper an opaque page
+   colour, and the shell nests two of them, so the inner one would cover the
+   decorations hung on the outer one. Let the outer wrapper show through for
+   the two looks that hang something there. */
+html.dark[data-theme='christmas'] div[class~='min-h-screen'] div[class~='min-h-screen'],
+html.dark[data-theme='opening-night'] div[class~='min-h-screen'] div[class~='min-h-screen'] {
+  background-color: transparent !important;
+}
+
 /* Dark mode for the standalone theme shells, whose palettes use fixed colors
    rather than the app's semantic background utilities. */
 html.dark[data-theme]:not([data-theme='ashtec']) {
@@ -411,6 +493,38 @@ html.dark[data-theme]:not([data-theme='ashtec']) .bg-card {
    light one reads as a bright rim against a dark page. */
 html.dark[data-theme='cakeshop'] .bg-card {
   box-shadow: 3px 3px 0 hsl(var(--border) / 0.55);
+}
+
+/* The two newest looks are dark by nature, so the shared rules above (sidebar
+   flattened to the card colour, every card edge reset to the border colour)
+   would sand off what makes them recognisable. Restated against their own
+   palette instead, after the generic rules so they win. */
+html.dark[data-theme='opening-night']:not([data-theme='ashtec']) .app-sidebar {
+  background: hsl(272 34% 11%);
+  background-image: radial-gradient(circle, hsl(43 90% 64% / 0.85) 0 1.5px, transparent 2.5px);
+  background-size: 6px 16px;
+  background-position: right 2px top;
+  background-repeat: repeat-y;
+  border-right-color: hsl(43 50% 42% / 0.5);
+}
+html.dark[data-theme='opening-night']:not([data-theme='ashtec']) .bg-card {
+  border-color: hsl(43 55% 52% / 0.5);
+}
+html.dark[data-theme='christmas']:not([data-theme='ashtec']) .app-sidebar {
+  background: hsl(158 32% 12%);
+  background-image:
+    radial-gradient(circle, hsl(44 92% 62%) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle, hsl(0 74% 58%) 0 1.5px, transparent 2.5px);
+  background-size: 6px 18px;
+  background-position: right 2px top, right 2px 9px;
+  background-repeat: repeat-y, repeat-y;
+  border-right-color: hsl(44 55% 45% / 0.5);
+}
+html.dark[data-theme='christmas']:not([data-theme='ashtec']) .bg-card {
+  border-color: hsl(44 55% 50% / 0.45);
+  box-shadow:
+    inset 0 3px 0 hsl(0 70% 48% / 0.7),
+    0 18px 38px -32px hsl(158 60% 3% / 0.95);
 }
 
 /* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
