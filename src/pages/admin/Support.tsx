@@ -245,9 +245,9 @@ export default function Support() {
         className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
       <div className="flex-1 min-w-0">
-        <p className="font-medium truncate flex items-center gap-1.5">
+        <p className="font-medium flex items-center gap-1.5 min-w-0">
           {t.pinned && <Pin className="h-3.5 w-3.5 shrink-0 text-amber-400" />}
-          {t.subject}
+          <span className="truncate">{t.subject}</span>
           <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </p>
         <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -363,7 +363,7 @@ export default function Support() {
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_280px] gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6">
       <div className="space-y-6 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -394,7 +394,7 @@ export default function Support() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 min-w-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 min-w-0">
           <div className="relative min-w-0"><AlertCircle className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input data-tour="support-search" className="pl-9" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <Select value={type} onValueChange={setType}><SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="all">All types</SelectItem>{Object.keys(TYPE_STYLE).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
@@ -426,7 +426,7 @@ export default function Support() {
         </p>
 
         {layout === 'cards' ? (
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {list.length === 0 && <p className="col-span-full p-6 text-sm text-muted-foreground">No tickets here. 🎉</p>}
             {list.map((t) => row(t, true))}
           </div>
