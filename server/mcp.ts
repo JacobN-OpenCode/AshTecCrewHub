@@ -208,6 +208,12 @@ const INSTRUCTIONS = [
   'of what it changes, before any detail. A walkthrough video for connecting a client sits',
   'on the Admin > MCP page.',
   '',
+  'Themes are per person. list_themes, save_theme and delete_theme act on the themes of',
+  'whoever the key acts as, and nobody else can see them. A theme is a name plus colours laid',
+  'over one of the built-in looks (ashtec, periwinkle, quiet, intelly, school, cakeshop), with',
+  'values in the same "280 60% 55%" form the app uses. Saving under a name that already exists',
+  'changes that theme instead of making a second one.',
+  '',
   'Rules that matter more than being helpful:',
   '- deploy is the only tool that changes the running server. NEVER call deploy unless this',
   '  conversation contains a clear, explicit request from the person to deploy right now, and',
@@ -811,6 +817,74 @@ const TOOLS = [
         .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.startTime ?? '').localeCompare(String(b.startTime ?? '')))
         .map((e) => ({ id: e.id, title: e.title, date: e.date, startTime: e.startTime, type: e.type, shows: e.shows, mode: e.mode }));
       return { from, to, count: events.length, events };
+    },
+  },
+  {
+    name: 'list_themes',
+    description:
+      'The colour themes made for the person this key acts as. Each one is theirs alone, and they see it on their Themes page.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    run: async (byName: Endpoints) => {
+      const r: any = await call(byName, 'customThemes', { action: 'list' });
+      return {
+        themes: (r?.themes ?? []).map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          basedOn: t.base,
+          colours: Object.keys(t.vars ?? {}).length,
+        })),
+      };
+    },
+  },
+  {
+    name: 'save_theme',
+    description:
+      'Make a named colour theme for the person this key acts as, starting from one of the built-in looks. Only they see it. Saving again under the same name changes it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: str('What to call it, e.g. "Midnight plum". Up to 40 characters.'),
+        base: str('Built-in look to start from: ashtec, periwinkle, quiet, intelly, school or cakeshop.'),
+        palette: str('Optional palette id on that look, e.g. rose. Leave it out for the main colours.'),
+        colours: {
+          type: 'object',
+          description:
+            'Colours to change, as CSS variables with HSL triplet values, e.g. {"--primary":"280 60% 55%","--background":"270 20% 10%"}.',
+          additionalProperties: { type: 'string' },
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const r: any = await call(byName, 'customThemes', {
+        action: 'create',
+        name: args.name,
+        base: args.base,
+        palette: args.palette,
+        overrides: args.colours,
+      });
+      const wanted = String(args.name ?? '').trim().toLowerCase();
+      const saved = (r?.themes ?? []).find((t: any) => String(t.name).toLowerCase() === wanted);
+      return {
+        saved: saved ? { id: saved.id, name: saved.name, basedOn: saved.base } : null,
+        themes: (r?.themes ?? []).length,
+        where: 'The person sees it on the Themes page, under "Made for you".',
+      };
+    },
+  },
+  {
+    name: 'delete_theme',
+    description: 'Delete one theme made for the person this key acts as. Use the id from list_themes.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: str('Theme id from list_themes.') },
+      required: ['id'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const r: any = await call(byName, 'customThemes', { action: 'delete', id: args.id });
+      return { ok: true, themes: (r?.themes ?? []).length };
     },
   },
   {

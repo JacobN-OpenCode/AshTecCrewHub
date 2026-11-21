@@ -23,7 +23,7 @@ import { previewId, exitPreview, pv } from '../lib/preview';
 import { memberViewOn, setMemberView } from '../lib/memberView';
 import { getActAs, stopActAs, type ActAsState } from '../lib/actAs';
 import { useSidebarCollapsed, useDensity } from '../lib/uiPrefs';
-import { useTheme } from '../lib/theme';
+import { shellThemeId, useTheme } from '../lib/theme';
 import ThemeBand from './ThemeBand';
 import { cn } from '@project/components/lib/utils';
 import { SHELLS } from '../themes';
@@ -376,7 +376,7 @@ function Shell() {
 
   // Five themes replace the whole chrome, not just the colours. Anything else
   // (including the original AshTec look) keeps the layout below untouched.
-  const ThemedShell = SHELLS[themeChoice.theme];
+  const ThemedShell = SHELLS[shellThemeId(themeChoice)];
   if (ThemedShell) {
     return (
       <ThemedShell

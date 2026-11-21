@@ -85,6 +85,7 @@ const TABLES = {
   directMessages: { table: 'DirectMessages', arr: [] },
   documents: { table: 'Documents', arr: ['memberIds'] },
   mcpKeys: { table: 'McpKeys', arr: [] },
+  customThemes: { table: 'CustomThemes', arr: [] },
   mcpCallLog: { table: 'McpCallLog', arr: [] },
   pageViews: { table: 'PageViews', arr: [] },
 } as const satisfies Record<string, TableDef>;

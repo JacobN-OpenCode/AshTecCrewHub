@@ -9,14 +9,16 @@
  * The saved choice is per browser: a shared school computer should not hand your
  * colour scheme to the next person who signs in.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Check, Palette as PaletteIcon, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { cn } from '@project/components/lib/utils';
 import { THEMES, findTheme, themeVars } from '../lib/themes';
-import { MAX_SAVED, useTheme } from '../lib/theme';
+import { MAX_SAVED, cacheServerThemes, getServerThemes, useTheme, type ServerTheme } from '../lib/theme';
+import { customThemes as customThemesApi } from '../lib/api';
+import { ask } from '../lib/dialogs';
 
 /** Three dots: the page, the cards, and the one colour everything hangs off. */
 function Swatches({ vars }: { vars: Record<string, string> }) {
@@ -35,11 +37,47 @@ function Swatches({ vars }: { vars: Record<string, string> }) {
 }
 
 function ThemeBuilder() {
-  const { choice, choose, saved, save, remove, applySaved } = useTheme();
+  const { choice, choose, saved, save, remove, applySaved, applyServerTheme } = useTheme();
   const [name, setName] = useState('');
+  const [made, setMade] = useState<ServerTheme[]>(() => getServerThemes());
+
+  /**
+   * Ticket 36b2cc84: themes an AI made for you arrive through the MCP
+   * connection, so this page only ever reads them back. The list is cached so
+   * the app can still paint your theme before the request returns.
+   */
+  const load = () => {
+    customThemesApi({ action: 'list' })
+      .then((r: any) => {
+        cacheServerThemes(r?.themes ?? []);
+        setMade(getServerThemes());
+      })
+      .catch(() => {});
+  };
+  useEffect(load, []);
+
+  const dropMade = async (theme: ServerTheme) => {
+    const yes = await ask({
+      title: `Delete "${theme.name}"?`,
+      body: 'It goes away for you. Nothing else on the site changes.',
+      confirm: 'Delete theme',
+      danger: true,
+    });
+    if (!yes) return;
+    try {
+      const r: any = await customThemesApi({ action: 'delete', id: theme.id });
+      cacheServerThemes(r?.themes ?? []);
+      setMade(getServerThemes());
+      toast.success(`Deleted "${theme.name}".`);
+    } catch {
+      toast.error('That theme could not be deleted.');
+    }
+  };
 
   const isCustom = choice.theme === 'custom';
-  const mine = isCustom ? saved.find((s) => s.id === choice.palette) : undefined;
+  const mine = isCustom
+    ? (saved.find((s) => s.id === choice.palette) ?? made.find((m) => m.id === choice.palette))
+    : undefined;
   const theme = findTheme(choice.theme);
   // Saving while one of your own looks is on keeps that look, not the built-in
   // theme sitting underneath it.
@@ -156,6 +194,47 @@ function ThemeBuilder() {
 
       <div className="space-y-4 rounded-2xl border bg-card p-5">
         <div>
+          <h2 className="font-semibold">Made for you</h2>
+          <p className="text-sm text-muted-foreground">
+            Themes an AI built for you through the crew hub's MCP connection. They are kept against
+            your account and nobody else sees them. Ask gorkie in Slack for one, something like
+            "make me a plum theme called Midnight", and it turns up here.
+          </p>
+        </div>
+        {made.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing made for you yet.</p>
+        ) : (
+          <ul className="divide-y">
+            {made.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="flex items-center gap-3">
+                  <Swatches vars={s.vars} />
+                  <span className="text-sm font-medium">{s.name}</span>
+                  <span className="text-xs text-muted-foreground">on {findTheme(s.base).name}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => applyServerTheme(s.id)}>
+                    Use
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      void dropMade(s);
+                    }}
+                    aria-label={`Delete ${s.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-2xl border bg-card p-5">
+        <div>
           <h2 className="font-semibold">Keep this look</h2>
           <p className="text-sm text-muted-foreground">
             {full
@@ -212,8 +291,9 @@ function ThemeBuilder() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Kept in this browser only, so it does not follow you to another computer. On a shared
-        machine the next person gets their own look back.
+        Looks you name here are kept in this browser only, so they do not follow you to another
+        computer, and the next person on a shared machine gets their own back. Themes made for you
+        are the other way round: they are on your account, so they follow you.
       </p>
     </div>
   );

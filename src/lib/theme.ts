@@ -12,6 +12,7 @@ import { THEMES, themeVars } from './themes';
 const CHOICE_KEY = 'ashtec-theme';
 const SAVED_KEY = 'ashtec-themes';
 const MODE_KEY = 'ashtec-theme-mode';
+const SERVER_KEY = 'ashtec-server-themes';
 const EVENT = 'ashtec-theme';
 
 export type Choice = { theme: string; palette: string };
@@ -44,6 +45,35 @@ export function getChoice(): Choice {
   // A saved look carries its own variables, so `custom` is a valid theme id.
   if (c.theme !== CUSTOM && !THEMES.some((t) => t.id === c.theme)) return DEFAULT_CHOICE;
   return c;
+}
+
+/**
+ * Ticket 36b2cc84: themes made for you by an AI over the MCP connection live on
+ * the server, but the first paint happens before any request comes back, so the
+ * last list the browser saw is kept here. A theme deleted on the server simply
+ * falls out of the cache and the app goes back to the original look.
+ *
+ * Ids get an `srv-` prefix so they can never collide with the `saved-` ids of
+ * looks kept in this browser.
+ */
+export type ServerTheme = { id: string; name: string; base: string; vars: Record<string, string> };
+
+export function getServerThemes(): ServerTheme[] {
+  const list = read<ServerTheme[]>(SERVER_KEY, []);
+  if (!Array.isArray(list)) return [];
+  return list.filter((t) => t && typeof t.id === 'string' && t.vars);
+}
+
+export function cacheServerThemes(themes: { id: string; name: string; base: string; vars: Record<string, string> }[]) {
+  const list = (Array.isArray(themes) ? themes : [])
+    .filter((t) => t && t.id && t.base && t.vars)
+    .map((t) => ({
+      id: t.id.startsWith('srv-') ? t.id : `srv-${t.id}`,
+      name: t.name,
+      base: t.base,
+      vars: t.vars,
+    }));
+  write(SERVER_KEY, list);
 }
 
 export function getSavedThemes(): SavedTheme[] {
@@ -158,15 +188,38 @@ function varsForMode(vars: Record<string, string>, mode: ThemeMode, themeId: str
   return { ...vars, ...dark };
 }
 
+/**
+ * The look whose shell and home page a choice wears. A theme an AI made keeps
+ * the shell it was built on, so it feels like that look with your colours
+ * rather than a seventh look. A look you named yourself borrows the original.
+ */
+export function shellThemeId(choice: Choice = getChoice()): string {
+  if (choice.theme !== CUSTOM) return choice.theme;
+  const made = getServerThemes().find((t) => t.id === choice.palette);
+  return made?.base || DEFAULT_CHOICE.theme;
+}
+
 export function applyChoice(choice: Choice = getChoice()) {
   const mode = getThemeMode();
   applyThemeMode(mode);
   if (choice.theme === CUSTOM) {
-    // A saved look is only variables, so it borrows the original shell.
-    setThemeAttr(DEFAULT_CHOICE.theme);
+    // A look you named yourself is only variables, so it borrows the original
+    // shell. A theme an AI made keeps the shell it was built on, so it still
+    // feels like that look with your colours rather than a sixth look.
     const found = getSavedThemes().find((t) => t.id === choice.palette);
-    if (found) applyVars(varsForMode(found.vars, mode, choice.theme));
-    else clearVars();
+    if (found) {
+      setThemeAttr(DEFAULT_CHOICE.theme);
+      applyVars(varsForMode(found.vars, mode, choice.theme));
+      return;
+    }
+    const madeLook = getServerThemes().find((t) => t.id === choice.palette);
+    if (madeLook) {
+      setThemeAttr(madeLook.base || DEFAULT_CHOICE.theme);
+      applyVars(varsForMode(madeLook.vars, mode, madeLook.base || choice.theme));
+      return;
+    }
+    setThemeAttr(DEFAULT_CHOICE.theme);
+    clearVars();
     return;
   }
   if (choice.theme === DEFAULT_CHOICE.theme && choice.palette === DEFAULT_CHOICE.palette) {
@@ -242,5 +295,22 @@ export function useTheme() {
     choose({ theme: CUSTOM, palette: id });
   };
 
-  return { choice, choose, mode, toggleMode, saved, save: saveTheme, remove: deleteSavedTheme, applySaved };
+  /** Switch to a theme an AI made for you. The page has already cached the list. */
+  const applyServerTheme = (id: string) => {
+    const key = id.startsWith('srv-') ? id : `srv-${id}`;
+    if (!getServerThemes().some((t) => t.id === key)) return;
+    choose({ theme: CUSTOM, palette: key });
+  };
+
+  return {
+    choice,
+    choose,
+    mode,
+    toggleMode,
+    saved,
+    save: saveTheme,
+    remove: deleteSavedTheme,
+    applySaved,
+    applyServerTheme,
+  };
 }

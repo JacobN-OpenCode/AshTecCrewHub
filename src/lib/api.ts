@@ -311,6 +311,13 @@ export type ClaimRotaSlotInputType = NonNullable<_ClaimRotaSlotCfg['inputSchema'
 export type ClaimRotaSlotOutputType = Awaited<ReturnType<_ClaimRotaSlotCfg['execute']>>;
 export const claimRotaSlot = createCaller<ClaimRotaSlotInputType, ClaimRotaSlotOutputType>('claimRotaSlot');
 
+import type { default as _CustomThemesEp } from '../api/customThemes';
+
+type _CustomThemesCfg = typeof _CustomThemesEp;
+export type CustomThemesInputType = NonNullable<_CustomThemesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_CustomThemesCfg['execute']>[0]['input'];
+export type CustomThemesOutputType = Awaited<ReturnType<_CustomThemesCfg['execute']>>;
+export const customThemes = createCaller<CustomThemesInputType, CustomThemesOutputType>('customThemes');
+
 import type { default as _DeletePushSubscriptionEp } from '../api/deletePushSubscription';
 
 type _DeletePushSubscriptionCfg = typeof _DeletePushSubscriptionEp;
@@ -983,6 +990,7 @@ export const api = {
   adminUpdateTicket,
   checkEmail,
   claimRotaSlot,
+  customThemes,
   deletePushSubscription,
   enableLiveShowDevice,
   exportMyData,

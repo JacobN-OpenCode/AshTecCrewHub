@@ -1059,4 +1059,37 @@ CREATE INDEX IF NOT EXISTS "PageViews_path_idx" ON "PageViews" ("path");
 CREATE INDEX IF NOT EXISTS "PageViews_session_idx" ON "PageViews" ("sessionId");
 CREATE INDEX IF NOT EXISTS "PageViews_member_idx" ON "PageViews" ("member");
 
+-- ---------------------------------------------------------------------------
+-- Themes made for one person (ticket 36b2cc84). They are made through an MCP
+-- key, so they belong to the person that key acts as and to nobody else: the
+-- endpoint filters on memberId for every read, write and delete.
+--
+-- `vars` is a JSON object of CSS variables in the same "280 60% 55%" form as
+-- index.css. It is text, not jsonb, because that is what goes in and what comes
+-- out, and nothing queries inside it.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "CustomThemes" (
+  "id"        uuid PRIMARY KEY,
+  "memberId"  uuid NOT NULL,
+  "name"      text NOT NULL DEFAULT '',
+  "base"      text NOT NULL DEFAULT 'ashtec',
+  "vars"      text NOT NULL DEFAULT '{}',
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+-- zite.update always stamps updatedAt, so a table without the column cannot be
+-- edited at all. This line is for any database that took the first version.
+ALTER TABLE "CustomThemes" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+CREATE INDEX IF NOT EXISTS "CustomThemes_member_idx" ON "CustomThemes" ("memberId");
+CREATE UNIQUE INDEX IF NOT EXISTS "CustomThemes_member_name_idx" ON "CustomThemes" ("memberId", lower("name"));
+
+-- ---------------------------------------------------------------------------
+-- Nothing reads these any more: the feedback feature was removed, and the site
+-- has run without it since. Dropping them now so the schema matches the code.
+-- ---------------------------------------------------------------------------
+DROP TABLE IF EXISTS "FeedbackResponses";
+DROP TABLE IF EXISTS "Feedback";
+DROP TABLE IF EXISTS "FeedbackItems";
+DROP TABLE IF EXISTS "FeedbackVotes";
+
 COMMIT;
