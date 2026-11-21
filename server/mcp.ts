@@ -152,8 +152,11 @@ async function actor() {
   const hit = actorCache.get(cacheKey);
   if (hit) return hit;
 
+  // An AI agent is not an admin in the human sense, but its own keys still have
+  // to run, so it counts as an actor too. Ticket: AI agents in the crew list.
+  const agentOk = '("isAdmin" = true OR "memberType" = \'AI Agent\')';
   const query = byId
-    ? 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1 AND "isAdmin" = true LIMIT 1'
+    ? `SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1 AND ${agentOk} LIMIT 1`
     : wanted
       ? 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE lower("schoolEmail") = lower($1) AND "isAdmin" = true LIMIT 1'
       : 'SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "isAdmin" = true AND "isPreviewAccount" = false ORDER BY "createdAt" LIMIT 1';
@@ -202,6 +205,10 @@ const INSTRUCTIONS = [
   'What the tools cover: the schedule and sessions, registers and attendance (green = in,',
   'yellow = away with a reason, red = not in with a reason), support tickets, the live show',
   'board and its chat, documents, announcements, crew members, and search.',
+  '',
+  'A crew member can be an AI agent account: a member type of its own, with a real name, no',
+  'year, no roles, no register, and it is kept off the roster. Its keys act as it, so the call',
+  'log and any ticket replies carry its name. It is not a person anyone can impersonate.',
   '',
   'The code lives at GitHub SmartSparkCoding/AshTecCrewHub and is looked after by Jacob',
   'Navaratne. Pull requests are welcome, but every one opens with a short plain-English TLDR',

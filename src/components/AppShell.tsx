@@ -267,6 +267,13 @@ function Shell() {
   ].filter((l) => showAdmin || (!memberView && l.to === '/admin/attendance')) as NavItem[];
   if (admin.length) groups.push({ label: 'Admin', items: admin });
 
+  // An AI agent is an account, not a person: no registers, no forms, no roster.
+  // It gets the pages it needs to read what it is asked to read.
+  if (me.memberType === 'AI Agent') {
+    const keep = new Set(['/', '/announcements', '/documents', '/profile']);
+    for (const g of groups) g.items = g.items.filter((i) => keep.has(i.to));
+  }
+
   const paletteItems: PaletteItem[] = useMemo(() => {
     const items: PaletteItem[] = [];
     // Pages, then doing-things, then the live data (events, shows, crew).

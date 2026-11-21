@@ -36,11 +36,14 @@ export default createEndpoint({
     const { rows: actorRows } = await zite.sql({ query, params: wanted ? [wanted] : [] });
     const actorRow = actorRows[0];
 
-    const [keyRows, logRows, crewRows] = await Promise.all([
+    // findAll had no ORDER BY here, so on a busy day the tab kept handing back
+    // the oldest 120 rows and the log froze at a time from that morning.
+    const [keyRows, logRes, crewRows] = await Promise.all([
       zite.mcpKeys.findAll({ limit: 100 }),
-      zite.mcpCallLog.findAll({ limit: 120 }),
+      zite.sql({ query: 'SELECT * FROM "McpCallLog" ORDER BY "createdAt" DESC LIMIT 120', params: [] }),
       zite.crewMembers.findAll({ limit: 2000 }),
     ]);
+    const logRows = { records: logRes.rows as Record<string, unknown>[] };
 
     const enabledKeys = keyRows.records.filter((k) => k.enabled);
     const dayStart = new Date();
@@ -57,8 +60,12 @@ export default createEndpoint({
       url: `${(process.env.APP_URL ?? 'https://ashtec.dino.icu').replace(/\/$/, '')}/mcp`,
       // Who a key is allowed to act as: the admins and maintainers, by name.
       people: crewRows.records
-        .filter((m) => (m.isAdmin || m.isMaintainer) && !m.isPreviewAccount)
-        .map((m) => ({ id: String(m.id), name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() }))
+        .filter((m) => (m.isAdmin || m.isMaintainer || m.memberType === 'AI Agent') && !m.isPreviewAccount)
+        .map((m) => ({
+          id: String(m.id),
+          name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim(),
+          agent: m.memberType === 'AI Agent',
+        }))
         .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
       keys: keyRows.records
         .map((k) => ({

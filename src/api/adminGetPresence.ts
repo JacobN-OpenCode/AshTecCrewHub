@@ -52,7 +52,7 @@ export default createEndpoint({
       subId ? zite.attendance.findAll({ filters: { subEvent: subId }, limit: 2000 }) : Promise.resolve({ records: [] }),
     ]);
     const members = memberRecords.records
-      .filter((m) => m.memberType !== 'Contractor' && !m.isPreview)
+      .filter((m) => m.memberType !== 'Contractor' && m.memberType !== 'AI Agent' && !m.isPreview)
       .map((m) => ({
         id: m.id,
         name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || m.schoolEmail || 'Unknown',

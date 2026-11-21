@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ask } from '../../lib/dialogs';
 
-const VIDEO =
-  'https://user-cdn.hackclub-assets.com/01a1fe58-a7e4-7935-8d4e-79ccee13e40f4/Recording%202026-11-21%20at%2013.01.23.mp4';
+// This used to point at a CDN link that has since gone 404, which is why the
+// player stayed blank. The walkthrough ships with the site now.
+const VIDEO = '/downloads/mcp-howto.mp4';
 import { adminGetMcp, adminMcpKey, type AdminGetMcpOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
@@ -108,7 +109,7 @@ export default function AdminMcp() {
         <div>
           <h1 className="text-2xl font-semibold">MCP</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            The keys an AI client uses to talk to the crew hub, and a log of everything it asked for. Keys act as one admin, so give them to people you would give that account to.
+            The keys an AI client uses to talk to the crew hub, and a log of everything it asked for. Each key acts as the person it is assigned to, so give them to people you would give that account to. An AI agent from the crew list can have a key of its own.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -135,9 +136,15 @@ export default function AdminMcp() {
 
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Acts as</dt>
-            <dd className="mt-0.5">{data.actor.name}{data.actor.email ? ` · ${data.actor.email}` : ''}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">Who keys act as</dt>
+            <dd className="mt-0.5">Each key acts as the person it is assigned to. Change it on the key below.</dd>
           </div>
+          {data.envToken && (
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">Server token acts as</dt>
+              <dd className="mt-0.5">{data.actor.name}{data.actor.email ? ` · ${data.actor.email}` : ''}</dd>
+            </div>
+          )}
           <div className="min-w-0">
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">Address</dt>
             <dd className="mt-0.5 flex items-center gap-2">
@@ -208,12 +215,12 @@ export default function AdminMcp() {
                       onChange={(ev) => void act('act-as', k.id, k.name, ev.target.value)}
                     >
                       {(() => {
-                        const people = (data as { people?: { id: string; name: string }[] }).people ?? [];
+                        const people = (data as { people?: { id: string; name: string; agent?: boolean }[] }).people ?? [];
                         const known = people.some((p) => p.id === (k.actAsMemberId || k.memberId));
                         return (
                           <>
                             {people.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
+                              <option key={p.id} value={p.id}>{p.name}{p.agent ? ' · AI agent' : ''}</option>
                             ))}
                             {!known && <option value={k.actAsMemberId || k.memberId || ''}>{k.actorName || 'unknown'}</option>}
                           </>

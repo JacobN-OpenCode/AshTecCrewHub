@@ -52,6 +52,21 @@ export default createEndpoint({
 
     if (input.action === 'create') {
       const name = (input.name ?? '').trim() || 'MCP key';
+      // A key made for an AI agent acts as that agent from the first use, so the
+      // account's own name is what the log and the tickets show.
+      const owner = (input.memberId ?? '').trim();
+      if (owner) {
+        const crew = await zite.crewMembers.findAll({ filters: { id: owner }, limit: 1 });
+        const m = crew.records[0];
+        if (!m) throw new ZiteError({ code: 'NOT_FOUND', message: 'No such member', userFacingMessage: 'That account is not in the crew list.' });
+        if (!m.isAdmin && !m.isMaintainer && m.memberType !== 'AI Agent') {
+          throw new ZiteError({
+            code: 'BAD_REQUEST',
+            message: 'Owner must be admin, maintainer or AI agent',
+            userFacingMessage: 'A key can only be made for an admin, a maintainer or an AI agent account.',
+          });
+        }
+      }
       const token = `atc_${randomBytes(24).toString('base64url')}`;
       await zite.mcpKeys.create({
         record: {
@@ -60,8 +75,9 @@ export default createEndpoint({
           tokenHash: createHash('sha256').update(token).digest('hex'),
           enabled: true,
           createdBy: me.id,
-          // The key acts as whoever made it, not as a server-wide MCP_EMAIL.
-          memberId: me.id,
+          // The key acts as its owner: the agent account when one was chosen,
+          // otherwise whoever made it.
+          memberId: owner || me.id,
         },
       });
       return { ok: true, token, keys: await list() };
@@ -82,11 +98,11 @@ export default createEndpoint({
         const crew = await zite.crewMembers.findAll({ filters: { id: wanted }, limit: 1 });
         const m = crew.records[0];
         if (!m) throw new ZiteError({ code: 'NOT_FOUND', message: 'No such member', userFacingMessage: 'That person is not in the crew list.' });
-        if (!m.isAdmin && !m.isMaintainer) {
+        if (!m.isAdmin && !m.isMaintainer && m.memberType !== 'AI Agent') {
           throw new ZiteError({
             code: 'BAD_REQUEST',
             message: 'Actor must be admin or maintainer',
-            userFacingMessage: 'A key can only act as someone with admin or maintainer access, otherwise the tools cannot do their job.',
+            userFacingMessage: 'A key can only act as someone with admin or maintainer access, or an AI agent account.',
           });
         }
       }

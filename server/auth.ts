@@ -139,10 +139,12 @@ export async function startActAs(req: Request, res: Response, memberId: string):
   if (!admin?.isAdmin) throw new Error('Admins only.');
   if (admin.id === memberId) throw new Error('That is your own account.');
   const { rows: target } = await db().query(
-    `SELECT "id", "schoolEmail", "firstName", "lastName" FROM "CrewMembers" WHERE "id" = $1`,
+    `SELECT "id", "schoolEmail", "firstName", "lastName", "memberType" FROM "CrewMembers" WHERE "id" = $1`,
     [memberId]
   );
   if (!target[0]) throw new Error('No such crew member.');
+  // An AI agent is an account a key acts through, not a person you can become.
+  if (target[0].memberType === 'AI Agent') throw new Error('That is an AI agent, not a person.');
   res.cookie(ACT_AS_COOKIE, memberId, {
     httpOnly: true,
     sameSite: 'lax',

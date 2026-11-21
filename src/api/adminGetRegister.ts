@@ -109,7 +109,7 @@ export default createEndpoint({
     }
 
     const everyone = memberRecords.records
-      .filter((m) => m.memberType !== 'Contractor' && !m.isPreviewAccount)
+      .filter((m) => m.memberType !== 'Contractor' && m.memberType !== 'AI Agent' && !m.isPreviewAccount)
       .map((m) => {
         const att = attByMember.get(m.id);
         return {

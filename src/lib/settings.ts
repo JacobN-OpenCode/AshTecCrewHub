@@ -117,7 +117,7 @@ export function cleanLists(raw: unknown, fallback: CrewLists): CrewLists {
 export const DEFAULT_LISTS: CrewLists = {
   roles: ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'],
   years: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'],
-  memberTypes: ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'],
+  memberTypes: ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor', 'AI Agent'],
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {

@@ -12,7 +12,9 @@ export default createEndpoint({
     id: z.string().optional(),
     delete: z.boolean().optional(),
     // New rule: only a first initial (max 2 characters), never a full name.
-    firstName: z.string().max(2).optional(),
+    // An AI agent is the exception: it is an account with a name, so the field
+    // accepts up to 60 here and the initial rule is enforced for people below.
+    firstName: z.string().max(60).optional(),
     lastName: z.string().optional(),
     year: z.string().optional(),
     email: z.string().optional(),
@@ -51,6 +53,14 @@ export default createEndpoint({
     let email = (input.email ?? '').trim().toLowerCase();
     if (input.isPreview && !email) email = `preview-${Math.random().toString(36).slice(2, 8)}@preview.ashtec`;
     if (!email || !input.firstName) throw new Error('First name and school email are required.');
+    const isAgent = input.memberType === 'AI Agent';
+    if (!isAgent && input.firstName.trim().length > 2) {
+      throw new ZiteError({
+        code: 'BAD_REQUEST',
+        message: 'FirstNameTooLong',
+        userFacingMessage: 'Use a first initial (two letters at most). Only an AI agent account gets a full name.',
+      });
+    }
     const clash = await findMemberByEmail(email);
     if (clash && clash.id !== input.id) throw new Error('Another member already uses that email.');
     if (input.id === me.id && input.isAdmin === false) throw new Error('You can’t remove your own admin access.');
@@ -91,6 +101,21 @@ export default createEndpoint({
       isMentor: !!input.isMentor,
       hiddenFromRoster: !!input.hiddenFromRoster,
     };
+    if (record.memberType === 'AI Agent') {
+      // An agent is an account, not a pupil: no year, roles or register, kept off
+      // the roster, and admin so its own keys can call the admin tools.
+      record.isAdmin = input.isPreview ? false : true;
+      record.isMaintainer = false;
+      record.hiddenFromRoster = true;
+      record.year = '';
+      record.roles = [];
+      record.headOf = [];
+      record.preferredRole1 = '';
+      record.preferredRole2 = '';
+      record.mentorId = null;
+      record.isMentor = false;
+      record.lastName = input.lastName ?? '';
+    }
     if (input.permissions !== undefined) {
       record.permissions = JSON.stringify(parsePermissionState(input.permissions));
     }

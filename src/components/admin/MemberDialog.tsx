@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveMember, setShowResponse } from '#api';
+import { adminMcpKey, adminSaveMember, setShowResponse } from '#api';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
@@ -16,6 +16,33 @@ import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../../lib/avatarUrl';
 type F = Omit<AdminMember, 'id'>;
 const blank: F = { firstName: '', lastName: '', shortUsername: '', year: '', email: '', isAdmin: false, isStaff: false, memberType: 'Normal Member', isContractor: false, roles: [], headOf: [], preferredRole1: '', preferredRole2: '', adminNotes: '', isMaintainer: false, isPreview: false, adminNotifications: false, avatarUrl: '', statusText: '', statusEmoji: '', birthday: '', hiddenFromRoster: false, contactShare: false, parentEmail: '', skillsTeach: '', skillsLearn: '', mentorId: null, isMentor: false, permissions: { granted: [], revoked: [] }, supportEmailMode: '' };
 
+/** Makes the key an agent account acts through. Shown once, like every key. */
+function AgentKey({ memberId, name }: { memberId: string; name: string }) {
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const make = async () => {
+    setBusy(true);
+    try {
+      const r = await adminMcpKey({ action: 'create', name: `${name || 'Agent'} key`, memberId });
+      setToken(r.token ?? '');
+      toast.success('MCP key made');
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="mt-2 space-y-2">
+      {token
+        ? <code className="block break-all rounded-lg bg-muted p-2 text-xs">{token}</code>
+        : (
+          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void make()}>
+            {busy ? 'Making…' : 'Make an MCP key for this agent'}
+          </Button>
+        )}
+      <p className="text-xs text-muted-foreground">Copy it now: it is never shown again.</p>
+    </div>
+  );
+}
+
 export default function MemberDialog({ open, member, data, onClose, onSaved, preview }: { open: boolean; member: AdminMember | null; data: AdminData; onClose: () => void; onSaved: () => void; preview?: boolean }) {
   const [f, setF] = useState<F>(blank);
   // Feedback round 2: the pickers draw from the admin-curated lists.
@@ -23,6 +50,9 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
   const YEARS_OPTS = lists.years;
   const TYPES_OPTS = lists.memberTypes;
   const ROLES_OPTS = lists.roles;
+  // An agent is always on the list, even if the saved settings predate it.
+  const types = TYPES_OPTS.includes('AI Agent') ? TYPES_OPTS : [...TYPES_OPTS, 'AI Agent'];
+  const agent = f.memberType === 'AI Agent';
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (open) setF(member ? { ...member } : { ...blank, isPreview: !!preview }); }, [open, member, preview]);
   const set = (p: Partial<F>) => setF((x) => ({ ...x, ...p }));
@@ -59,11 +89,11 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
       <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader><DialogTitle>{member ? `${member.firstName} ${member.lastName}` : f.isPreview ? 'Add preview account' : 'Add crew member'}</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
-          <div className="space-y-1"><label className="text-sm">First initial *</label><Input value={f.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={2} /></div>
+          <div className="space-y-1"><label className="text-sm">{agent ? 'Name *' : 'First initial *'}</label><Input value={f.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={agent ? 60 : 2} /></div>
           <div className="space-y-1"><label className="text-sm">Last name</label><Input value={f.lastName} onChange={(e) => set({ lastName: e.target.value })} /></div>
           <div className="space-y-1"><label className="text-sm">School email {f.isPreview ? '(optional — made up automatically)' : '*'}</label><Input type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} /></div>
-          <div className="space-y-1"><label className="text-sm">Year</label><Pick v={f.year} on={(v) => set({ year: v })} opts={YEARS_OPTS} ph="Select year" /></div>
-          <div className="space-y-1"><label className="text-sm">Member type</label><Pick v={f.memberType} on={(v) => set({ memberType: v })} opts={TYPES_OPTS} ph="Type" /></div>
+          {!agent && <div className="space-y-1"><label className="text-sm">Year</label><Pick v={f.year} on={(v) => set({ year: v })} opts={YEARS_OPTS} ph="Select year" /></div>}
+          <div className="space-y-1"><label className="text-sm">Member type</label><Pick v={f.memberType} on={(v) => set({ memberType: v })} opts={types} ph="Type" /></div>
           <div className="flex flex-col gap-2 self-end pb-2">
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isAdmin} onCheckedChange={(c) => set({ isAdmin: !!c })} />Admin access</label>}
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMaintainer} onCheckedChange={(c) => set({ isMaintainer: !!c })} />Maintainer (gets bug reports)</label>}
@@ -71,14 +101,14 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
             {!f.isPreview && <label className="flex items-center gap-2 text-sm"><Checkbox checked={!!f.hiddenFromRoster} onCheckedChange={(c) => set({ hiddenFromRoster: !!c })} />Hide from the roster page</label>}
             {f.isPreview && <p className="text-xs text-muted-foreground">Pretend person — can’t sign in or get emails. Use “Preview as” to see the app as them.</p>}
           </div>
-          {(['roles', 'headOf'] as const).map((k) => (
+          {!agent && (['roles', 'headOf'] as const).map((k) => (
             <div key={k} className="space-y-2">
               <p className="text-sm font-medium">{k === 'roles' ? 'Assigned roles' : 'Head of'}</p>
               {ROLES_OPTS.map((r) => <label key={r} className="flex items-center gap-2 text-sm"><Checkbox checked={f[k].includes(r)} onCheckedChange={() => toggle(k, r)} />{r}</label>)}
             </div>
           ))}
-          <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES_OPTS} ph="—" /></div>
-          <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES_OPTS} ph="—" /></div>
+          {!agent && <div className="space-y-1"><label className="text-sm">Preferred role 1</label><Pick v={f.preferredRole1} on={(v) => set({ preferredRole1: v })} opts={ROLES_OPTS} ph="—" /></div>}
+          {!agent && <div className="space-y-1"><label className="text-sm">Preferred role 2</label><Pick v={f.preferredRole2} on={(v) => set({ preferredRole2: v })} opts={ROLES_OPTS} ph="—" /></div>}
           <div className="sm:col-span-2 space-y-1">
             <label className="text-sm">Profile picture URL</label>
             <div className="flex items-center gap-3">
@@ -87,7 +117,7 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
             </div>
             <p className="text-xs text-muted-foreground">Leave blank to use their initials.</p>
           </div>
-          <div className="space-y-1">
+          {!agent && <div className="space-y-1">
             <label className="text-sm">Mentor (someone guiding them)</label>
             <Select value={f.mentorId ?? "none"} onValueChange={(v) => set({ mentorId: v === "none" ? null : v })}>
               <SelectTrigger><SelectValue placeholder="No mentor yet" /></SelectTrigger>
@@ -102,11 +132,22 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">Shown on their home page so a new member knows who to ask.</p>
-          </div>
-          <div className="flex flex-col gap-2 self-end pb-2">
+          </div>}
+          {!agent && <div className="flex flex-col gap-2 self-end pb-2">
             <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.isMentor} onCheckedChange={(c) => set({ isMentor: !!c })} />Willing to mentor someone</label>
-          </div>
-          {member && !f.isPreview && (
+          </div>}
+          {agent && (
+            <div className="sm:col-span-2 space-y-1 rounded-xl border border-dashed p-3">
+              <p className="text-sm font-medium">AI agent account</p>
+              <p className="text-xs text-muted-foreground">
+                It sees Home, Announcements, Documents and My settings, is kept off the roster, never appears on a
+                register and cannot be impersonated. Admin access is switched on for it, because its own keys use the
+                admin tools.
+              </p>
+              {member ? <AgentKey memberId={member.id} name={f.firstName} /> : <p className="text-xs text-muted-foreground">Save it first, then its MCP key can be made here.</p>}
+            </div>
+          )}
+          {member && !f.isPreview && !agent && (
             <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
               <p className="text-sm font-medium">Permissions</p>
               <p className="text-xs text-muted-foreground">

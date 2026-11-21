@@ -25,7 +25,7 @@ export default createEndpoint({
 
     const people = records
       .filter((m) => !(m as unknown as { isPreviewAccount?: boolean }).isPreviewAccount)
-      .filter((m) => m.memberType !== 'Contractor')
+      .filter((m) => m.memberType !== 'Contractor' && m.memberType !== 'AI Agent')
       .filter((m) => !!(m as unknown as { contactShare?: boolean }).contactShare)
       .filter((m) => !!m.schoolEmail)
       .map((m) => ({
