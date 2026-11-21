@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import PublicLayout from '../../components/public/PublicLayout';
 
 /**
- * /privacy — the privacy notice (feedback round 2, round 3).
+ * /privacy — the privacy notice (round 3).
  *
  * Adapted from the generated policy, with the generator's dashboard chrome and
  * marketing removed and the content corrected to match what the crew hub
@@ -102,7 +102,7 @@ export default function Privacy() {
             <li><strong className="text-foreground">What we collect.</strong> Only what the crew needs to run the club: your name and school email, your year and roles, your answers to event forms, attendance and check-in records, and anything you choose to add (a profile picture, skills).</li>
             <li><strong className="text-foreground">Sensitive information.</strong> We do not collect or process special-category (sensitive) personal information.</li>
             <li><strong className="text-foreground">Third parties.</strong> We do not collect information about you from anyone else, and we do not sell or rent your information.</li>
-            <li><strong className="text-foreground">Why.</strong> To run the crew, send the reminders and alerts you have asked for, keep the system secure, and answer your support tickets and feedback.</li>
+            <li><strong className="text-foreground">Why.</strong> To run the crew, send the reminders and alerts you have asked for, keep the system secure, and answer your support tickets.</li>
             <li><strong className="text-foreground">Sharing.</strong> Only with the handful of providers that run the service (email delivery, push notifications, hosting) and with crew admins. Never for advertising.</li>
             <li><strong className="text-foreground">Your rights.</strong> You can see, correct, export or delete your information, and you can ask us to. See <a href="#s11">section 11</a>.</li>
           </ul>
@@ -122,7 +122,7 @@ export default function Privacy() {
               <li>your answers to event and show forms (coming, maybe, or not attending);</li>
               <li>attendance and venue check-in records for rehearsals and shows, including the marks an admin puts on the register (in, away, or not in) and a short reason chosen from a list for anyone marked away or not in;</li>
               <li>anything you post in the crew hub, such as rehearsal notes, show debriefs, green-room messages, lost-property entries and messages sent to the crew channel from a backstage screen. The backstage screens show the running order, who is on stage and that channel on a display in the room, so treat them as visible to anyone standing there;</li>
-              <li>support tickets and feedback you submit, the replies on them, and any <strong>pictures you attach to a ticket</strong> (stored on our own server, like profile pictures);</li>
+              <li>support tickets you submit, the replies on them, and any <strong>pictures you attach to a ticket</strong> (stored on our own server, like profile pictures);</li>
               <li>notifications sent to you, and when;</li>
               <li>sign-in and session details (the device and the time), kept so you can see and sign out your devices;</li>
               <li>a technical log of requests and pages opened, so we can see which parts of the hub are used and work out what went wrong when something breaks. A log line holds the page or endpoint, the time, how long it took, whether you were signed in, your email if you were, the network address the request came from, and your browser&rsquo;s own description of itself. It is held on our own server for 30 days and then deleted, and it is never used to build a profile of you or shared with anyone.</li>
@@ -139,7 +139,7 @@ export default function Privacy() {
               <li><strong>To send you the messages you asked for.</strong> Deadline reminders, cue calls, and the notifications you enable on a device, including live-show movement alerts.</li>
               <li><strong>To let crew admins run the club.</strong> Admins can see the crew roster, responses and attendance so they can plan rehearsals and shows.</li>
               <li><strong>To keep it secure.</strong> Signing you in, keeping your session safe, and preventing abuse.</li>
-              <li><strong>To answer you.</strong> Responding to your support tickets and feedback.</li>
+              <li><strong>To answer you.</strong> Responding to your support tickets.</li>
               <li><strong>To protect someone.</strong> Where necessary to prevent harm, for example using venue check-in records to know who is on site.</li>
             </ul>
           </Section>

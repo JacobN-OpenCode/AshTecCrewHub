@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveSettings, adminGetSupportSettings, adminSetSupportSettings } from '#api';
+import { adminSaveSettings, adminGetSupportSettings, adminSetSupportSettings, adminCheckPush } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
@@ -8,16 +8,16 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Badge } from '@project/components/ui/badge';
-import { Cat, GraduationCap, MessageCircle, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
+import { Bell, Cat, GraduationCap, MessageCircle, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
 import { useAppSettings, refreshAppSettings } from '../../lib/appSettings';
 import {
   cleanSkillOptions, FEATURE_KEYS, FEATURE_LABELS, type Features, type CrewLists,
 } from '../../lib/settings';
 
 /**
- * The ATCMS settings hub (feedback round 2). One page for the knobs: how admin
- * pages look, branding, which parts of the app are on, the cat, the skill list,
- * the option lists every picker draws from, and the feedback forms.
+ * The ATCMS settings hub. One page for the knobs: the support email default,
+ * branding, which parts of the app are on, the cat, the skill list, the option
+ * lists every picker draws from, and which admins can actually receive a push.
  */
 export default function AdminSettings() {
   const settings = useAppSettings();
@@ -198,11 +198,121 @@ export default function AdminSettings() {
         </Button>
       </section>
 
+      <NotificationHealth />
+
       <div className="flex items-center gap-2 rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
         <Badge variant="outline">Tip</Badge>
         Changes here apply to everyone, except the layout choice, which is yours alone.
       </div>
     </div>
+  );
+}
+
+/**
+ * Ticket 3a431f75: who can actually receive a notification right now. A member
+ * with no subscribed device, or with their admin alerts off, is invisible from
+ * the outside, and "it doesn't work on my Mac" is otherwise unfalsifiable.
+ */
+function NotificationHealth() {
+  const [people, setPeople] = useState<Array<Record<string, any>>>([]);
+  const [busy, setBusy] = useState('');
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    adminCheckPush({})
+      .then((r) => setPeople(r.people as never))
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const probe = async (id: string, name: string) => {
+    setBusy(id);
+    try {
+      const r = await adminCheckPush({ memberId: id });
+      const p = r.probe as { sent: number; devices: Array<{ host: string; ok: boolean; code?: number; reason?: string }> } | undefined;
+      if (!p || !p.devices.length) {
+        toast.error(`${name} has no device subscribed, so there is nowhere to send it.`);
+      } else if (p.sent > 0) {
+        toast.success(`Delivered to ${p.sent} of ${p.devices.length} of ${name}'s devices.`);
+      } else {
+        const why = p.devices.map((d) => `${d.host} said ${d.code ?? '?'} (${d.reason ?? 'no reason given'})`).join('; ');
+        toast.error(`Nothing reached ${name}: ${why}`);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-5">
+      <h2 className="flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> Notifications</h2>
+      <p className="text-sm text-muted-foreground">
+        Who has a device set up to receive alerts, and on which push service. Send a test to one person to see
+        whether their device accepts it and, if not, what the push service said.
+      </p>
+      {!loaded ? (
+        <p className="text-sm text-muted-foreground">Checking…</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="py-2 pr-3">Person</th>
+                <th className="py-2 pr-3">Admin alerts</th>
+                <th className="py-2 pr-3">Devices</th>
+                <th className="py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {people.map((p) => {
+                const devices = (p.devices ?? []) as Array<{ host: string; browser: string }>;
+                return (
+                  <tr key={p.id} className="border-t align-top">
+                    <td className="py-2 pr-3">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {p.isMaintainer ? 'Maintainer' : p.isAdmin ? 'Admin' : ''}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <Badge variant="outline" className={p.adminAlerts ? 'border-emerald-500/40 text-emerald-400' : undefined}>
+                        {p.adminAlerts ? 'On' : 'Off'}
+                      </Badge>
+                    </td>
+                    <td className="py-2 pr-3">
+                      {devices.length === 0 ? (
+                        <span className="text-xs text-rose-400">None subscribed</span>
+                      ) : (
+                        <ul className="space-y-0.5">
+                          {devices.map((d, i) => (
+                            <li key={i} className="text-xs text-muted-foreground">
+                              {d.host}
+                              {d.browser ? ` · ${d.browser.slice(0, 48)}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="py-2 text-right">
+                      <Button size="sm" variant="outline" disabled={busy === p.id || devices.length === 0} onClick={() => probe(String(p.id), String(p.name))}>
+                        {busy === p.id ? 'Sending…' : 'Send test'}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        A device on <code>web.push.apple.com</code> is Safari or the installed app on an Apple device; a device on
+        <code> fcm.googleapis.com</code> is Chrome. If someone is missing here entirely, they have not turned
+        notifications on for this device.
+      </p>
+    </section>
   );
 }
 

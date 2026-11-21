@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireMember } from '../lib/server';
-import { sendToMember, ensureVapid } from '../../server/push';
+import { sendToMember, ensureVapid, type DeviceResult } from '../../server/push';
 
 /**
  * Sends a test notification to the signed-in member's own devices.
@@ -16,7 +16,13 @@ export default createEndpoint({
   description: 'Sends a test push notification to all of this member’s subscribed devices',
   authenticated: true,
   inputSchema: z.object({}),
-  outputSchema: z.object({ sent: z.number(), subscriptions: z.number(), error: z.string().optional() }),
+  outputSchema: z.object({
+    sent: z.number(),
+    subscriptions: z.number(),
+    error: z.string().optional(),
+    /** Ticket 3a431f75: per-device outcome, so a silent miss has a reason. */
+    devices: z.array(z.any()).optional(),
+  }),
   execute: async ({ context }) => {
     const me = await requireMember(context.user.email);
     if (!(await ensureVapid())) throw new Error('Push is not configured on the server.');
@@ -25,6 +31,7 @@ export default createEndpoint({
     // operating system replace the previous notification instead of showing a
     // new one, which reads as "the test did nothing" when it worked fine.
     let failure: string | undefined;
+    const devices: DeviceResult[] = [];
     const sent = await sendToMember(
       me.id,
       {
@@ -33,8 +40,11 @@ export default createEndpoint({
         url: '/profile',
         tag: `test-${Date.now()}`,
       },
-      { onError: (message) => { failure ??= message; } }
+      {
+        onError: (message) => { failure ??= message; },
+        onDevice: (result) => devices.push(result),
+      }
     );
-    return { sent, subscriptions: subs.length, error: failure };
+    return { sent, subscriptions: subs.length, error: failure, devices };
   },
 });

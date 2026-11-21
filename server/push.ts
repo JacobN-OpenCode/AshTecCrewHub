@@ -79,6 +79,29 @@ export async function publicKey(): Promise<string | null> {
   return ensureVapid();
 }
 
+/** One device's delivery result, for the diagnostics panels (ticket 3a431f75). */
+export interface DeviceResult {
+  /** The push service the device is registered with, e.g. web.push.apple.com. */
+  host: string;
+  ok: boolean;
+  code?: number;
+  reason?: string;
+}
+
+/**
+ * Which push service an endpoint belongs to. The host alone says a lot: Apple's
+ * service means Safari or the installed app on iOS/macOS, Google's means Chrome,
+ * and a device registered with the wrong one is a classic "it works for them,
+ * not for me".
+ */
+export function hostOf(endpoint: string): string {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return 'unknown';
+  }
+}
+
 export interface PushPayload {
   title: string;
   body: string;
@@ -102,7 +125,7 @@ export async function sendToMember(
    * first failure reason and show it. Optional, so every existing caller is
    * unchanged.
    */
-  opts?: { onError?: (message: string) => void }
+  opts?: { onError?: (message: string) => void; onDevice?: (result: DeviceResult) => void }
 ): Promise<number> {
   if (!(await ensureVapid())) return 0;
   const { records: subs } = await zite.pushSubscriptions.findAll({ filters: { member: memberId }, limit: 50 });
@@ -114,15 +137,18 @@ export async function sendToMember(
         JSON.stringify({ ...payload, url: payload.url ?? '/' })
       );
       sent++;
+      opts?.onDevice?.({ host: hostOf(String(s.endpoint)), ok: true });
     } catch (e: any) {
       const code = e?.statusCode;
       if (code === 404 || code === 410) {
         // The subscription is gone for good; drop it.
         await zite.pushSubscriptions.delete({ id: s.id }).catch(() => {});
+        opts?.onDevice?.({ host: hostOf(String(s.endpoint)), ok: false, code, reason: 'the device unsubscribed' });
       } else {
         const reason = String(e?.body || e?.message || 'send failed').slice(0, 200);
         console.warn(`[push] send failed (${code ?? '?'}) for ${memberId}:`, reason);
         opts?.onError?.(`${code ?? '?'}: ${reason}`);
+        opts?.onDevice?.({ host: hostOf(String(s.endpoint)), ok: false, code, reason });
       }
     }
   }

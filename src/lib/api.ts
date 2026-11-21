@@ -17,6 +17,13 @@ export type AdminCheckInScanInputType = NonNullable<_AdminCheckInScanCfg['inputS
 export type AdminCheckInScanOutputType = Awaited<ReturnType<_AdminCheckInScanCfg['execute']>>;
 export const adminCheckInScan = createCaller<AdminCheckInScanInputType, AdminCheckInScanOutputType>('adminCheckInScan');
 
+import type { default as _AdminCheckPushEp } from '../api/adminCheckPush';
+
+type _AdminCheckPushCfg = typeof _AdminCheckPushEp;
+export type AdminCheckPushInputType = NonNullable<_AdminCheckPushCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminCheckPushCfg['execute']>[0]['input'];
+export type AdminCheckPushOutputType = Awaited<ReturnType<_AdminCheckPushCfg['execute']>>;
+export const adminCheckPush = createCaller<AdminCheckPushInputType, AdminCheckPushOutputType>('adminCheckPush');
+
 import type { default as _AdminClearSessionHistoryEp } from '../api/adminClearSessionHistory';
 
 type _AdminClearSessionHistoryCfg = typeof _AdminClearSessionHistoryEp;
@@ -920,6 +927,7 @@ export const analyticsLeave = createCaller<AnalyticsLeaveInputType, AnalyticsLea
 export const api = {
   ackCueCall,
   adminCheckInScan,
+  adminCheckPush,
   adminClearSessionHistory,
   adminDeleteSubEvent,
   adminExportTickets,

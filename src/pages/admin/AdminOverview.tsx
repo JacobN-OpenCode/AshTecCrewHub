@@ -15,7 +15,7 @@ type Tile = {
 };
 
 const TILES: Tile[] = [
-  { to: '/admin/settings', label: 'Settings', blurb: 'Cat name, skills, feedback forms', icon: Cog },
+  { to: '/admin/settings', label: 'Settings', blurb: 'Cat name, skills, option lists, notifications', icon: Cog },
   { to: '/admin/events', label: 'Manage events', blurb: 'Shows, rehearsals and performances', icon: Settings2 },
   { to: '/admin/members', label: 'Crew', blurb: 'Members, roles, permissions and preview mode', icon: Users },
   { to: '/admin/attendance', label: 'Check-in', blurb: 'Who is on site right now', icon: DoorOpen },
