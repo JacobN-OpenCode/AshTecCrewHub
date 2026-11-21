@@ -38,6 +38,7 @@ import { exec, execFile } from 'child_process';
 import { createHash, timingSafeEqual } from 'crypto';
 import { zite } from '#db';
 import * as rateLimit from './rateLimit.js';
+import { tellSlack } from './mcpSlack.js';
 import type { EndpointConfig } from './backend.js';
 import { openLiveShow, loadLiveShowScenes, loadLiveShowMessages, mapLiveShow } from '../src/lib/liveShow.js';
 
@@ -1041,7 +1042,14 @@ export function mountMcp(app: Express, byName: Endpoints) {
       const out = await handle(byName, req, key);
       if (method && method !== 'ping') {
         const message = (out as any)?.error?.message ?? '';
-        void logCall(key.name, method, tool, !(out as any)?.error, message, Date.now() - started);
+        const failed = !!(out as any)?.error;
+        void logCall(key.name, method, tool, !failed, message, Date.now() - started);
+        if (!failed && tool) {
+          // Ticket 7a7d335c: only calls that changed something are worth a
+          // message. tellSlack decides that itself and swallows every failure.
+          const said = (out as any)?.result?.content?.[0]?.text ?? '';
+          void tellSlack(key, tool, String(said));
+        }
       }
       if (!out) return res.status(202).end();
       console.log(`[mcp] ${method || 'unknown'} ok (${key.name})`);

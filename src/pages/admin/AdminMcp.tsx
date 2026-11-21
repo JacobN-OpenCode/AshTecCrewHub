@@ -5,7 +5,7 @@ import { ask } from '../../lib/dialogs';
 // This used to point at a CDN link that has since gone 404, which is why the
 // player stayed blank. The walkthrough ships with the site now.
 const VIDEO = '/downloads/mcp-howto.mp4';
-import { adminGetMcp, adminMcpKey, type AdminGetMcpOutputType } from '#api';
+import { adminGetMcp, adminMcpAlerts, adminMcpKey, type AdminGetMcpOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@project/components/ui/dialog';
 import { cn } from '@project/components/lib/utils';
-import { Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Trash2 , PlayCircle } from 'lucide-react';
+import { Bell, Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Trash2, PlayCircle } from 'lucide-react';
 
 type Data = AdminGetMcpOutputType;
 
@@ -38,6 +38,9 @@ export default function AdminMcp() {
   const [keyName, setKeyName] = useState('');
   const [fresh, setFresh] = useState('');
   const [copied, setCopied] = useState('');
+  // Ticket 7a7d335c: the keys and the Slack alerts are separate jobs, so they
+  // live in separate tabs instead of one long page.
+  const [tab, setTab] = useState<'keys' | 'slack'>('keys');
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -112,15 +115,38 @@ export default function AdminMcp() {
             The keys an AI client uses to talk to the crew hub, and a log of everything it asked for. Each key acts as the person it is assigned to, so give them to people you would give that account to. An AI agent from the crew list can have a key of its own.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={busy !== ''}>
-            <RefreshCw className={cn('mr-1.5 h-4 w-4', busy === 'refresh' && 'animate-spin')} />Refresh
-          </Button>
-          <Button size="sm" onClick={() => setAsking(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />New key
-          </Button>
-        </div>
+        {tab === 'keys' && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={busy !== ''}>
+              <RefreshCw className={cn('mr-1.5 h-4 w-4', busy === 'refresh' && 'animate-spin')} />Refresh
+            </Button>
+            <Button size="sm" onClick={() => setAsking(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />New key
+            </Button>
+          </div>
+        )}
       </header>
+
+      {/* Ticket 7a7d335c: two tabs, so alerts are not buried under the log. */}
+      <div role="tablist" aria-label="MCP sections" className="flex w-fit items-center gap-1 rounded-full border bg-card p-1 text-sm">
+        {([['keys', 'Keys and calls'], ['slack', 'Slack alerts']] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              'rounded-full px-3 py-1.5 transition',
+              tab === id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'keys' && (
+        <>
 
       <section className="rounded-2xl border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -282,6 +308,11 @@ export default function AdminMcp() {
           </div>
         )}
       </section>
+        </>
+      )}
+
+      {/* Ticket 7a7d335c: tell Slack when the MCP changed something. */}
+      {tab === 'slack' && <SlackAlerts />}
 
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent>
@@ -327,5 +358,111 @@ export default function AdminMcp() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Ticket 7a7d335c: "send a message every time the MCP does something. Not
+ * simple things like listing the tools or authorising the token, but changed
+ * to be made." A Slack incoming webhook does that with no app and no token.
+ */
+function SlackAlerts() {
+  const [webhook, setWebhook] = useState('');
+  const [shown, setShown] = useState('');
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await adminMcpAlerts({ action: 'get' });
+        if (!alive) return;
+        setShown(res.webhook);
+        setOn(res.on);
+      } catch {
+        // The card just stays empty; nothing here is worth an error.
+      } finally {
+        if (alive) setLoaded(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function save(next: { webhook?: string; on?: boolean }) {
+    setBusy('save');
+    try {
+      const res = await adminMcpAlerts({ action: 'save', ...next });
+      setShown(res.webhook);
+      setOn(res.on);
+      if (next.webhook !== undefined) setWebhook('');
+      toast.success(res.on ? 'Alerts are on.' : 'Alerts are off.');
+    } catch (e: any) {
+      toast.error(e?.userFacingMessage || e?.message || 'That did not save.');
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function test() {
+    setBusy('test');
+    try {
+      const res = await adminMcpAlerts({ action: 'test' });
+      if (res.sent) toast.success('Slack took it. Look in the channel.');
+      else toast.error(res.message || 'Slack did not take it.');
+    } catch (e: any) {
+      toast.error(e?.userFacingMessage || e?.message || 'Slack did not take it.');
+    } finally {
+      setBusy('');
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <Bell className="h-4 w-4" />Slack alerts
+      </h2>
+      <div className="space-y-3 rounded-2xl border bg-card p-4">
+        <p className="text-sm text-muted-foreground">
+          Posts one line to a Slack channel whenever a tool <em>changes</em> something: a register, attendance, a
+          ticket, the live show, a document, an announcement, a theme, or a deploy. Reads and listings stay quiet.
+        </p>
+        {on && <Badge className="text-xs">On</Badge>}
+        <div className="space-y-1">
+          <Label htmlFor="mcp-slack" className="text-xs">Webhook address</Label>
+          <Input
+            id="mcp-slack"
+            value={webhook}
+            onChange={(ev) => setWebhook(ev.target.value)}
+            placeholder={loaded && shown ? shown : 'https://hooks.slack.com/services/…'}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p className="text-xs text-muted-foreground">
+            In Slack: Apps → Incoming Webhooks → Add, pick a channel, copy the address. It is kept on the server and
+            only ever shown shortened.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" disabled={busy !== '' || !webhook.trim()} onClick={() => void save({ webhook: webhook.trim(), on: true })}>
+            {busy === 'save' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            Save and switch on
+          </Button>
+          <Button size="sm" variant="outline" disabled={busy !== ''} onClick={() => void test()}>
+            {busy === 'test' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            Send a test
+          </Button>
+          {on && (
+            <Button size="sm" variant="ghost" disabled={busy !== ''} onClick={() => void save({ on: false })}>
+              Switch off
+            </Button>
+          )}
+        </div>
+        {loaded && shown && <p className="text-xs text-muted-foreground">Saved: <code className="rounded bg-muted px-1 py-0.5">{shown}</code></p>}
+      </div>
+    </section>
   );
 }

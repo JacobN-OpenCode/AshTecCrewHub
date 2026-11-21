@@ -9,6 +9,13 @@ out="$root/public/downloads"
 app="$here/dist/AshTec.app"
 bin="$here/.build/release/AshTec"
 
+# The version lives here and nowhere else. The Info.plist the app reports, the
+# zip and public/downloads/latest.json all read these two, so the site can never
+# advertise a build that was not uploaded (which is what went wrong before:
+# latest.json said 1.1 while the zip was still 1.0).
+version="1.1"
+build="2"
+
 echo "==> Building (release)"
 swift build -c release --package-path "$here"
 
@@ -28,7 +35,7 @@ for s in 16 32 64 128 256 512; do
 done
 iconutil -c icns "$iconset" -o "$app/Contents/Resources/AppIcon.icns"
 
-cat > "$app/Contents/Info.plist" <<'PLIST'
+cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -38,8 +45,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key><string>uk.navaratne.ashtec.mac</string>
   <key>CFBundleExecutable</key><string>AshTec</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.1</string>
-  <key>CFBundleVersion</key><string>2</string>
+  <key>CFBundleShortVersionString</key><string>${version}</string>
+  <key>CFBundleVersion</key><string>${build}</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
@@ -66,11 +73,11 @@ rm -f "$out/AshTec-macOS.zip"
 
 echo "==> Version file"
 # The downloads page reads this to tell the crew (and the app's own "Check for
-# Updates…" menu item) whether the copy they have is old. Keep it in step with
-# CFBundleShortVersionString above.
+# Updates…" menu item) whether the copy they have is old. It reads $version, so
+# it cannot drift from the Info.plist above.
 cat > "$out/latest.json" <<JSON
 {
-  "version": "1.1",
+  "version": "$version",
   "url": "/downloads/AshTec-macOS.zip",
   "releasedAt": "$(date -u +%Y-%m-%d)",
   "notes": "Check for Updates in the AshTec menu."
