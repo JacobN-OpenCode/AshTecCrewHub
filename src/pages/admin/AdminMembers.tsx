@@ -152,7 +152,8 @@ export default function AdminMembers() {
         {m.isPreview
           ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); startPreview(m.id); }}><Eye className="h-4 w-4 mr-1.5" />Preview as</Button>
           : <RemindButton memberId={m.id} data={data} />}
-        {me?.id !== m.id && (
+        {/* An AI agent is an account, not a person, so nobody can be them. */}
+        {me?.id !== m.id && m.memberType !== 'AI Agent' && (
           <Button
             size="icon"
             variant="ghost"

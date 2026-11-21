@@ -90,7 +90,7 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
         <DialogHeader><DialogTitle>{member ? `${member.firstName} ${member.lastName}` : f.isPreview ? 'Add preview account' : 'Add crew member'}</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="space-y-1"><label className="text-sm">{agent ? 'Name *' : 'First initial *'}</label><Input value={f.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={agent ? 60 : 2} /></div>
-          <div className="space-y-1"><label className="text-sm">Last name</label><Input value={f.lastName} onChange={(e) => set({ lastName: e.target.value })} /></div>
+          {!agent && <div className="space-y-1"><label className="text-sm">Last name</label><Input value={f.lastName} onChange={(e) => set({ lastName: e.target.value })} /></div>}
           <div className="space-y-1"><label className="text-sm">School email {f.isPreview ? '(optional — made up automatically)' : '*'}</label><Input type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} /></div>
           {!agent && <div className="space-y-1"><label className="text-sm">Year</label><Pick v={f.year} on={(v) => set({ year: v })} opts={YEARS_OPTS} ph="Select year" /></div>}
           <div className="space-y-1"><label className="text-sm">Member type</label><Pick v={f.memberType} on={(v) => set({ memberType: v })} opts={types} ph="Type" /></div>
@@ -179,7 +179,7 @@ export default function MemberDialog({ open, member, data, onClose, onSaved, pre
             </div>
           )}
           <div className="sm:col-span-2 space-y-1"><label className="text-sm">Admin notes (things said in person, etc.)</label><Textarea value={f.adminNotes} onChange={(e) => set({ adminNotes: e.target.value })} /></div>
-          {member && !member.isStaff && (
+          {member && !member.isStaff && !agent && (
             <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
               <p className="text-sm font-medium">Show participation (record on their behalf)</p>
               {data.shows.map((s) => (
