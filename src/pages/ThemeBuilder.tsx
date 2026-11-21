@@ -1,0 +1,219 @@
+/**
+ * Ticket 1bbe2d65: the theme builder.
+ *
+ * Six base looks (the original, Christmas, the pink-and-yellow studio one, the
+ * pale blue dashboard one, and two extras), each with three or four palettes,
+ * plus room to name and keep five of your own. Changing one repaints this page
+ * as you click, which is the preview.
+ *
+ * The saved choice is per browser: a shared school computer should not hand your
+ * colour scheme to the next person who signs in.
+ */
+import { useMemo, useState } from 'react';
+import { Check, Palette as PaletteIcon, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@project/components/ui/button';
+import { Input } from '@project/components/ui/input';
+import { cn } from '@project/components/lib/utils';
+import { THEMES, findTheme, themeVars } from '../lib/themes';
+import { MAX_SAVED, useTheme } from '../lib/theme';
+
+/** Three dots: the page, the cards, and the one colour everything hangs off. */
+function Swatches({ vars }: { vars: Record<string, string> }) {
+  const dots = [vars['--background'], vars['--card'], vars['--primary']];
+  return (
+    <div className="flex items-center gap-1.5">
+      {dots.map((dot, i) => (
+        <span
+          key={i}
+          className="h-4 w-4 rounded-full border border-black/20"
+          style={{ background: `hsl(${dot})` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ThemeBuilder() {
+  const { choice, choose, saved, save, remove, applySaved } = useTheme();
+  const [name, setName] = useState('');
+
+  const isCustom = choice.theme === 'custom';
+  const mine = isCustom ? saved.find((s) => s.id === choice.palette) : undefined;
+  const theme = findTheme(choice.theme);
+  // Saving while one of your own looks is on keeps that look, not the built-in
+  // theme sitting underneath it.
+  const current = useMemo(
+    () => (isCustom ? (mine?.vars ?? {}) : themeVars(choice.theme, choice.palette)),
+    [isCustom, mine, choice],
+  );
+  const full = saved.length >= MAX_SAVED;
+
+  const keep = () => {
+    const clean = name.trim();
+    if (!clean) {
+      toast.error('Give it a name first, then it can be saved.');
+      return;
+    }
+    save(clean, current);
+    setName('');
+    toast.success(`Saved as "${clean}". You can keep ${MAX_SAVED}.`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <PaletteIcon className="h-6 w-6 text-primary" /> Themes
+          </h1>
+          <p className="text-muted-foreground">
+            Six looks, a few palettes each, and five of your own. It changes as you click.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            choose({ theme: 'ashtec', palette: 'amber' });
+            toast.success('Back to the original.');
+          }}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" /> Back to the original
+        </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {THEMES.map((t) => {
+          const selected = t.id === choice.theme;
+          return (
+            <button
+              key={t.id}
+              onClick={() => choose({ theme: t.id, palette: t.palettes[0].id })}
+              className={cn(
+                'rounded-2xl border bg-card p-4 text-left transition hover:border-primary/60',
+                selected && 'ring-2 ring-primary',
+              )}
+              aria-pressed={selected}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold">{t.name}</span>
+                {selected && <Check className="h-4 w-4 text-primary" />}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{t.blurb}</p>
+              <div className="mt-3">
+                <Swatches vars={{ ...t.base, ...t.palettes[0].vars }} />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {isCustom && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/40 bg-accent p-4 text-accent-foreground">
+          <span className="text-sm">
+            You are using <strong>{mine?.name ?? 'a saved look'}</strong>. Picking a theme or a
+            colour below replaces it; the saved copy stays in the list.
+          </span>
+          <Button size="sm" variant="outline" onClick={() => choose({ theme: 'ashtec', palette: 'amber' })}>
+            Original
+          </Button>
+        </div>
+      )}
+
+      <div className="space-y-3 rounded-2xl border bg-card p-5">
+        <div>
+          <h2 className="font-semibold">Colours for {theme.name}</h2>
+          <p className="text-sm text-muted-foreground">
+            One colour does most of the work: buttons, links, the calendar, the cat's collar.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {theme.palettes.map((p) => {
+            const selected = p.id === choice.palette;
+            return (
+              <button
+                key={p.id}
+                onClick={() => choose({ theme: theme.id, palette: p.id })}
+                className={cn(
+                  'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition hover:border-primary/60',
+                  selected && 'border-primary bg-accent text-accent-foreground',
+                )}
+                aria-pressed={selected}
+              >
+                <span
+                  className="h-3.5 w-3.5 rounded-full border border-black/20"
+                  style={{ background: `hsl(${p.vars['--primary']})` }}
+                />
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-2xl border bg-card p-5">
+        <div>
+          <h2 className="font-semibold">Keep this look</h2>
+          <p className="text-sm text-muted-foreground">
+            {full
+              ? `That is all ${MAX_SAVED}. Delete one to make room.`
+              : `Name the colours you have picked and it stays here. ${MAX_SAVED - saved.length} of ${MAX_SAVED} left.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Christmas but green"
+            maxLength={40}
+            className="max-w-xs"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') keep();
+            }}
+          />
+          <Button onClick={keep} disabled={full || !name.trim()}>
+            <Save className="mr-2 h-4 w-4" /> Save
+          </Button>
+        </div>
+
+        {saved.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing saved yet.</p>
+        ) : (
+          <ul className="divide-y">
+            {saved.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="flex items-center gap-3">
+                  <Swatches vars={s.vars} />
+                  <span className="text-sm font-medium">{s.name}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => applySaved(s.id)}>
+                    Use
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      remove(s.id);
+                      toast.success(`Deleted "${s.name}".`);
+                    }}
+                    aria-label={`Delete ${s.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Kept in this browser only, so it does not follow you to another computer. The original
+        theme still follows the accent colour on My settings; any other theme brings its own.
+      </p>
+    </div>
+  );
+}
+
+export default ThemeBuilder;

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@project/components/ui/switch';
 import { Textarea } from '@project/components/ui/textarea';
 import { cn } from '@project/components/lib/utils';
-import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
+import { Lock, Palette, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
@@ -821,6 +821,21 @@ function Preferences() {
             <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
       
       </>}>
+
+      {/* Ticket 1bbe2d65: one button, and the whole picker lives on its own page. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 p-4">
+        <span>
+          <span className="block text-sm font-medium">Theme</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Six looks with a few palettes each, and up to five you name yourself.
+          </span>
+        </span>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/theme">
+            <Palette className="mr-2 h-4 w-4" /> Theme builder
+          </Link>
+        </Button>
+      </div>
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Accent colour</p>

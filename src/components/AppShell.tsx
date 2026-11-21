@@ -237,6 +237,8 @@ function Shell() {
     club.push({ to: '/contacts', label: 'Contact sheet', icon: BookUser });
     // What people look at. Counts for everyone; names and campaigns for admins.
     club.push({ to: '/analytics', label: 'Analytics', icon: ChartColumn });
+    // Ticket 1bbe2d65: six looks and the ones you save yourself.
+    club.push({ to: '/theme', label: 'Themes', icon: Palette });
     if (features.tools) club.push({ to: '/tools', label: 'Tools', icon: Wrench });
     // Batch 8: the fun ones.
     if (features.memories) club.push({ to: '/memories', label: 'Memories', icon: Images });

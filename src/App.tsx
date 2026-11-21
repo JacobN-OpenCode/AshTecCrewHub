@@ -55,6 +55,8 @@ import CallSheet from './pages/CallSheet';
 import { MeContext, type Me, type Mentor } from './lib/me';
 import { applyAccent, getAccent, applyAccessibilityPrefs } from './lib/uiPrefs';
 import { noteAppVersion } from './lib/appVersion';
+import ThemeBuilder from './pages/ThemeBuilder';
+import { applyChoice } from './lib/theme';
 
 document.documentElement.classList.add('dark');
 // Ticket 8051f385: apply the saved density (roomy/compact) before first paint
@@ -65,6 +67,9 @@ applyAccessibilityPrefs();
 noteAppVersion();
 // Apply the saved accent before first paint so the app never flashes the default.
 applyAccent(getAccent());
+// Ticket 1bbe2d65: then the theme, so it wins over the accent when it is not the
+// original look. Both run before the first paint for the same reason.
+applyChoice();
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -137,6 +142,8 @@ function SignedIn() {
           <Route path="/documents" element={<Documents />} />
           {/* Ticket 19ffa650: the sheet the Settings switch kept pointing at. */}
           <Route path="/contacts" element={<Contacts />} />
+        {/* Ticket 1bbe2d65: six looks, a palette each, and five of your own. */}
+        <Route path="/theme" element={<ThemeBuilder />} />
           {/* What people look at: counts for everyone, names and campaigns for admins. */}
           <Route path="/analytics" element={<Analytics />} />
           {/* Batch 8: the mascot and the show memories wall. */}
