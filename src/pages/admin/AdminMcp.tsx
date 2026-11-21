@@ -5,7 +5,7 @@ import { ask } from '../../lib/dialogs';
 // This used to point at a CDN link that has since gone 404, which is why the
 // player stayed blank. The walkthrough ships with the site now.
 const VIDEO = '/downloads/mcp-howto.mp4';
-import { adminGetMcp, adminMcpAlerts, adminMcpKey, type AdminGetMcpOutputType } from '#api';
+import { adminGetMcp, adminMcpFeed, adminMcpKey, type AdminGetMcpOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Input } from '@project/components/ui/input';
@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@project/components/ui/dialog';
 import { cn } from '@project/components/lib/utils';
-import { Bell, Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Trash2, PlayCircle } from 'lucide-react';
+import { Check, Copy, KeyRound, Loader2, Plug, Plus, RefreshCw, Rss, Trash2, PlayCircle } from 'lucide-react';
 
 type Data = AdminGetMcpOutputType;
 
@@ -38,9 +38,9 @@ export default function AdminMcp() {
   const [keyName, setKeyName] = useState('');
   const [fresh, setFresh] = useState('');
   const [copied, setCopied] = useState('');
-  // Ticket 7a7d335c: the keys and the Slack alerts are separate jobs, so they
+  // Ticket 7a7d335c: the keys and the feed are separate jobs, so they
   // live in separate tabs instead of one long page.
-  const [tab, setTab] = useState<'keys' | 'slack'>('keys');
+  const [tab, setTab] = useState<'keys' | 'feed'>('keys');
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -129,7 +129,7 @@ export default function AdminMcp() {
 
       {/* Ticket 7a7d335c: two tabs, so alerts are not buried under the log. */}
       <div role="tablist" aria-label="MCP sections" className="flex w-fit items-center gap-1 rounded-full border bg-card p-1 text-sm">
-        {([['keys', 'Keys and calls'], ['slack', 'Slack alerts']] as const).map(([id, label]) => (
+        {([['keys', 'Keys and calls'], ['feed', 'Feed']] as const).map(([id, label]) => (
           <button
             key={id}
             role="tab"
@@ -311,8 +311,8 @@ export default function AdminMcp() {
         </>
       )}
 
-      {/* Ticket 7a7d335c: tell Slack when the MCP changed something. */}
-      {tab === 'slack' && <SlackAlerts />}
+      {/* Ticket 7a7d335c: an RSS feed of the changes the MCP makes. */}
+      {tab === 'feed' && <McpFeed />}
 
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent>
@@ -361,15 +361,16 @@ export default function AdminMcp() {
   );
 }
 
+
 /**
- * Ticket 7a7d335c: "send a message every time the MCP does something. Not
- * simple things like listing the tools or authorising the token, but changed
- * to be made." A Slack incoming webhook does that with no app and no token.
+ * Ticket 7a7d335c: "i dont want webhook, i want a public RSS feed please!"
+ *
+ * So the page shows the address, a copy button, a link that opens it, and a
+ * way to replace it. The address carries the key, which is why it is worth
+ * guarding with a confirmation: anyone who kept the old one goes quiet.
  */
-function SlackAlerts() {
-  const [webhook, setWebhook] = useState('');
-  const [shown, setShown] = useState('');
-  const [on, setOn] = useState(false);
+function McpFeed() {
+  const [url, setUrl] = useState('');
   const [busy, setBusy] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -377,12 +378,10 @@ function SlackAlerts() {
     let alive = true;
     void (async () => {
       try {
-        const res = await adminMcpAlerts({ action: 'get' });
-        if (!alive) return;
-        setShown(res.webhook);
-        setOn(res.on);
+        const res = await adminMcpFeed({ action: 'get' });
+        if (alive) setUrl(res.url);
       } catch {
-        // The card just stays empty; nothing here is worth an error.
+        // The card stays empty; a missing feed address is not an emergency.
       } finally {
         if (alive) setLoaded(true);
       }
@@ -392,29 +391,29 @@ function SlackAlerts() {
     };
   }, []);
 
-  async function save(next: { webhook?: string; on?: boolean }) {
-    setBusy('save');
+  async function copy() {
     try {
-      const res = await adminMcpAlerts({ action: 'save', ...next });
-      setShown(res.webhook);
-      setOn(res.on);
-      if (next.webhook !== undefined) setWebhook('');
-      toast.success(res.on ? 'Alerts are on.' : 'Alerts are off.');
-    } catch (e: any) {
-      toast.error(e?.userFacingMessage || e?.message || 'That did not save.');
-    } finally {
-      setBusy('');
+      await navigator.clipboard.writeText(url);
+      toast.success('Feed address copied.');
+    } catch {
+      toast.error('Could not copy. Select the address and copy it by hand.');
     }
   }
 
-  async function test() {
-    setBusy('test');
+  async function rotate() {
+    const yes = await ask({
+      title: 'Make a new feed address?',
+      body: 'Anything already subscribed to the old address stops getting entries. Paste the new one into your reader afterwards.',
+      confirm: 'Make a new address',
+    });
+    if (!yes) return;
+    setBusy('rotate');
     try {
-      const res = await adminMcpAlerts({ action: 'test' });
-      if (res.sent) toast.success('Slack took it. Look in the channel.');
-      else toast.error(res.message || 'Slack did not take it.');
+      const res = await adminMcpFeed({ action: 'rotate' });
+      setUrl(res.url);
+      toast.success('New address made. The old one is dead.');
     } catch (e: any) {
-      toast.error(e?.userFacingMessage || e?.message || 'Slack did not take it.');
+      toast.error(e?.userFacingMessage || e?.message || 'That did not work.');
     } finally {
       setBusy('');
     }
@@ -423,45 +422,43 @@ function SlackAlerts() {
   return (
     <section className="space-y-2">
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        <Bell className="h-4 w-4" />Slack alerts
+        <Rss className="h-4 w-4" />Feed
       </h2>
       <div className="space-y-3 rounded-2xl border bg-card p-4">
         <p className="text-sm text-muted-foreground">
-          Posts one line to a Slack channel whenever a tool <em>changes</em> something: a register, attendance, a
-          ticket, the live show, a document, an announcement, a theme, or a deploy. Reads and listings stay quiet.
+          An RSS feed of every tool call that <em>changed</em> something: a register, attendance, a ticket, the live
+          show, a document, an announcement, a theme, or a deploy. Reads and listings are left out.
         </p>
-        {on && <Badge className="text-xs">On</Badge>}
-        <div className="space-y-1">
-          <Label htmlFor="mcp-slack" className="text-xs">Webhook address</Label>
-          <Input
-            id="mcp-slack"
-            value={webhook}
-            onChange={(ev) => setWebhook(ev.target.value)}
-            placeholder={loaded && shown ? shown : 'https://hooks.slack.com/services/…'}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="text-xs text-muted-foreground">
-            In Slack: Apps → Incoming Webhooks → Add, pick a channel, copy the address. It is kept on the server and
-            only ever shown shortened.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" disabled={busy !== '' || !webhook.trim()} onClick={() => void save({ webhook: webhook.trim(), on: true })}>
-            {busy === 'save' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            Save and switch on
-          </Button>
-          <Button size="sm" variant="outline" disabled={busy !== ''} onClick={() => void test()}>
-            {busy === 'test' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-            Send a test
-          </Button>
-          {on && (
-            <Button size="sm" variant="ghost" disabled={busy !== ''} onClick={() => void save({ on: false })}>
-              Switch off
+        <p className="text-sm text-muted-foreground">
+          Paste the address into any reader (Reeder, Feedly, NetNewsWire, a Slack RSS app) and it updates itself. The
+          address is the password, so keep it to yourself.
+        </p>
+        {!loaded ? (
+          <Skeleton className="h-9 w-full" />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border bg-muted px-2 py-1.5 text-xs">
+              {url || 'No address yet.'}
+            </code>
+            <Button size="sm" variant="outline" onClick={() => void copy()} disabled={!url}>
+              <Copy className="mr-1.5 h-3.5 w-3.5" />Copy
             </Button>
-          )}
+            {url && (
+              <Button size="sm" variant="outline" asChild>
+                <a href={url} target="_blank" rel="noreferrer">
+                  <Rss className="mr-1.5 h-3.5 w-3.5" />Open
+                </a>
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" disabled={busy !== '' || !url} onClick={() => void rotate()}>
+            {busy === 'rotate' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+            Make a new address
+          </Button>
+          <p className="text-xs text-muted-foreground">A new address turns the old one off for good.</p>
         </div>
-        {loaded && shown && <p className="text-xs text-muted-foreground">Saved: <code className="rounded bg-muted px-1 py-0.5">{shown}</code></p>}
       </div>
     </section>
   );

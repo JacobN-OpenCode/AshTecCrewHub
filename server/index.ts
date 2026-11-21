@@ -40,6 +40,7 @@ import { notifyServerError } from './notify.js';
 import { pruneNotifications, pruneNotificationHistory } from './push.js';
 import { db } from './db/index.js';
 import { mountMcp } from './mcp.js';
+import { readFeedKey, buildMcpFeed } from './mcpFeed.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const apiDir = path.join(root, 'src', 'api');
@@ -521,6 +522,32 @@ app.get('/calendar.ics', async (req, res) => {
   } catch (e) {
     console.error('[calendar] feed failed:', e);
     res.status(500).type('text/plain').send('Could not build the calendar.');
+  }
+});
+
+/**
+ * The MCP activity feed (ticket 7a7d335c). Jacob wanted "a public RSS feed
+ * instead of a webhook, thats easier to use". Any reader can fetch it with no
+ * login, so the address carries a 40 character key, the same idea as the
+ * calendar feeds: the address is the password, and rotating it in Admin > MCP
+ * turns off everyone who kept the old one. A wrong key is a plain 404.
+ *
+ * Only calls that changed something are in it, which is what the original
+ * ticket asked for: no tool listings, no reads, no token checks.
+ */
+app.get('/mcp/feed/:name', async (req, res) => {
+  const given = String(req.params.name || '').replace(/\.xml$/i, '');
+  const key = await readFeedKey();
+  if (!key || given !== key) return res.status(404).type('text/plain').send('Not found');
+  try {
+    const xml = await buildMcpFeed(key);
+    res.set('Content-Type', 'application/rss+xml; charset=utf-8');
+    // Readers poll, so a short cache keeps them off our back without going stale.
+    res.set('Cache-Control', 'public, max-age=120');
+    res.send(xml);
+  } catch (e) {
+    console.error('[mcp feed] failed:', e);
+    res.status(500).type('text/plain').send('Could not build the feed.');
   }
 });
 

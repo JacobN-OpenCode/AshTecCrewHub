@@ -164,12 +164,12 @@ export type AdminLiveShowDeviceInputType = NonNullable<_AdminLiveShowDeviceCfg['
 export type AdminLiveShowDeviceOutputType = Awaited<ReturnType<_AdminLiveShowDeviceCfg['execute']>>;
 export const adminLiveShowDevice = createCaller<AdminLiveShowDeviceInputType, AdminLiveShowDeviceOutputType>('adminLiveShowDevice');
 
-import type { default as _AdminMcpAlertsEp } from '../api/adminMcpAlerts';
+import type { default as _AdminMcpFeedEp } from '../api/adminMcpFeed';
 
-type _AdminMcpAlertsCfg = typeof _AdminMcpAlertsEp;
-export type AdminMcpAlertsInputType = NonNullable<_AdminMcpAlertsCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminMcpAlertsCfg['execute']>[0]['input'];
-export type AdminMcpAlertsOutputType = Awaited<ReturnType<_AdminMcpAlertsCfg['execute']>>;
-export const adminMcpAlerts = createCaller<AdminMcpAlertsInputType, AdminMcpAlertsOutputType>('adminMcpAlerts');
+type _AdminMcpFeedCfg = typeof _AdminMcpFeedEp;
+export type AdminMcpFeedInputType = NonNullable<_AdminMcpFeedCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminMcpFeedCfg['execute']>[0]['input'];
+export type AdminMcpFeedOutputType = Awaited<ReturnType<_AdminMcpFeedCfg['execute']>>;
+export const adminMcpFeed = createCaller<AdminMcpFeedInputType, AdminMcpFeedOutputType>('adminMcpFeed');
 
 import type { default as _AdminMcpKeyEp } from '../api/adminMcpKey';
 
@@ -976,7 +976,7 @@ export const api = {
   adminImportLiveShowScenes,
   adminLiveShowControl,
   adminLiveShowDevice,
-  adminMcpAlerts,
+  adminMcpFeed,
   adminMcpKey,
   adminMoveRole,
   adminNoteTicket,
