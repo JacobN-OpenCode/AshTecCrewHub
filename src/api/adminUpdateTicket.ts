@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { OPENCODE_TAG_TYPES } from '../lib/supportStyle';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
 import { requireAdmin, ids } from '../lib/server';
@@ -16,7 +15,6 @@ export default createEndpoint({
     severity: z.enum(['', 'Low', 'Medium', 'High', 'Urgent']).optional(),
     adminNotes: z.string().optional(),
     assignedMaintainerIds: z.array(z.string()).optional(),
-    referToOpencode: z.boolean().optional(),
     pinned: z.boolean().optional(),
     delete: z.boolean().optional(),
     // Used by the MCP server, so the trail says who really moved the ticket.
@@ -35,21 +33,6 @@ export default createEndpoint({
     // Ticket 636bde75: pin a ticket so it floats to the top of the list.
     if (input.pinned !== undefined) record.pinned = input.pinned;
     if (input.adminNotes !== undefined) record.adminNotes = input.adminNotes;
-    if (input.referToOpencode !== undefined) {
-      // A label for humans only, so only the types that describe a real piece
-      // of work can carry it. Setting it must never dispatch or notify anyone.
-      const { records } = await zite.supportTickets.findAll({ limit: 2000 });
-      const t = records.find((x) => x.id === input.id);
-      if (!t) throw new Error('That ticket no longer exists.');
-      if (input.referToOpencode && !OPENCODE_TAG_TYPES.includes(t.type ?? 'General Support')) {
-        throw new Error('Only bug reports and feature requests can be referred to opencode.');
-      }
-      // The column is text, not boolean. A JS false reaches Postgres as the
-      // string 'false', which is truthy to every reader of this field, so the
-      // tag could be set but never cleared (tickets 348aa062, 5a2ec8e8).
-      // Keep it '' when off, so the badge and the X button agree.
-      record.referToOpencode = input.referToOpencode ? 'true' : '';
-    }
     if (input.assignedMaintainerIds) {
       const { records: members } = await zite.crewMembers.findAll({ limit: 2000 });
       // Maintainers must be admins, and a preview account can never be assigned work.

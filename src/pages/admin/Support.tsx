@@ -8,11 +8,11 @@ import { Button } from '@project/components/ui/button';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { AlertCircle, ArrowUpRight, BellRing, Clock, Download, Flag, Loader2, MessageSquare, Pin, PinOff, Sparkles, Wrench, X } from 'lucide-react';
+import { AlertCircle, ArrowUpRight, BellRing, Clock, Download, Flag, Loader2, MessageSquare, Pin, PinOff, Wrench } from 'lucide-react';
 import { useAdminData } from '../../lib/useAdminData';
 import { useMe } from '../../lib/me';
 import { useSupportSameTab, useAdminLayout } from '../../lib/uiPrefs';
-import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, OPENCODE_TAG, OPENCODE_TAG_STYLE } from '../../lib/supportStyle';
+import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES } from '../../lib/supportStyle';
 import { remindOutcome } from '../../lib/remindOutcome';
 
 type Ticket = AdminGetSupportOutputType['tickets'][number];
@@ -34,7 +34,6 @@ type Filters = {
   severity: string;
   sort: 'recency' | 'oldest' | 'status';
   onlyMaintainerTurn: boolean;
-  onlyReferred: boolean;
 };
 const FILTER_DEFAULTS: Filters = {
   q: '',
@@ -43,7 +42,6 @@ const FILTER_DEFAULTS: Filters = {
   severity: 'all',
   sort: 'recency',
   onlyMaintainerTurn: false,
-  onlyReferred: false,
 };
 
 function savedFilters(): Filters {
@@ -75,15 +73,14 @@ export default function Support() {
   // maintainerTurn rule (see adminGetSupport), not awaitingReply - that asks
   // whether the sender still owes us a reply.
   const [onlyMaintainerTurn, setOnlyMaintainerTurn] = useState(start.onlyMaintainerTurn);
-  const [onlyReferred, setOnlyReferred] = useState(start.onlyReferred);
   // Remember the current set as this browser's default (ticket 8283a6f7).
   useEffect(() => {
     try {
-      localStorage.setItem(FILTER_KEY, JSON.stringify({ q, type, status, severity, sort, onlyMaintainerTurn, onlyReferred }));
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ q, type, status, severity, sort, onlyMaintainerTurn }));
     } catch {
       // A browser with storage blocked just keeps the built-in defaults.
     }
-  }, [q, type, status, severity, sort, onlyMaintainerTurn, onlyReferred]);
+  }, [q, type, status, severity, sort, onlyMaintainerTurn]);
 
   const changed =
     q !== FILTER_DEFAULTS.q ||
@@ -91,8 +88,7 @@ export default function Support() {
     status !== FILTER_DEFAULTS.status ||
     severity !== FILTER_DEFAULTS.severity ||
     sort !== FILTER_DEFAULTS.sort ||
-    onlyMaintainerTurn !== FILTER_DEFAULTS.onlyMaintainerTurn ||
-    onlyReferred !== FILTER_DEFAULTS.onlyReferred;
+    onlyMaintainerTurn !== FILTER_DEFAULTS.onlyMaintainerTurn;
 
   const resetFilters = () => {
     setQ(FILTER_DEFAULTS.q);
@@ -101,12 +97,10 @@ export default function Support() {
     setSeverity(FILTER_DEFAULTS.severity);
     setSort(FILTER_DEFAULTS.sort);
     setOnlyMaintainerTurn(FILTER_DEFAULTS.onlyMaintainerTurn);
-    setOnlyReferred(FILTER_DEFAULTS.onlyReferred);
   };
 
   const [busyMaint, setBusyMaint] = useState('');
   const [pinning, setPinning] = useState('');
-  const [untagging, setUntagging] = useState('');
   const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reminding, setReminding] = useState(false);
@@ -136,7 +130,6 @@ export default function Support() {
     (severity === 'all' || t.severity === severity) &&
     (status === 'all' || (status === 'active' ? ['Open', 'In Progress'].includes(t.status) : t.status === status)) &&
     (!onlyMaintainerTurn || t.maintainerTurn) &&
-    (!onlyReferred || t.referToOpencode) &&
     `${t.subject} ${t.message}`.toLowerCase().includes(q.toLowerCase()))
     // Ticket 636bde75: pinned tickets always sit at the top of the list,
     // whatever the chosen sort, so the few that matter stay in view.
@@ -145,7 +138,7 @@ export default function Support() {
       (sort === 'oldest'
         ? (a.submittedAt ?? '').localeCompare(b.submittedAt ?? '')
         : (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''))),
-    [tickets, type, severity, status, onlyMaintainerTurn, onlyReferred, q, sort]);
+    [tickets, type, severity, status, onlyMaintainerTurn, q, sort]);
 
   if (!tickets || !data) return <Skeleton className="h-96 rounded-2xl" />;
   // Maintainers must be admins, so that's all we offer.
@@ -171,21 +164,6 @@ export default function Support() {
       toast.error((e as Error).message);
     } finally { setPinning(''); }
   };
-  // Ticket 1: "needs to be able to untag stuff". Removing the refer-to-opencode
-  // label used to mean opening the ticket and unticking a checkbox. The tag is
-  // only a label, so it can be cleared straight from the list.
-  const untag = async (t: Ticket) => {
-    if (untagging) return;
-    setUntagging(t.id);
-    setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, referToOpencode: false } : x)));
-    try {
-      await adminUpdateTicket({ id: t.id, referToOpencode: false });
-      toast.success(`Removed “${OPENCODE_TAG}”`);
-    } catch (e) {
-      setTickets((prev) => (prev ?? []).map((x) => (x.id === t.id ? { ...x, referToOpencode: true } : x)));
-      toast.error((e as Error).message);
-    } finally { setUntagging(''); }
-  };
   // Ticket 7: Refresh said "Refreshed" before the reload had finished, so a
   // ticket raised a second ago could still be missing. It now waits.
   const refresh = async () => {
@@ -197,7 +175,6 @@ export default function Support() {
   };
   const count = (s: string) => tickets.filter((t) => t.status === s).length;
   const awaiting = tickets.filter((t) => ['Open', 'In Progress'].includes(t.status) && t.awaitingReply).length;
-  const referred = tickets.filter((t) => t.referToOpencode).length;
   // Ticket b9f059cf: count where a maintainer reply is the next step. Mirrors
   // the digest rule server-side (maintainerTurn) so the number matches.
   const maintainerTurn = tickets.filter((t) => t.maintainerTurn).length;
@@ -249,7 +226,7 @@ export default function Support() {
    * One ticket row, shared between the flat list, the by-status groups and cards.
    *
    * Ticket 7 ("the ticket buttons are a little broken"): the row used to be one
-   * <Link> with the pin, remind and untag controls nested inside it. A button
+   * <Link> with the pin and remind controls nested inside it. A button
    * inside an anchor is invalid HTML and the browser gives the click to the
    * anchor, so the buttons either did nothing or opened the ticket instead. The
    * link is now an empty stretched overlay covering the row, and the controls
@@ -298,23 +275,6 @@ export default function Support() {
         {t.severity && (
           <Badge variant="outline" className={SEVERITY_STYLE[t.severity]}>
             <Flag className="h-3 w-3 mr-1" />{t.severity}
-          </Badge>
-        )}
-        {t.referToOpencode && (
-          <Badge variant="outline" className={`${OPENCODE_TAG_STYLE} pr-1`}>
-              <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
-              <button
-                type="button"
-                title={`Remove “${OPENCODE_TAG}”`}
-                aria-label={`Remove ${OPENCODE_TAG} from this ticket`}
-                disabled={untagging === t.id}
-                onClick={() => untag(t)}
-                className="ml-1 rounded-full p-0.5 transition-colors hover:bg-purple-500/25 disabled:opacity-50"
-              >
-                {untagging === t.id
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <X className="h-3 w-3" />}
-              </button>
           </Badge>
         )}
         <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
@@ -454,10 +414,6 @@ export default function Support() {
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <Checkbox checked={onlyMaintainerTurn} onCheckedChange={(c) => setOnlyMaintainerTurn(!!c)} />
             Only tickets waiting on us
-          </label>
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Checkbox data-tour="support-referred" checked={onlyReferred} onCheckedChange={(c) => setOnlyReferred(!!c)} />
-            Only {OPENCODE_TAG.toLowerCase()} ({referred})
           </label>
         </div>
 

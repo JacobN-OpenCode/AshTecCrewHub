@@ -85,7 +85,6 @@ export default createEndpoint({
           submittedAt: t.submittedAt ?? t.createdAt ?? '',
           submitter: person(memberById.get(submitterId)) ?? { id: submitterId, name: '', email: '' },
           assignedTo: assignedIds.map((id) => ({ id, name: nameOf(id) })),
-          referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,
           pinned: !!(t as { pinned?: boolean }).pinned,
           lastReplyAt: t.lastReplyAt ?? '',
           lastReplyFrom: t.lastReplyFrom ?? '',

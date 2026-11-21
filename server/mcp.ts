@@ -446,7 +446,7 @@ const TOOLS = [
   {
     name: 'update_ticket',
     description:
-      'Change a ticket without replying: severity, who it is assigned to, pinned, the "refer to opencode" label, or a private note. Emails nobody.',
+      'Change a ticket without replying: severity, who it is assigned to, pinned, or a private note. Emails nobody.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -454,7 +454,6 @@ const TOOLS = [
         severity: str('Low, Medium, High, Urgent, or "" to clear it.'),
         assignedMaintainerIds: { type: 'array', items: { type: 'string' }, description: 'Admin member ids. Replaces the current assignees.' },
         pinned: { type: 'boolean', description: 'Float it to the top of the support list.' },
-        referToOpencode: { type: 'boolean', description: 'Label it for the coding agent. Bug reports and feature requests only.' },
         note: str('Private note for the thread. Not emailed.'),
       },
       required: ['ticketId'],
@@ -466,7 +465,6 @@ const TOOLS = [
       const patch: Record<string, unknown> = { id };
       if (args.severity !== undefined) patch.severity = String(args.severity);
       if (args.pinned !== undefined) patch.pinned = !!args.pinned;
-      if (args.referToOpencode !== undefined) patch.referToOpencode = !!args.referToOpencode;
       if (Array.isArray(args.assignedMaintainerIds)) patch.assignedMaintainerIds = args.assignedMaintainerIds.map(String);
       const note = String(args.note ?? '').trim();
       if (note) await call(byName, 'adminNoteTicket', { id, message: note });

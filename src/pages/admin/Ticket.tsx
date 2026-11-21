@@ -6,10 +6,10 @@ import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
+import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE } from '../../lib/supportStyle';
 import { Skeleton } from '@project/components/ui/skeleton';
 import { Textarea } from '@project/components/ui/textarea';
 import { ArrowLeft, BellRing, Flag, Loader2, Mail, MessageSquare, Pin, ShieldAlert, Sparkles, StickyNote, Trash2 } from 'lucide-react';
-import { TYPE_STYLE, STATUS_STYLE, SEVERITY_STYLE, SEVERITIES, REPLY_KIND_STYLE, OPENCODE_TAG, OPENCODE_TAG_STYLE, OPENCODE_TAG_TYPES } from '../../lib/supportStyle';
 import { remindOutcome } from '../../lib/remindOutcome';
 import { useMe } from '../../lib/me';
 
@@ -63,11 +63,6 @@ export default function Ticket() {
           {t.severity && (
             <Badge variant="outline" className={SEVERITY_STYLE[t.severity]}>
               <Flag className="h-3 w-3 mr-1" />{t.severity}
-            </Badge>
-          )}
-          {t.referToOpencode && (
-            <Badge variant="outline" className={OPENCODE_TAG_STYLE}>
-              <Sparkles className="h-3 w-3 mr-1" />{OPENCODE_TAG}
             </Badge>
           )}
           <Badge variant="outline" className={TYPE_STYLE[t.type]}>{t.type}</Badge>
@@ -218,25 +213,6 @@ export default function Ticket() {
             <p className="text-xs text-muted-foreground">Reminders go to whoever is ticked here. With nobody ticked they go to all maintainers.</p>
           </div>
 
-          {OPENCODE_TAG_TYPES.includes(t.type) && (
-            <div className="rounded-2xl border border-purple-500/25 bg-purple-500/5 p-4 space-y-2">
-              <label className="text-sm flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-purple-400" />{OPENCODE_TAG}
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  data-tour="ticket-refer"
-                  disabled={busy === 'refer'}
-                  checked={t.referToOpencode}
-                  onCheckedChange={(c) => run('refer', () => adminUpdateTicket({ id: t.id, referToOpencode: !!c }), () => toast.success(c ? `Tagged “${OPENCODE_TAG}”` : 'Tag removed'))}
-                />
-                Flag this for the coding agent
-              </label>
-              <p className="text-xs text-muted-foreground">
-                A label only. Nothing is sent, scheduled or worked on automatically — it just marks this ticket so it is easy to find later.
-              </p>
-            </div>
-          )}
 
           <div className="rounded-2xl border bg-card p-4 space-y-2">
             <label className="text-sm">Admin scratchpad</label>

@@ -17,7 +17,6 @@ export default createEndpoint({
       severity: z.string(), adminNotes: z.string(), page: z.string(), submittedById: z.string(), submittedAt: z.string(),
       assignedMaintainerIds: z.array(z.string()), replyCount: z.number(), awaitingReply: z.boolean(),
       maintainerTurn: z.boolean(),
-      referToOpencode: z.boolean(),
       pinned: z.boolean(),
       lastReplyAt: z.string(), lastReplyFrom: z.string(), escalatedAt: z.string(),
     })),
@@ -46,7 +45,6 @@ export default createEndpoint({
           submittedById: ids(t.submittedBy)[0] ?? '', submittedAt: t.submittedAt ?? t.createdAt ?? '',
           assignedMaintainerIds: ids(t.assignedMaintainers),
           replyCount: replies.length,
-          referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,
           pinned: !!(t as { pinned?: boolean }).pinned,
           // Finished tickets can keep an unanswered last word, so they must not
           // count - this has to agree with the badge count in getMe.
