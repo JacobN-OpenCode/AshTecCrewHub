@@ -16,7 +16,9 @@
     "migrate": "tsx scripts/migrate.ts",
     "schema": "tsx scripts/schema.ts",
     "seed:hsm": "tsx scripts/seed-hsm.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.0",
