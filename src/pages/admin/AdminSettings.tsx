@@ -8,10 +8,10 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Switch } from '@project/components/ui/switch';
 import { Badge } from '@project/components/ui/badge';
-import { Cat, GraduationCap, MessageSquareHeart, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
+import { Cat, GraduationCap, MessageCircle, Plus, Settings2, SlidersHorizontal, Tag, Trash2, X } from 'lucide-react';
 import { useAppSettings, refreshAppSettings } from '../../lib/appSettings';
 import {
-  cleanSkillOptions, FEATURE_KEYS, FEATURE_LABELS, type CustomFeedbackForm, type Features, type CrewLists,
+  cleanSkillOptions, FEATURE_KEYS, FEATURE_LABELS, type Features, type CrewLists,
 } from '../../lib/settings';
 
 /**
@@ -29,7 +29,6 @@ export default function AdminSettings() {
   const [lists, setLists] = useState<CrewLists>(settings.lists);
   const [skills, setSkills] = useState<string[]>(settings.skillOptions);
   const [skillsEditable, setSkillsEditable] = useState(settings.skillsEditable);
-  const [forms, setForms] = useState<CustomFeedbackForm[]>(settings.feedbackForms);
   const [newSkill, setNewSkill] = useState('');
   const [busy, setBusy] = useState('');
   // Tickets d1ae2a76 / 09b3e402 / 26239458: the site-wide default for support
@@ -58,7 +57,6 @@ export default function AdminSettings() {
   useEffect(() => { setLists(settings.lists); }, [settings.lists]);
   useEffect(() => { setSkills(settings.skillOptions); }, [settings.skillOptions]);
   useEffect(() => { setSkillsEditable(settings.skillsEditable); }, [settings.skillsEditable]);
-  useEffect(() => { setForms(settings.feedbackForms); }, [settings.feedbackForms]);
 
   const save = async (key: string, payload: Parameters<typeof adminSaveSettings>[0], msg: string) => {
     setBusy(key);
@@ -76,13 +74,6 @@ export default function AdminSettings() {
     setSkills((prev) => cleanSkillOptions([...prev, s]));
     setNewSkill('');
   };
-
-  const addForm = () => setForms((prev) => [
-    ...prev,
-    { id: '', title: 'New feedback form', intro: '', prompts: [{ id: 'q1', label: 'What do you think?' }] },
-  ]);
-  const patchForm = (i: number, patch: Partial<CustomFeedbackForm>) =>
-    setForms((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
 
   const listNames: [keyof CrewLists, string][] = [
     ['roles', 'Roles'],
@@ -105,7 +96,7 @@ export default function AdminSettings() {
 
       {/* Support email default (tickets d1ae2a76 / 09b3e402 / 26239458) */}
       <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><MessageSquareHeart className="h-4 w-4 text-primary" /> Support email</h2>
+        <h2 className="flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4 text-primary" /> Support email</h2>
         <label className="flex items-start justify-between gap-3 cursor-pointer">
           <span>
             <span className="block text-sm font-medium">Default: one daily summary instead of per-ticket email</span>
@@ -205,54 +196,6 @@ export default function AdminSettings() {
         <Button disabled={busy === 'lists'} onClick={() => save('lists', { lists }, 'Option lists saved')}>
           {busy === 'lists' ? 'Saving…' : 'Save option lists'}
         </Button>
-      </section>
-
-      {/* Feedback forms */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><MessageSquareHeart className="h-4 w-4 text-primary" /> Feedback forms</h2>
-        <p className="text-sm text-muted-foreground">
-          Create a freeform form and share its link: <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/feedback/&lt;id&gt;</code>.
-          The two built-in forms always stay.
-        </p>
-        {forms.length === 0 && <p className="text-sm text-muted-foreground">No custom forms yet.</p>}
-        {forms.map((f, i) => (
-          <div key={i} className="space-y-2 rounded-xl border p-3">
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="w-full space-y-1 sm:w-auto">
-                <Label>Title</Label>
-                <Input value={f.title} onChange={(e) => patchForm(i, { title: e.target.value })} className="w-full sm:w-64" />
-              </div>
-              <div className="w-full space-y-1 sm:w-auto">
-                <Label>Link id</Label>
-                <Input value={f.id} onChange={(e) => patchForm(i, { id: e.target.value })} placeholder="auto from title" className="w-full font-mono sm:w-40" />
-              </div>
-              <Button size="icon" variant="ghost" className="ml-auto" onClick={() => setForms((prev) => prev.filter((_, idx) => idx !== i))} title="Remove form">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <Textarea value={f.intro} onChange={(e) => patchForm(i, { intro: e.target.value })} placeholder="Intro text shown at the top" rows={2} />
-            <div className="space-y-1.5">
-              {f.prompts.map((p, pi) => (
-                <div key={pi} className="flex flex-wrap gap-2">
-                  <Input value={p.label} onChange={(e) => patchForm(i, { prompts: f.prompts.map((x, xi) => xi === pi ? { ...x, label: e.target.value } : x) })} placeholder="Prompt" className="max-w-xs" />
-                  <Input value={p.hint ?? ''} onChange={(e) => patchForm(i, { prompts: f.prompts.map((x, xi) => xi === pi ? { ...x, hint: e.target.value } : x) })} placeholder="Hint (optional)" className="max-w-xs" />
-                  <Button size="icon" variant="ghost" disabled={f.prompts.length <= 1} onClick={() => patchForm(i, { prompts: f.prompts.filter((_, xi) => xi !== pi) })}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button size="sm" variant="outline" onClick={() => patchForm(i, { prompts: [...f.prompts, { id: `q${f.prompts.length + 1}`, label: '' }] })}>
-                <Plus className="h-4 w-4 mr-1" />Add prompt
-              </Button>
-            </div>
-          </div>
-        ))}
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={addForm}><Plus className="h-4 w-4 mr-1" />New form</Button>
-          <Button disabled={busy === 'forms'} onClick={() => save('forms', { feedbackForms: forms }, 'Feedback forms saved')}>
-            {busy === 'forms' ? 'Saving…' : 'Save forms'}
-          </Button>
-        </div>
       </section>
 
       <div className="flex items-center gap-2 rounded-2xl border bg-card p-4 text-sm text-muted-foreground">

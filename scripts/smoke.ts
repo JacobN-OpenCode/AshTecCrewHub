@@ -576,51 +576,6 @@ if (!admin) {
       check('found a sub event and show to write against', false, 'seed data missing');
     }
 
-    // ------------------------------------------------------- feedback form
-    // The /feedback/:formId flow: a member answers once and cannot change it,
-    // an admin can then read the answers, and a non-admin cannot. Uses the
-    // throwaway crew account; the answer is deleted afterwards.
-    {
-      const { rows: fbCrew } = await db().query(
-        `SELECT "id", "schoolEmail" FROM "CrewMembers" WHERE "schoolEmail" = $1`, [CREW_EMAIL]);
-      const crew = fbCrew[0];
-      if (!crew) {
-        check('found the crew member for the feedback flow', false);
-      } else {
-        const fbJar = await signIn(String(crew.schoolEmail));
-        const before = await callAs(fbJar, 'getMyFeedback', { form: '1' });
-        check('getMyFeedback starts as not-responded', before.status === 200 && before.body?.responded === false, JSON.stringify(before.body));
-        const empty = await callAs(fbJar, 'submitFeedback', { form: '1', selected: [], other: '   ' });
-        check('an empty answer is rejected 400', empty.status === 400, `got ${empty.status}`);
-        const sent = await callAs(fbJar, 'submitFeedback', { form: '1', selected: ['checklists', 'more-cat'], other: 'Smoke test note.' });
-        check('submitFeedback stores an answer', sent.status === 200 && sent.body?.ok === true, JSON.stringify(sent.body));
-        const after = await callAs(fbJar, 'getMyFeedback', { form: '1' });
-        check('getMyFeedback now reports responded', after.status === 200 && after.body?.responded === true && after.body?.selected?.includes('more-cat'), JSON.stringify(after.body));
-        const again = await callAs(fbJar, 'submitFeedback', { form: '1', selected: ['dms'] });
-        check('a second answer is refused 409', again.status === 409, `got ${again.status}`);
-        const bad = await callAs(fbJar, 'submitFeedback', { form: 'nope', selected: ['dms'] });
-        check('an unknown form id is rejected 404', bad.status === 404, `got ${bad.status}`);
-        const forbidden = await callAs(fbJar, 'adminGetFeedback', { form: '1' });
-        check('a non-admin cannot read all feedback (403)', forbidden.status === 403, `got ${forbidden.status}`);
-        const adminView = await call('adminGetFeedback', { form: '1' });
-        check('adminGetFeedback lists the answer', adminView.status === 200 && adminView.body?.responses?.some((r: any) => r.memberId === crew.id), JSON.stringify(adminView.body?.responses?.length));
-
-        // Form 2 is the freeform one: two paragraphs, no tick-boxes. An unknown
-        // prompt id is dropped, so an answers-only submission left empty is 400.
-        const before2 = await callAs(fbJar, 'getMyFeedback', { form: '2' });
-        check('getMyFeedback (freeform) starts as not-responded', before2.status === 200 && before2.body?.responded === false, JSON.stringify(before2.body));
-        const badPrompt = await callAs(fbJar, 'submitFeedback', { form: '2', selected: [], answers: { hack: 'not a real prompt' } });
-        check('an unknown prompt id is dropped, leaving it empty (400)', badPrompt.status === 400, `got ${badPrompt.status}`);
-        const sent2 = await callAs(fbJar, 'submitFeedback', { form: '2', selected: [], answers: { change: 'Home should load faster.', remove: 'The old export button.' } });
-        check('submitFeedback stores a freeform answer', sent2.status === 200 && sent2.body?.ok === true, JSON.stringify(sent2.body));
-        const after2 = await callAs(fbJar, 'getMyFeedback', { form: '2' });
-        check('getMyFeedback (freeform) returns the paragraphs', after2.status === 200 && after2.body?.responded === true && after2.body?.answers?.change === 'Home should load faster.', JSON.stringify(after2.body));
-        const adminView2 = await call('adminGetFeedback', { form: '2' });
-        check('adminGetFeedback (freeform) lists the paragraphs', adminView2.status === 200 && adminView2.body?.responses?.some((r: any) => r.memberId === crew.id && r.answers?.remove === 'The old export button.'), JSON.stringify(adminView2.body?.responses?.length));
-      }
-    }
-    await db().query('DELETE FROM "FeedbackResponses" WHERE "memberEmail" = $1', [CREW_EMAIL]);
-
     // ------------------------------------------ QR: ready / not_admin / roster
     // Drives the real approval flow: an admin opens a session, an ordinary crew
     // member asks to sign in, and each side scans the resulting QR code. This
@@ -898,7 +853,7 @@ if (!admin) {
       const revokeOthers = await callAs(crewJar, 'revokeSessions', { scope: 'others' });
       check('revokeSessions (others) succeeds', revokeOthers.status === 200, JSON.stringify(revokeOthers.body).slice(0, 120));
 
-      // Feedback round 2: the admin settings hub (cat name, skills, forms).
+      // The admin settings hub (cat name, skills, option lists).
       const savedSettings = await call('adminSaveSettings', { catName: 'Smoke Cat', skillOptions: ['Lighting', 'Sound'], skillsEditable: false });
       check('adminSaveSettings saves', savedSettings.status === 200, JSON.stringify(savedSettings.body).slice(0, 120));
       const settingsBack = await call('getSettings', {});
@@ -907,11 +862,6 @@ if (!admin) {
         JSON.stringify(settingsBack.body).slice(0, 160));
       const lockedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: ['Lighting'] });
       check('locked skills block a normal member', lockedSkills.status === 403, `status=${lockedSkills.status}`);
-
-      // A custom feedback form is listed once created.
-      await call('adminSaveSettings', { feedbackForms: [{ id: 'smoke-form', title: 'Smoke form', intro: '', prompts: [{ id: 'q1', label: 'Say something' }] }] });
-      const formsBack = await call('getSettings', {});
-      check('a custom feedback form is listed', (formsBack.body?.feedbackForms ?? []).some((f: { id: string }) => f.id === 'smoke-form'), JSON.stringify(formsBack.body?.feedbackForms).slice(0, 160));
 
       // Branding, feature switches and option lists.
       await call('adminSaveSettings', {
@@ -927,7 +877,7 @@ if (!admin) {
 
       // Restore the defaults so repeated runs are clean.
       await call('adminSaveSettings', {
-        catName: 'Tabby', skillOptions: DEFAULT_SKILL_OPTIONS, skillsEditable: true, feedbackForms: [],
+        catName: 'Tabby', skillOptions: DEFAULT_SKILL_OPTIONS, skillsEditable: true, 
         platformName: 'AshTec Crew Hub', schoolName: 'Ashford School Tech Crew',
         features: { schedule: true, announcements: true, memories: true, mascot: true, tools: true, parents: true, liveShow: true, checkIn: true },
         lists: { roles: ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'], years: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'], memberTypes: ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'] },

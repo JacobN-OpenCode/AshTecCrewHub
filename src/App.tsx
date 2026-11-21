@@ -35,8 +35,6 @@ import Calendar from './pages/Calendar';
 import Schedule from './pages/Schedule';
 import ApprovePresence from './pages/ApprovePresence';
 import Ticket from './pages/admin/Ticket';
-import AdminFeedback from './pages/admin/AdminFeedback';
-import Feedback from './pages/Feedback';
 import Announcements from './pages/Announcements';
 import Documents from './pages/Documents';
 import Contacts from './pages/Contacts';
@@ -106,8 +104,6 @@ function SignedIn() {
             minimal surfaces, so they render outside the shell too. */}
         <Route path="/widget" element={<Widget />} />
         <Route path="/watch" element={<Watch />} />
-        {/* Feedback invitations are their own full-screen page, reachable whether or not you are signed in. */}
-        <Route path="/feedback/:formId" element={<Feedback />} />
       <Route path="/opencode" element={<OpenCode />} />
       <Route path="/apps" element={<PublicApps />} />
       <Route path="/privacy" element={<PublicPrivacy />} />
@@ -150,7 +146,6 @@ function SignedIn() {
           {me.isAdmin && <Route path="/admin/members" element={<AdminMembers />} />}
           {me.isAdmin && <Route path="/admin/emails" element={<EmailLog />} />}
           {me.isAdmin && <Route path="/admin/support" element={<Support />} />}
-          {me.isAdmin && <Route path="/admin/feedback" element={<AdminFeedback />} />}
           {(me.isAdmin || me.isStaff) && <Route path="/admin/attendance" element={<AdminPresence />} />}
           {me.isAdmin && <Route path="/admin/diagnostics" element={<ServerDiagnostics />} />}
           {me.isAdmin && <Route path="/admin/mcp" element={<AdminMcp />} />}
@@ -191,8 +186,6 @@ function SignedOut() {
       <Route path="/a/:token" element={<ApprovePresence />} />
       {/* The live show dashboard is public; a code unlocks it when the show is on. */}
       <Route path="/show-dash" element={<LiveShowDash />} />
-      {/* A feedback invitation is public: accepting it is what leads to sign-in. */}
-      <Route path="/feedback/:formId" element={<Feedback />} />
       <Route path="/opencode" element={<OpenCode />} />
       <Route path="/github" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />
       <Route path="/gh" element={<Navigate to="https://github.com/SmartSparkCoding/AshTecCrewHub" replace />} />

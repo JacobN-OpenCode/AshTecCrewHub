@@ -13,4 +13,4 @@ dist/
 .vite/
 
 # Ticket 171e29fa: uploaded profile pictures live on disk, not in git.
-uploads/
+uploads/node_modules

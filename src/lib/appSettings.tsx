@@ -20,7 +20,6 @@ export function loadAppSettings(): Promise<AppSettings> {
           skillOptions: s.skillOptions ?? DEFAULT_SETTINGS.skillOptions,
           skillsEditable: s.skillsEditable !== false,
           catName: s.catName ?? DEFAULT_SETTINGS.catName,
-          feedbackForms: s.feedbackForms ?? [],
           platformName: s.platformName ?? DEFAULT_SETTINGS.platformName,
           schoolName: s.schoolName ?? DEFAULT_SETTINGS.schoolName,
           features: { ...DEFAULT_SETTINGS.features, ...(s.features ?? {}) },

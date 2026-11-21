@@ -5,7 +5,7 @@ import { Button } from '@project/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
-  LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MessageSquareHeart, MoreHorizontal, Palette, PanelLeftClose,
+  LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MoreHorizontal, Palette, PanelLeftClose,
   PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Wrench, X, FileText, BookUser, ChevronDown,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -252,7 +252,6 @@ function Shell() {
     { to: '/admin/members', label: 'Crew', icon: Users },
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
-    { to: '/admin/feedback', label: 'Feedback', icon: MessageSquareHeart },
     { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
     { to: '/admin/mcp', label: 'MCP', icon: Plug },

@@ -103,27 +103,6 @@ export async function notifyNewTicket(ticket: {
   });
 }
 
-/**
- * Someone answered a feedback form (see /feedback/:formId). Pushes the admins so
- * the results actually get looked at, and never pings the person who just answered.
- */
-export async function notifyFeedbackResponse(info: { memberId: string; form: string; selectedCount: number; freeform?: boolean }): Promise<void> {
-  const recipients = (await adminRecipients()).filter((id) => id !== info.memberId);
-  if (!recipients.length) return;
-  const n = info.selectedCount;
-  const body = info.freeform
-    ? 'Someone filled in a feedback form'
-    : n
-      ? `Someone picked ${n} idea${n === 1 ? '' : 's'}`
-      : 'Someone left a note';
-  await sendToMembers(recipients, {
-    title: 'New feedback',
-    body,
-    url: '/admin/feedback',
-    tag: `feedback-${info.form}-${info.memberId}`,
-  });
-}
-
 /** A reply on a ticket, to the people who look after that kind of ticket. */
 export async function notifyTicketReply(ticket: {
   id: string;

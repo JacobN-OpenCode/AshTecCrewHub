@@ -62,7 +62,6 @@ const TABLES = {
   liveShowMessages: { table: 'LiveShowMessages', arr: [] },
   liveShowAnnouncements: { table: 'LiveShowAnnouncements', arr: [] },
   liveShowTouches: { table: 'LiveShowTouches', arr: [] },
-  feedbackResponses: { table: 'FeedbackResponses', arr: ['selected'] },
   showChecklistItems: { table: 'ShowChecklistItems', arr: [] },
   showCues: { table: 'ShowCues', arr: [] },
   showProps: { table: 'ShowProps', arr: [] },
