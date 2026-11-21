@@ -77,6 +77,10 @@ export default createEndpoint({
         subEventId: input.subEventId,
         status: 'Expected Arrival',
         byAdmin: true,
+        // Stored, not inferred. The register used to work out "green" from the
+        // status, which left the colour blank on any row an admin had once
+        // marked away, so a door check-in looked like it had not landed.
+        registerState: 'green',
       }]);
     }
 

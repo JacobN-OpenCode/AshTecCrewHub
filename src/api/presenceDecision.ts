@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite } from '#db';
-import { requireAdmin } from '../lib/server';
+import { requireAdmin, upsertAttendance } from '../lib/server';
 import { activeSession, findPresenceByToken, one, logPresenceEvent } from '../lib/presence';
 
 /**
@@ -81,6 +81,21 @@ export default createEndpoint({
         updatedBy: me.id,
       } as never,
     });
+
+    // Approving a sign-in on the /a/:token page counts exactly like scanning
+    // the code does: they are in the room, so they are on the register. Only
+    // a sign-in writes the register, because stepping out is not an absence
+    // from the session (ticket 111655d6).
+    const sessionSub = session.subEvent?.[0] ?? '';
+    if (action === 'Sign In' && memberId && sessionSub) {
+      await upsertAttendance([{
+        memberId,
+        subEventId: sessionSub,
+        status: 'Expected Arrival',
+        byAdmin: true,
+        registerState: 'green',
+      }]);
+    }
 
     await logPresenceEvent({
       session: session.id,
