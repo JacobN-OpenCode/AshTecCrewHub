@@ -430,8 +430,9 @@ function McpFeed() {
           show, a document, an announcement, a theme, or a deploy. Reads and listings are left out.
         </p>
         <p className="text-sm text-muted-foreground">
-          Paste the address into any reader (Reeder, Feedly, NetNewsWire, a Slack RSS app) and it updates itself. The
-          address is the password, so keep it to yourself.
+          Paste the address into any reader (Reeder, Feedly, NetNewsWire, a Slack RSS app) and it updates itself.
+          Opening the same address in a browser shows the same list as a readable page. The address is the password,
+          so keep it to yourself.
         </p>
         {!loaded ? (
           <Skeleton className="h-9 w-full" />

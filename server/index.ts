@@ -40,7 +40,7 @@ import { notifyServerError } from './notify.js';
 import { pruneNotifications, pruneNotificationHistory } from './push.js';
 import { db } from './db/index.js';
 import { mountMcp } from './mcp.js';
-import { readFeedKey, buildMcpFeed } from './mcpFeed.js';
+import { readFeedKey, buildMcpFeed, buildMcpFeedPage } from './mcpFeed.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const apiDir = path.join(root, 'src', 'api');
@@ -539,15 +539,25 @@ app.get('/mcp/feed/:name', async (req, res) => {
   const given = String(req.params.name || '').replace(/\.xml$/i, '');
   const key = await readFeedKey();
   if (!key || given !== key) return res.status(404).type('text/plain').send('Not found');
+  // Ticket 21b92db3: "Make the RSS feed look nicer, looks horrible at the
+  // moment!" A browser asks for text/html and gets a page; a reader asks for
+  // the feed itself and gets the XML, at the same address.
+  const wantsPage = String(req.headers.accept || '').includes('text/html');
+  res.set('Vary', 'Accept');
   try {
+    if (wantsPage) {
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Cache-Control', 'private, max-age=30');
+      return res.send(await buildMcpFeedPage(key));
+    }
     const xml = await buildMcpFeed(key);
     res.set('Content-Type', 'application/rss+xml; charset=utf-8');
     // Readers poll, so a short cache keeps them off our back without going stale.
     res.set('Cache-Control', 'public, max-age=120');
-    res.send(xml);
+    return res.send(xml);
   } catch (e) {
     console.error('[mcp feed] failed:', e);
-    res.status(500).type('text/plain').send('Could not build the feed.');
+    return res.status(500).type('text/plain').send('Could not build the feed.');
   }
 });
 

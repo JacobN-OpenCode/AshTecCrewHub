@@ -3,6 +3,7 @@ import { db } from './db/index.js';
 import {
   FEED_LIMIT,
   CHANGING_TOOL_LIST,
+  feedPageHtml,
   feedPath,
   looksLikeFeedKey,
   rssFeed,
@@ -66,11 +67,10 @@ export function feedUrl(key: string): string {
 type Row = { id?: string; who?: string; tool?: string; detail?: string; ok?: boolean; at?: string };
 
 /**
- * The feed itself. Entries are the changing calls only, newest first, joined
- * back to the person the key acts as so the title reads like a sentence
- * rather than a key nickname.
+ * The changing calls only, newest first, joined back to the person the key
+ * acts as so a title reads like a sentence rather than a key nickname.
  */
-export async function buildMcpFeed(key: string): Promise<string> {
+export async function loadFeedEntries(): Promise<FeedEntry[]> {
   const { rows } = await db().query(
     `SELECT l."id" AS "id",
             COALESCE(NULLIF(TRIM(COALESCE(m."firstName", '') || ' ' || COALESCE(m."lastName", '')), ''), l."keyName") AS "who",
@@ -87,7 +87,7 @@ export async function buildMcpFeed(key: string): Promise<string> {
     [CHANGING_TOOL_LIST, FEED_LIMIT],
   );
 
-  const entries: FeedEntry[] = (rows as Row[]).map((row) => ({
+  return (rows as Row[]).map((row) => ({
     id: String(row.id ?? ''),
     who: String(row.who ?? 'Someone'),
     tool: String(row.tool ?? 'unknown'),
@@ -95,11 +95,26 @@ export async function buildMcpFeed(key: string): Promise<string> {
     ok: row.ok !== false,
     at: row.at ? new Date(row.at) : new Date(),
   }));
+}
 
+/** The XML a reader subscribes to. */
+export async function buildMcpFeed(key: string): Promise<string> {
   return rssFeed({
     title: 'AshTec Crew Hub · MCP changes',
     siteUrl: siteUrl(),
     selfUrl: feedUrl(key),
-    entries,
+    entries: await loadFeedEntries(),
+  });
+}
+
+/**
+ * The same feed as a page, for the browser somebody pastes the address into
+ * (ticket 21b92db3: raw XML "looks horrible").
+ */
+export async function buildMcpFeedPage(key: string): Promise<string> {
+  return feedPageHtml({
+    siteUrl: siteUrl(),
+    xmlUrl: feedUrl(key),
+    entries: await loadFeedEntries(),
   });
 }

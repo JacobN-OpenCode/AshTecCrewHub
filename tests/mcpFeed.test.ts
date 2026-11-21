@@ -14,8 +14,11 @@ import {
   CHANGING_TOOL_LIST,
   FEED_KEY_LENGTH,
   FEED_LIMIT,
+  escapeHtml,
   escapeXml,
+  feedPageHtml,
   feedPath,
+  londonStamp,
   isWorthTelling,
   itemBody,
   itemTitle,
@@ -135,4 +138,77 @@ test('the feed reads the call log, so a tool call costs nothing extra', () => {
   assert.ok(feed.includes('l."tool" = ANY($1)'));
   // Nothing is posted anywhere: no fetch, no webhook.
   assert.equal(feed.includes('fetch('), false);
+});
+
+/*
+ * Ticket 21b92db3: "Make the RSS feed look nicer, looks horrible at the
+ * moment!" The address is the thing people paste into a tab, so a browser
+ * gets a page at the same URL and a reader still gets the XML.
+ */
+
+const pageNow = new Date('2026-11-21T17:40:00Z');
+const twoEntries = [
+  { id: 'a', who: 'Jacob Navaratne', tool: 'save_theme', detail: '{"name":"Midnight"}', ok: true, at: new Date('2026-11-21T16:38:00Z') },
+  { id: 'b', who: 'Felix Moore', tool: 'set_register', detail: 'Marked in.', ok: false, at: new Date('2026-11-21T15:02:00Z') },
+];
+
+test('a browser gets a page and a reader still gets the XML', () => {
+  const index = readFileSync(new URL('../server/index.ts', import.meta.url), 'utf8');
+  assert.ok(index.includes("String(req.headers.accept || '').includes('text/html')"));
+  assert.ok(index.includes("res.set('Content-Type', 'text/html; charset=utf-8')"));
+  assert.ok(index.includes("res.set('Content-Type', 'application/rss+xml; charset=utf-8')"));
+  // The same URL answers two ways, so a cache has to know that.
+  assert.ok(index.includes("res.set('Vary', 'Accept')"));
+  assert.ok(index.includes('buildMcpFeedPage'));
+});
+
+test('the page is a document, not a fragment of XML in a tab', () => {
+  const html = feedPageHtml({ siteUrl: 'https://x.test', xmlUrl: 'https://x.test/mcp/feed/k.xml', entries: twoEntries, now: pageNow });
+  assert.ok(html.startsWith('<!doctype html>'));
+  assert.ok(html.includes('<html lang="en-GB">'));
+  assert.ok(html.includes('<meta name="viewport"'));
+  assert.ok(html.includes('<meta name="robots" content="noindex, nofollow">'));
+  // Readers can still find the XML from the page itself.
+  assert.ok(html.includes('<link rel="alternate" type="application/rss+xml"'));
+  assert.ok(html.includes('href="https://x.test/mcp/feed/k.xml"'));
+  // And a person can read what happened.
+  assert.ok(html.includes('<strong>Jacob Navaratne</strong>'));
+  assert.ok(html.includes('<span class="tool">save_theme</span>'));
+  assert.ok(html.includes('{&quot;name&quot;:&quot;Midnight&quot;}'));
+  assert.ok(html.includes('class="failed"'));
+  assert.ok(html.includes('class="done"'));
+});
+
+test('tool output cannot break the page either', () => {
+  const html = feedPageHtml({
+    siteUrl: 'https://x.test',
+    xmlUrl: 'https://x.test/mcp/feed/k.xml',
+    entries: [{ id: 'x', who: '<img src=x onerror=alert(1)>', tool: 'deploy', detail: '<script>alert(1)</script>', ok: true, at: pageNow }],
+  });
+  assert.equal(html.includes('<script>'), false);
+  assert.equal(html.includes('<img src=x'), false);
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.equal(escapeHtml(`<&>"'`), '&lt;&amp;&gt;&quot;&#39;');
+});
+
+test('an empty feed says so instead of showing a blank page', () => {
+  const html = feedPageHtml({ siteUrl: 'https://x.test', xmlUrl: 'https://x.test/mcp/feed/k.xml', entries: [] });
+  assert.ok(html.includes('Nothing has been changed through the MCP yet'));
+  assert.ok(html.includes('0 entries'));
+});
+
+test('times are the school clock, summer and winter, and capped like the XML', () => {
+  assert.ok(londonStamp('2026-07-01T12:00:00Z').includes('13:00'));
+  assert.ok(londonStamp('2026-11-21T16:38:00Z').includes('16:38'));
+  assert.equal(londonStamp('not a date'), '');
+  const many = Array.from({ length: FEED_LIMIT + 10 }, (_, i) => ({ id: `i-${i}`, who: 'Someone', tool: 'deploy', detail: '', ok: true, at: pageNow }));
+  const html = feedPageHtml({ siteUrl: 'https://x.test', xmlUrl: 'https://x.test/mcp/feed/k.xml', entries: many });
+  assert.equal((html.match(/<li class=/g) || []).length, FEED_LIMIT);
+  assert.ok(html.includes(`${FEED_LIMIT} entries`));
+});
+
+test('the page follows the reader into dark mode', () => {
+  const html = feedPageHtml({ siteUrl: 'https://x.test', xmlUrl: 'https://x.test/mcp/feed/k.xml', entries: twoEntries });
+  assert.ok(html.includes('prefers-color-scheme: dark'));
+  assert.ok(html.includes('--paper: #100e0c'));
 });
