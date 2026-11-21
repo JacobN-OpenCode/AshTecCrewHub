@@ -1013,6 +1013,9 @@ CREATE INDEX IF NOT EXISTS "McpKeys_hash_idx" ON "McpKeys" ("tokenHash");
 ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
 -- Which crew member a key acts as. Empty falls back to MCP_EMAIL, then the first admin.
 ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "memberId" uuid;
+-- Ticket 3805477d: an admin can point a key at a different account, so a shared
+-- bot key does not have to write as the person who happened to make it.
+ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "actAsMemberId" uuid;
 
 CREATE TABLE IF NOT EXISTS "McpCallLog" (
   "id"        uuid PRIMARY KEY,

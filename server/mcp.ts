@@ -99,7 +99,10 @@ async function matchKey(req: Request): Promise<KeyInfo | null> {
     // carried the creator's id anyway. Falling back to that stops an old key
     // acting as whoever MCP_EMAIL happens to be (ticket 9fa82d16: a key made by
     // J Navaratne was still posting as L Paice).
-    const owner = String(k.memberId ?? '') || String(k.createdBy ?? '');
+    // A key can be pointed at another account on purpose (ticket 3805477d), so the
+    // chosen owner is looked at before the maker.
+    const owner =
+      String(k.actAsMemberId ?? '') || String(k.memberId ?? '') || String(k.createdBy ?? '');
     return { name: String(k.name ?? 'unnamed key'), id: String(k.id), memberId: owner };
   }
   return null;

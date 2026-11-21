@@ -63,12 +63,20 @@ export default function AdminMcp() {
     }
   };
 
-  const act = async (action: 'enable' | 'disable' | 'delete', id: string, name: string) => {
+  const act = async (action: 'enable' | 'disable' | 'delete' | 'act-as', id: string, name: string, memberId?: string) => {
     if (action === 'delete' && !(await ask({ title: `Delete the key "${name}"?`, body: 'Anything using this key stops working straight away. You can make a new one, but the old key will not come back.', confirm: 'Delete key', danger: true }))) return;
     setBusy(id + action);
     try {
-      await adminMcpKey({ action, id });
-      toast.success(action === 'delete' ? 'Key deleted.' : action === 'enable' ? 'Key switched on.' : 'Key paused.');
+      await adminMcpKey({ action, id, ...(memberId !== undefined ? { memberId } : {}) });
+      toast.success(
+        action === 'delete'
+          ? 'Key deleted.'
+          : action === 'enable'
+            ? 'Key switched on.'
+            : action === 'act-as'
+              ? 'The key acts as someone else now.'
+              : 'Key paused.',
+      );
       await load(true);
     } catch (e) {
       toast.error((e as Error).message);
@@ -188,9 +196,31 @@ export default function AdminMcp() {
                     <Badge variant={k.enabled ? 'default' : 'secondary'} className="text-xs">{k.enabled ? 'On' : 'Paused'}</Badge>
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Acts as {k.actorName || 'the server default admin'} · starts{' '}
-                    <code className="rounded bg-muted px-1 py-0.5">atc_{k.prefix}…</code> · made {when(k.createdAt)} · last used {when(k.lastUsedAt)}
+                    starts <code className="rounded bg-muted px-1 py-0.5">atc_{k.prefix}…</code> · made {when(k.createdAt)} · last used {when(k.lastUsedAt)}
                   </p>
+                  {/* Ticket 3805477d: a key acts as its owner, and an admin can change the owner. */}
+                  <label className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Acts as</span>
+                    <select
+                      className="rounded-lg border bg-background px-2 py-1 text-xs"
+                      value={k.actAsMemberId || k.memberId || ''}
+                      disabled={busy !== ''}
+                      onChange={(ev) => void act('act-as', k.id, k.name, ev.target.value)}
+                    >
+                      {(() => {
+                        const people = (data as { people?: { id: string; name: string }[] }).people ?? [];
+                        const known = people.some((p) => p.id === (k.actAsMemberId || k.memberId));
+                        return (
+                          <>
+                            {people.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                            {!known && <option value={k.actAsMemberId || k.memberId || ''}>{k.actorName || 'unknown'}</option>}
+                          </>
+                        );
+                      })()}
+                    </select>
+                  </label>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button size="sm" variant="outline" disabled={busy !== ''} onClick={() => void act(k.enabled ? 'disable' : 'enable', k.id, k.name)}>

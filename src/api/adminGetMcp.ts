@@ -18,6 +18,7 @@ export default createEndpoint({
     actor: z.object({ name: z.string(), email: z.string() }),
     url: z.string(),
     keys: z.array(z.any()),
+    people: z.array(z.any()),
     logs: z.array(z.any()),
     toolCount: z.number(),
     callsToday: z.number(),
@@ -54,15 +55,22 @@ export default createEndpoint({
         email: String(actorRow?.schoolEmail ?? ''),
       },
       url: `${(process.env.APP_URL ?? 'https://ashtec.dino.icu').replace(/\/$/, '')}/mcp`,
+      // Who a key is allowed to act as: the admins and maintainers, by name.
+      people: crewRows.records
+        .filter((m) => (m.isAdmin || m.isMaintainer) && !m.isPreviewAccount)
+        .map((m) => ({ id: String(m.id), name: `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
       keys: keyRows.records
         .map((k) => ({
           id: String(k.id),
           name: String(k.name ?? ''),
           prefix: String(k.prefix ?? ''),
           enabled: !!k.enabled,
-          memberId: String(k.memberId ?? ''),
+          memberId: String(k.memberId ?? '') || String(k.createdBy ?? ''),
+          actAsMemberId: String(k.actAsMemberId ?? ''),
           actorName: (() => {
-            const m = crewRows.records.find((x) => String(x.id) === String(k.memberId ?? ''));
+            const wanted = String(k.actAsMemberId ?? '') || String(k.memberId ?? '') || String(k.createdBy ?? '');
+            const m = crewRows.records.find((x) => String(x.id) === wanted);
             return m ? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() : '';
           })(),
           createdAt: String(k.createdAt ?? ''),

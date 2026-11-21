@@ -13,9 +13,10 @@ export default createEndpoint({
   description: 'Create, enable, disable or delete an MCP key (admins)',
   authenticated: true,
   inputSchema: z.object({
-    action: z.enum(['create', 'enable', 'disable', 'delete']),
+    action: z.enum(['create', 'enable', 'disable', 'delete', 'act-as']),
     id: z.string().max(60).optional(),
     name: z.string().max(80).optional(),
+    memberId: z.string().max(60).optional(),
   }),
   outputSchema: z.object({
     ok: z.boolean(),
@@ -40,8 +41,9 @@ export default createEndpoint({
           name: String(k.name ?? ''),
           prefix: String(k.prefix ?? ''),
           enabled: !!k.enabled,
-          memberId: String(k.memberId ?? ''),
-          actorName: nameOf(String(k.memberId ?? '')),
+          memberId: String(k.memberId ?? '') || String(k.createdBy ?? ''),
+          actAsMemberId: String(k.actAsMemberId ?? ''),
+          actorName: nameOf(String(k.actAsMemberId ?? '') || String(k.memberId ?? '') || String(k.createdBy ?? '')),
           createdAt: String(k.createdAt ?? ''),
           lastUsedAt: String(k.lastUsedAt ?? ''),
         }))
@@ -69,6 +71,26 @@ export default createEndpoint({
 
     if (input.action === 'delete') {
       await zite.mcpKeys.delete({ id: input.id });
+      return { ok: true, keys: await list() };
+    }
+
+    if (input.action === 'act-as') {
+      // Empty means back to the maker. Checked here so a typo does not silently
+      // leave a key acting as the wrong person.
+      const wanted = (input.memberId ?? '').trim();
+      if (wanted) {
+        const crew = await zite.crewMembers.findAll({ filters: { id: wanted }, limit: 1 });
+        const m = crew.records[0];
+        if (!m) throw new ZiteError({ code: 'NOT_FOUND', message: 'No such member', userFacingMessage: 'That person is not in the crew list.' });
+        if (!m.isAdmin && !m.isMaintainer) {
+          throw new ZiteError({
+            code: 'BAD_REQUEST',
+            message: 'Actor must be admin or maintainer',
+            userFacingMessage: 'A key can only act as someone with admin or maintainer access, otherwise the tools cannot do their job.',
+          });
+        }
+      }
+      await zite.mcpKeys.update({ id: input.id, record: { actAsMemberId: wanted || null } });
       return { ok: true, keys: await list() };
     }
 
