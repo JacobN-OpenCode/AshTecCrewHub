@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cat } from 'lucide-react';
+import { Cat, X } from 'lucide-react';
 import { MASCOT } from '../lib/mascot';
 import { useAppSettings } from '../lib/appSettings';
 import { useCatHidden } from '../lib/uiPrefs';
@@ -13,12 +13,22 @@ import { playSfx } from '../lib/sfx';
  * It sits quietly in the corner and now and then says something, which is the
  * whole of "more of the cat". Feedback round 2: it is desktop-only now (it got
  * in the way on phones) and the Hide button is gone. Five quick taps decapitate
- * it and silence it, which is ticket f009cd42's other way out.
+ * it and silence it, which is ticket f009cd42's other way out. Ticket b646901e
+ * put an x on the bubble itself, for people who want a message gone but the cat
+ * to stay.
  */
 export default function CatCompanion() {
   const [hidden, setCatHidden] = useCatHidden();
   const { catName } = useAppSettings();
   const [line, setLine] = useState<string | null>(null);
+  /**
+   * Ticket b646901e: J Moore wanted the x on the message rather than the switch
+   * that silences the cat for good. This is the softer half of that: close the
+   * bubble you are looking at and it stops talking for the rest of the visit,
+   * with no setting changed. A reload brings it back, and the switch on My
+   * settings is still the permanent one.
+   */
+  const [quiet, setQuiet] = useState(false);
   const navigate = useNavigate();
 
   /**
@@ -60,13 +70,13 @@ export default function CatCompanion() {
   // Say something shortly after arriving, then keep it to a slow rotation so it
   // is company rather than noise.
   useEffect(() => {
-    if (hidden) return;
+    if (hidden || quiet) return;
     const show = () => setLine(MASCOT.line());
     const first = window.setTimeout(show, 6000);
     const hide = window.setTimeout(() => setLine(null), 16000);
     const loop = window.setInterval(() => { show(); window.setTimeout(() => setLine(null), 10000); }, 45000);
     return () => { window.clearTimeout(first); window.clearTimeout(hide); window.clearInterval(loop); };
-  }, [hidden]);
+  }, [hidden, quiet]);
 
   if (hidden) return null;
 
@@ -84,6 +94,15 @@ export default function CatCompanion() {
           >
             <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
               <Cat className="h-3 w-3" />{catName}
+              <button
+                type="button"
+                onClick={() => { setQuiet(true); setLine(null); }}
+                title="No more messages for now"
+                aria-label={`Dismiss the ${catName} message`}
+                className="-mr-1.5 ml-auto flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/70 outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
             {line}
           </motion.div>
