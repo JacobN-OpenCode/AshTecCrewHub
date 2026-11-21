@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ask } from '../../lib/dialogs';
 import { adminGetTicket, adminNoteTicket, adminReplyTicket, adminUpdateTicket, adminRemindMaintainers } from '#api';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
@@ -234,7 +235,7 @@ export default function Ticket() {
               <div className="flex justify-between"><dt>On this page</dt><dd>{data.replies.length}</dd></div>
             </dl>
             <Button variant="ghost" className="text-destructive w-full justify-start" disabled={!!busy}
-              onClick={() => { if (confirm('Delete this ticket? This cannot be undone.')) run('delete', () => adminUpdateTicket({ id: t.id, delete: true }), () => { location.href = '/admin/support'; }); }}>
+              onClick={async () => { if (await ask({ title: 'Delete this ticket?', body: 'The whole thread goes with it. This cannot be undone.', confirm: 'Delete ticket', danger: true })) run('delete', () => adminUpdateTicket({ id: t.id, delete: true }), () => { location.href = '/admin/support'; }); }}>
               <Trash2 className="h-4 w-4 mr-1.5" />Delete ticket
             </Button>
           </div>

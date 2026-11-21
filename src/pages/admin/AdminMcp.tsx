@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ask } from '../../lib/dialogs';
 import { adminGetMcp, adminMcpKey, type AdminGetMcpOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
@@ -60,7 +61,7 @@ export default function AdminMcp() {
   };
 
   const act = async (action: 'enable' | 'disable' | 'delete', id: string, name: string) => {
-    if (action === 'delete' && !window.confirm(`Delete the key "${name}"? Anything using it stops working straight away.`)) return;
+    if (action === 'delete' && !(await ask({ title: `Delete the key "${name}"?`, body: 'Anything using this key stops working straight away. You can make a new one, but the old key will not come back.', confirm: 'Delete key', danger: true }))) return;
     setBusy(id + action);
     try {
       await adminMcpKey({ action, id });

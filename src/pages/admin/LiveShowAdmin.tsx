@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ask } from '../../lib/dialogs';
 import {
   adminGetLiveShow, adminSaveLiveShow, adminSaveLiveShowScenes, adminLiveShowControl,
   adminLiveShowDevice, liveShowChat, liveShowAnnouncement, saveLiveShowScript, adminImportLiveShowScenes,
@@ -323,7 +324,7 @@ export default function LiveShowAdmin({ showId: fixedShowId }: { showId?: string
 
   const removeDevice = async () => {
     if (!selectedDevice) return;
-    if (!window.confirm('Remove this screen? It is un-enabled and disappears from the list.')) return;
+    if (!(await ask({ title: 'Remove this screen?', body: 'It is un-enabled and disappears from the list. You can enable it again later.', confirm: 'Remove', danger: true }))) return;
     setSavingDevice(true);
     try {
       await adminLiveShowDevice({ deviceId: selectedDevice, remove: true });

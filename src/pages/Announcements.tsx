@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ask } from '../lib/dialogs';
 import { getAnnouncements, saveAnnouncement, type GetAnnouncementsOutputType } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
@@ -52,7 +53,7 @@ export default function Announcements() {
   useEffect(() => { void load(); }, [load]);
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this announcement?')) return;
+    if (!(await ask({ title: 'Delete this announcement?', body: 'It disappears from the Noticeboard for everyone. This cannot be undone.', confirm: 'Delete', danger: true }))) return;
     try { await saveAnnouncement({ id, remove: true }); toast.success('Announcement deleted'); await load(); }
     catch (e) { toast.error((e as Error).message); }
   };

@@ -17,6 +17,7 @@ import Home from './pages/Home';
 import PublicCalendar from './pages/PublicCalendar';
 import PublicParents from './pages/PublicParents';
 import AppShell from './components/AppShell';
+import DialogHost from './lib/dialogs';
 import MyEvents from './pages/MyEvents';
 import StaffHub from './pages/StaffHub';
 import Attendance from './pages/Attendance';
@@ -190,6 +191,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ViewTracker />
+      <DialogHost />
       {isLoading ? <Spinner /> : user ? <SignedIn /> : <SignedOut />}
       <Toaster />
       <PwaWelcome />
