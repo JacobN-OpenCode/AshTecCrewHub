@@ -268,6 +268,9 @@ const TOOLS = [
           roles: m.roles,
           state: m.state,
           reason: m.reason || null,
+          // Yellow rows can carry "away until 14:30". overdue means that time
+          // has gone by and they are still marked away.
+          ...(m.returnAt ? { returnAt: m.returnAt, overdue: !!m.overdue } : {}),
         })),
       };
     },
