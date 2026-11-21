@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { adminGetLogs, type AdminGetLogsOutputType } from '#api';
+import { toast } from 'sonner';
+import { adminDeploy, adminGetLogs, type AdminDeployOutputType, type AdminGetLogsOutputType } from '#api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import { Input } from '@project/components/ui/input';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { ask } from '../../lib/dialogs';
+import { CircleCheck, Loader2, RefreshCw, Rocket } from 'lucide-react';
 
 type LogRow = NonNullable<AdminGetLogsOutputType>['rows'][number];
 
@@ -139,7 +141,98 @@ export default function LogsDialog({ open, onClose }: { open: boolean; onClose: 
             </Button>
           )}
         </div>
+
+        <DeployBox onDeployed={() => void load()} />
       </DialogContent>
     </Dialog>
   );
+}
+/**
+ * Deploy, from here. Jacob asked for it: "let me run the deploy command at the
+ * bottom of the logs tab". One button, one plain confirm, no typing "yes" three
+ * times. The endpoint runs the same fixed script the MCP deploy tool runs.
+ */
+function DeployBox({ onDeployed }: { onDeployed: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<AdminDeployOutputType | null>(null);
+
+  async function run() {
+    const yes = await ask({
+      title: 'Deploy now?',
+      body: 'Fetches main, applies the schema, builds and restarts the site. About a minute, and the site is off for a few seconds while it restarts.',
+      confirm: 'Deploy now',
+    });
+    if (!yes) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const r = await adminDeploy({});
+      setResult(r);
+      if (!r.ok) {
+        toast.error(`Stopped at ${r.stoppedAt}. Nothing was restarted.`);
+        return;
+      }
+      toast.success('Built. Restarting now, the site comes back in about 20 seconds.');
+      void waitForServer(onDeployed);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'The deploy did not start.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-dashed p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Rocket className="h-4 w-4 text-primary" />Deploy
+          </p>
+          <p className="mt-1 max-w-xl text-xs text-muted-foreground">
+            Fetches main, applies the schema, builds and restarts. The same script the MCP <span className="font-mono">deploy</span> tool runs, so this and that cannot drift.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={run} disabled={busy}>
+          {busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Rocket className="mr-1.5 h-3.5 w-3.5" />}
+          {busy ? 'Deploying…' : 'Deploy now'}
+        </Button>
+      </div>
+
+      {result && (
+        <ul className="mt-3 space-y-1 text-xs">
+          {result.steps.map((s) => (
+            <li key={s.cmd} className="flex items-center gap-2">
+              {s.code === 0
+                ? <CircleCheck className="h-3.5 w-3.5 text-emerald-400" />
+                : <span className="h-3.5 w-3.5 text-center text-red-400">×</span>}
+              <span className="font-mono">{s.cmd}</span>
+              {s.code !== 0 && <span className="text-red-400">exit {s.code}</span>}
+            </li>
+          ))}
+          <li className="pt-1 text-muted-foreground">{result.ok ? result.restart : result.note}</li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Wait for the restart to finish, then reload so the new bundle is what you are looking at. */
+async function waitForServer(after: () => void) {
+  for (let i = 0; i < 45; i += 1) {
+    await new Promise((r) => setTimeout(r, 2000));
+    try {
+      const res = await fetch('/healthz', { cache: 'no-store' });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { ok?: boolean; endpoints?: number };
+      if (body?.ok) {
+        toast.success(`Back up with ${body.endpoints ?? '?'} endpoints.`);
+        after();
+        setTimeout(() => window.location.reload(), 900);
+        return;
+      }
+    } catch {
+      /* still restarting */
+    }
+  }
+  toast.error('The site did not answer after 90 seconds. Check Server diagnostics.');
 }

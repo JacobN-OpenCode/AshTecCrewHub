@@ -38,6 +38,13 @@ export type AdminDeleteSubEventInputType = NonNullable<_AdminDeleteSubEventCfg['
 export type AdminDeleteSubEventOutputType = Awaited<ReturnType<_AdminDeleteSubEventCfg['execute']>>;
 export const adminDeleteSubEvent = createCaller<AdminDeleteSubEventInputType, AdminDeleteSubEventOutputType>('adminDeleteSubEvent');
 
+import type { default as _AdminDeployEp } from '../api/adminDeploy';
+
+type _AdminDeployCfg = typeof _AdminDeployEp;
+export type AdminDeployInputType = NonNullable<_AdminDeployCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminDeployCfg['execute']>[0]['input'];
+export type AdminDeployOutputType = Awaited<ReturnType<_AdminDeployCfg['execute']>>;
+export const adminDeploy = createCaller<AdminDeployInputType, AdminDeployOutputType>('adminDeploy');
+
 import type { default as _AdminExportTicketsEp } from '../api/adminExportTickets';
 
 type _AdminExportTicketsCfg = typeof _AdminExportTicketsEp;
@@ -958,6 +965,7 @@ export const api = {
   adminCheckPush,
   adminClearSessionHistory,
   adminDeleteSubEvent,
+  adminDeploy,
   adminExportTickets,
   adminGetData,
   adminGetDiagnostics,

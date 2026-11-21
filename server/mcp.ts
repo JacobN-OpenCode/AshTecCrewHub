@@ -34,10 +34,10 @@
 
 import type { Express, Request, Response } from 'express';
 import { AsyncLocalStorage } from 'async_hooks';
-import { exec, execFile } from 'child_process';
 import { createHash, timingSafeEqual } from 'crypto';
 import { zite } from '#db';
 import * as rateLimit from './rateLimit.js';
+import { runDeploy } from './deploy.js';
 import type { EndpointConfig } from './backend.js';
 import { openLiveShow, loadLiveShowScenes, loadLiveShowMessages, mapLiveShow } from '../src/lib/liveShow.js';
 
@@ -897,79 +897,11 @@ const TOOLS = [
   {
     name: 'deploy',
     description:
-      'Update the server from git: fetch, fast-forward the current branch, apply the schema, build, then restart the service. One fixed script, no arguments. Takes about a minute; the restart happens just after this returns.',
+      'Update the server from git: fetch, fast-forward the current branch, apply the schema, build, then restart the service. One fixed script, no arguments. Takes about a minute; the restart happens just after this returns. The same script runs from the Deploy button in Server diagnostics.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    run: async () => {
-      if (deploying) throw new Error('A deploy is already running. Give it a minute.');
-      deploying = true;
-      try {
-        const dir = (process.env.DEPLOY_DIR ?? process.cwd()).trim();
-        const restart = (process.env.DEPLOY_RESTART ?? 'systemctl restart ashtec-crew-hub').trim();
-        const steps: { cmd: string; code: number; tail: string }[] = [];
-        const stop = (cmd: string) => ({ ok: false, dir, stoppedAt: cmd, steps, note: 'Nothing was restarted. Fix the step above and run deploy again.' });
-
-        const fetched = await runStep('git', ['fetch', '--all', '--prune'], dir);
-        steps.push({ cmd: 'git fetch --all --prune', code: fetched.code, tail: tailLines(fetched.out, 25) });
-        if (fetched.code !== 0) return stop('git fetch --all --prune');
-
-        // Merge origin/<the branch we are on> rather than @{u}: a checkout made by
-        // hand often has no upstream set, and that is not a reason to refuse.
-        const head = await runStep('git', ['rev-parse', '--abbrev-ref', 'HEAD'], dir);
-        const branch = head.out.trim();
-        if (head.code !== 0 || !branch || branch === 'HEAD') {
-          steps.push({ cmd: 'git rev-parse --abbrev-ref HEAD', code: head.code, tail: tailLines(head.out, 25) });
-          return stop('git rev-parse --abbrev-ref HEAD');
-        }
-        // Fetch the branch by name so FETCH_HEAD is set: a clone that only tracks
-        // main has no origin/<branch> ref to merge.
-        const plan: [string, string[]][] = [
-          ['git', ['fetch', 'origin', branch]],
-          ['git', ['merge', '--ff-only', 'FETCH_HEAD']],
-          ['npm', ['run', 'schema']],
-          ['npm', ['run', 'build']],
-        ];
-        for (const [cmd, argv] of plan) {
-          const r = await runStep(cmd, argv, dir);
-          steps.push({ cmd: `${cmd} ${argv.join(' ')}`, code: r.code, tail: tailLines(r.out, 25) });
-          if (r.code !== 0) return stop(`${cmd} ${argv.join(' ')}`);
-        }
-        // Answer first, then restart: the restart kills this process, so doing it
-        // inline would drop the reply the caller is waiting for.
-        setTimeout(() => {
-          exec(restart, { cwd: dir }, () => {});
-        }, 1500);
-        return {
-          ok: true,
-          dir,
-          branch,
-          steps,
-          restart: `${restart} in a moment`,
-          note: 'Check /healthz in about 20 seconds. The endpoint count should match the build you just made.',
-        };
-      } finally {
-        deploying = false;
-      }
-    },
+    run: async () => runDeploy(),
   },
 ];
-
-let deploying = false;
-
-/** Run one command for the deploy tool, never throwing: the exit code is the answer. */
-function runStep(cmd: string, argv: string[], cwd: string) {
-  return new Promise<{ code: number; out: string }>((resolve) => {
-    execFile(cmd, argv, { cwd, timeout: 300_000, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
-      const code = err ? (typeof (err as any).code === 'number' ? (err as any).code : 1) : 0;
-      resolve({ code, out: `${stdout ?? ''}${stderr ?? ''}`.trim() });
-    });
-  });
-}
-
-/** The last few lines of a command's output, which is all anyone reads in a tool reply. */
-function tailLines(out: string, n: number) {
-  const lines = out.split('\n').filter((l) => l.trim() !== '');
-  return lines.slice(-n).join('\n');
-}
 
 function text(value: unknown) {
   const body = typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2);
