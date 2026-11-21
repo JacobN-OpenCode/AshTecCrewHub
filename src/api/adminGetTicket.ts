@@ -1,12 +1,21 @@
 import { z } from 'zod';
 import { createEndpoint } from '#backend';
 import { zite, type CrewMembersRecordType } from '#db';
-import { requireAdmin } from '../lib/server';
+import { requireAdmin, isStaff } from '../lib/server';
 import { REPLY_KIND, fullName } from '../lib/support';
 import { ids } from '../lib/server';
 
 const person = (m: CrewMembersRecordType | undefined) =>
-  m ? { id: String(m.id), name: fullName(m), email: m.schoolEmail ?? '', isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin } : null;
+  m
+    ? {
+        id: String(m.id), name: fullName(m), email: m.schoolEmail ?? '',
+        isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin,
+        // Ticket 5759835f: the assignment list reads as "teachers, then crew",
+        // each in alphabetical order, instead of whatever order the table came
+        // back in.
+        isStaff: isStaff(m),
+      }
+    : null;
 
 export default createEndpoint({
   description: 'Returns one support ticket with its full reply thread and the maintainer list (admins)',
@@ -52,7 +61,11 @@ export default createEndpoint({
       },
       replies,
       submitter: person(members.find((m) => m.id === ids(ticket.submittedBy)[0])),
-      maintainers: members.filter((m) => m.isAdmin && !m.isPreviewAccount).map(person).filter((p): p is NonNullable<typeof p> => p !== null),
+      maintainers: members
+        .filter((m) => m.isAdmin && !m.isPreviewAccount)
+        .map(person)
+        .filter((p): p is NonNullable<typeof p> => p !== null)
+        .sort((a, b) => Number(b.isStaff) - Number(a.isStaff) || a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
     };
   },
 });

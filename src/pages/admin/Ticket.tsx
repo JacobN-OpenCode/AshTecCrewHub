@@ -192,18 +192,27 @@ export default function Ticket() {
             </div>
             {data.maintainers.length === 0 && <p className="text-xs text-muted-foreground">No admins available to assign.</p>}
             <div className="space-y-1.5 max-h-56 overflow-y-auto">
-              {data.maintainers.map((m) => (
-                <label key={m.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    disabled={busy === 'assign'}
-                    checked={t.assignedMaintainerIds.includes(m.id)}
-                    onCheckedChange={(c) => {
-                      const next = c ? [...t.assignedMaintainerIds, m.id] : t.assignedMaintainerIds.filter((x) => x !== m.id);
-                      run('assign', () => adminUpdateTicket({ id: t.id, assignedMaintainerIds: next }), () => toast.success('Assignment updated'));
-                    }}
-                  />
-                  {m.name}
-                </label>
+              {/* Ticket 5759835f: teachers first, then crew, each A-Z. The two
+                  groups are labelled so it is obvious where the split is. */}
+              {(data.maintainers as Array<{ id: string; name: string; isStaff?: boolean }>).map((m, i, all) => (
+                <div key={m.id} className={i > 0 && !!m.isStaff !== !!all[i - 1].isStaff ? 'pt-2' : undefined}>
+                  {(i === 0 || !!all[i - 1].isStaff !== !!m.isStaff) && (
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {m.isStaff ? 'Teachers' : 'Crew'}
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      disabled={busy === 'assign'}
+                      checked={t.assignedMaintainerIds.includes(m.id)}
+                      onCheckedChange={(c) => {
+                        const next = c ? [...t.assignedMaintainerIds, m.id] : t.assignedMaintainerIds.filter((x) => x !== m.id);
+                        run('assign', () => adminUpdateTicket({ id: t.id, assignedMaintainerIds: next }), () => toast.success('Assignment updated'));
+                      }}
+                    />
+                    {m.name}
+                  </label>
+                </div>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">Reminders go to whoever is ticked here. With nobody ticked they go to all maintainers.</p>
