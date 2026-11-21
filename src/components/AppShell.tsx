@@ -255,7 +255,9 @@ function Shell() {
   // dropdown. Staff who are not admins only get the check-in controls.
   const admin: NavItem[] = [
     { to: '/admin', label: 'Overview', icon: ChartColumn },
-    { to: '/admin/settings', label: 'Settings', icon: Cog },
+    // Ticket 88ba38df: the page heading reads "ATCMS Settings", so the tab
+    // should say the same thing instead of just "Settings".
+    { to: '/admin/settings', label: 'ATCMS Settings', icon: Cog },
     ...(canRunCheckIn ? [{ to: '/admin/attendance', label: 'Check-in', icon: DoorOpen }] : []),
     { to: '/admin/events', label: 'Manage Events', icon: Settings2 },
     { to: '/admin/members', label: 'Crew', icon: Users },
