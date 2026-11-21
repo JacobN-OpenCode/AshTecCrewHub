@@ -500,6 +500,126 @@ const TOOLS = [
     },
   },
   {
+    name: 'mark_attendance',
+    description:
+      'Mark people in by name, so "Sam is here, mark them in" works without ids. Defaults to the session open now, then the first session on today. Green = in, yellow = away with a reason, red = not in with a reason.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        people: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Names or parts of names, like "Sam" or "Patel".',
+        },
+        state: str('green (in, the default), yellow (away), red (not in), or "" to clear.'),
+        reason: str('Why, for yellow and red. At least two characters.'),
+        returnAt: str('For yellow: when they will be back, as HH:MM today or an ISO time.'),
+        session: str('Session id or part of its title. Leave out for the session open now.'),
+      },
+      required: ['people'],
+      additionalProperties: false,
+    },
+    run: async (byName: Endpoints, args: any) => {
+      const people = (Array.isArray(args.people) ? args.people : [args.people])
+        .map((p: unknown) => String(p ?? '').trim())
+        .filter(Boolean);
+      if (!people.length) throw new Error('Say who to mark.');
+
+      const state = String(args.state ?? 'green');
+      if (!['green', 'yellow', 'red', ''].includes(state)) throw new Error('State has to be green, yellow, red or "".');
+      const reason = String(args.reason ?? '').trim().replace(/\s+/g, ' ');
+      if ((state === 'yellow' || state === 'red') && reason.length < 2) {
+        throw new Error('Yellow and red need a reason, so the register says why.');
+      }
+
+      // Which session. Open one first, because that is the one a person is
+      // standing at the door of.
+      const pick: any = await call(byName, 'adminGetRegister', {});
+      const events: any[] = Array.isArray(pick?.events) ? pick.events : [];
+      const wanted = String(args.session ?? '').trim().toLowerCase();
+      let subEventId = '';
+      let title = '';
+      if (wanted) {
+        const hit =
+          events.find((e) => String(e.id) === wanted) ??
+          events.find((e) => String(e.title ?? '').toLowerCase().includes(wanted));
+        if (!hit) {
+          const names = events.map((e) => `${e.title} (${e.date ?? 'no date'})`).join(', ');
+          throw new Error(`No session matches "${args.session}". Sessions I can see: ${names || 'none'}`);
+        }
+        subEventId = String(hit.id);
+        title = String(hit.title ?? '');
+      } else if (pick?.openSession?.subEventId) {
+        subEventId = String(pick.openSession.subEventId);
+        title = String(pick.openSession.title ?? '');
+      } else {
+        const today = new Date().toISOString().slice(0, 10);
+        const next = events
+          .filter((e) => String(e.date ?? '') === today && !e.dateTbc)
+          .sort((a, b) => String(a.startTime ?? '').localeCompare(String(b.startTime ?? '')))[0];
+        if (!next) throw new Error('No session is open and none is on today. Give me a session id from list_sessions.');
+        subEventId = String(next.id);
+        title = String(next.title ?? '');
+      }
+
+      const reg: any = await call(byName, 'adminGetRegister', { subEventId });
+      const members: any[] = Array.isArray(reg?.members) ? reg.members : [];
+      const marks: { id: string; name: string }[] = [];
+      const unknown: string[] = [];
+      for (const q of people) {
+        const needle = q.toLowerCase();
+        const hits = members.filter((m) => String(m.name ?? '').toLowerCase().includes(needle));
+        if (!hits.length) {
+          unknown.push(q);
+          continue;
+        }
+        const exact = hits.filter((m) => String(m.name ?? '').toLowerCase() === needle);
+        if (exact.length === 1) marks.push({ id: String(exact[0].id), name: String(exact[0].name) });
+        else if (hits.length === 1) marks.push({ id: String(hits[0].id), name: String(hits[0].name) });
+        else throw new Error(`"${q}" matches ${hits.map((m) => m.name).join(', ')}. Use a full name.`);
+      }
+      if (unknown.length) {
+        const names = members.map((m) => m.name).join(', ');
+        throw new Error(`Nobody on this register matches ${unknown.map((u) => `"${u}"`).join(', ')}. On it: ${names}`);
+      }
+
+      // HH:MM means today; anything else has to be a real time.
+      let returnAt: string | undefined;
+      if (state === 'yellow' && args.returnAt) {
+        const raw = String(args.returnAt).trim();
+        if (/^\d{1,2}:\d{2}$/.test(raw)) {
+          const [h, m] = raw.split(':').map(Number);
+          const d = new Date();
+          d.setHours(h, m, 0, 0);
+          returnAt = d.toISOString();
+        } else if (!Number.isNaN(Date.parse(raw))) {
+          returnAt = new Date(raw).toISOString();
+        } else {
+          throw new Error('returnAt has to be a time like 14:30, or an ISO timestamp.');
+        }
+      }
+
+      const done: { name: string; state: string }[] = [];
+      const failed: { name: string; error: string }[] = [];
+      for (const m of marks) {
+        try {
+          await call(byName, 'adminRegisterAttendance', {
+            subEventId,
+            memberId: m.id,
+            state,
+            ...(reason ? { reason } : {}),
+            ...(returnAt ? { returnAt } : {}),
+          });
+          done.push({ name: m.name, state });
+        } catch (e) {
+          failed.push({ name: m.name, error: (e as Error).message });
+        }
+      }
+
+      return { session: { id: subEventId, title }, state, marked: done, failed };
+    },
+  },
+  {
     name: 'control_live_show',
     description:
       'Drive the live show board: start, pause or reset the clock, jump to a scene, set the status, or raise a movement alert. Defaults to the show that is open.',

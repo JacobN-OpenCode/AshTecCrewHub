@@ -310,6 +310,7 @@ Tools it exposes:
 | `list_sessions` | Every session you can check in to |
 | `get_register` | One session's register: in, away with a reason, not in |
 | `set_register` | Mark one person green, yellow or red |
+| `mark_attendance` | Mark people in by name, on the open session by default |
 | `list_tickets` | Support tickets, newest first |
 | `get_ticket` | One ticket with its whole thread |
 | `reply_to_ticket` | Reply to the reporter, by email |
