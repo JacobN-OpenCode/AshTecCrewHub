@@ -61,20 +61,32 @@ export function applyVars(vars: Record<string, string>) {
   for (const [key, value] of Object.entries(vars)) root.setProperty(key, value);
 }
 
+/**
+ * The layout half of a theme lives in index.css, keyed on this attribute: the
+ * sidebar, the card language, the type and the band above the page. Colour is
+ * the other half, and it stays in variables.
+ */
+function setThemeAttr(id: string) {
+  document.documentElement.dataset.theme = id;
+}
+
 export function applyChoice(choice: Choice = getChoice()) {
   if (choice.theme === CUSTOM) {
+    // A saved look is only variables, so it borrows the original shell.
+    setThemeAttr(DEFAULT_CHOICE.theme);
     const found = getSavedThemes().find((t) => t.id === choice.palette);
     if (found) applyVars(found.vars);
     else clearVars();
     return;
   }
-  // Picking the original with its amber palette means "no opinion": leave the
-  // accent preference from My settings alone instead of freezing it here.
   if (choice.theme === DEFAULT_CHOICE.theme && choice.palette === DEFAULT_CHOICE.palette) {
+    // Nothing picked yet: the stylesheet is already the original.
     clearVars();
+    setThemeAttr(DEFAULT_CHOICE.theme);
     return;
   }
   applyVars(themeVars(choice.theme, choice.palette));
+  setThemeAttr(choice.theme);
 }
 
 export function saveTheme(name: string, vars: Record<string, string>): SavedTheme[] {

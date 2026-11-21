@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300..800&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300..800&family=JetBrains+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,400..600&family=Caveat:wght@500..700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -250,6 +250,119 @@
 [data-contrast='high'] :is(.border, [class*='border-']) { border-color: hsl(220 14% 42%); }
 [data-contrast='high'] .text-muted-foreground { color: hsl(var(--foreground) / 0.85); }
 [data-contrast='high'] :focus-visible { outline: 3px solid hsl(var(--ring)); outline-offset: 2px; }
+
+
+/* Ticket 1bbe2d65: five looks, one per pin.
+   A theme is not a palette here. `data-theme` on <html> swaps the shell (rail or
+   labelled, black or white), the card language (flat, filled, floating, chunky),
+   the type, the texture behind everything, and the band at the top of the page
+   (that last one lives in ThemeBand.tsx). Colour still comes from the variables.
+   Everything is scoped, so the original look is untouched. */
+
+/* Periwinkle: pastel page, white floating cards, icon rail, coral buttons. */
+[data-theme='periwinkle'] .spotlight {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 12% -10%, hsl(4 76% 60% / 0.16), transparent 65%),
+    radial-gradient(ellipse 65% 55% at 95% 0%, hsl(232 90% 72% / 0.5), transparent 70%);
+}
+[data-theme='periwinkle'] .app-sidebar {
+  background: hsl(232 46% 93%);
+  border-right: 0;
+}
+[data-theme='periwinkle'] .bg-card {
+  border-radius: 26px;
+  border-color: hsl(232 38% 89%);
+  box-shadow: 0 22px 46px -36px hsl(234 45% 32% / 0.85);
+}
+[data-theme='periwinkle'] .app-main { max-width: 80rem; }
+
+/* Quiet: cream and sage, serif headings, flatter and roomier. */
+[data-theme='quiet'] .spotlight {
+  background-image: radial-gradient(ellipse 85% 55% at 50% -12%, hsl(100 24% 68% / 0.35), transparent 72%);
+}
+[data-theme='quiet'] .app-sidebar {
+  background: hsl(90 16% 91%);
+  border-right-color: hsl(60 16% 83%);
+}
+[data-theme='quiet'] .bg-card {
+  border-radius: 14px;
+  border-color: hsl(60 16% 84%);
+  box-shadow: none;
+}
+[data-theme='quiet'] :is(h1, h2) {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+[data-theme='quiet'] .app-main { max-width: 68rem; }
+
+/* Intelly: black labelled sidebar, cream page, butter-filled cards, serif headings. */
+[data-theme='intelly'] .spotlight {
+  background-image: radial-gradient(ellipse 70% 50% at 50% -10%, hsl(46 90% 80% / 0.5), transparent 70%);
+}
+[data-theme='intelly'] .app-sidebar {
+  background: hsl(220 9% 12%);
+  border-right: 0;
+}
+[data-theme='intelly'] .app-sidebar :is(a, button, span, kbd) { color: hsl(40 26% 92%); }
+[data-theme='intelly'] .app-sidebar .text-muted-foreground { color: hsl(40 14% 70%); }
+[data-theme='intelly'] .app-sidebar :is(a, button):hover { background: hsl(40 30% 96% / 0.1); }
+[data-theme='intelly'] .bg-card {
+  border-radius: 22px;
+  border-color: hsl(40 14% 84%);
+  box-shadow: 0 16px 32px -28px hsl(220 12% 20% / 0.8);
+}
+[data-theme='intelly'] :is(h1, h2) {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+[data-theme='intelly'] .app-main { max-width: 78rem; }
+
+/* School: everything in one white shell on a pink-to-mint gradient. */
+[data-theme='school'] body {
+  background-image: linear-gradient(135deg, hsl(340 85% 90%) 0%, hsl(340 60% 96%) 42%, hsl(160 55% 90%) 100%);
+  background-attachment: fixed;
+}
+[data-theme='school'] .spotlight { background-image: none; }
+[data-theme='school'] .app-sidebar {
+  background: hsl(0 0% 100%);
+  border-right: 0;
+  box-shadow: 0 18px 40px -34px hsl(250 40% 30% / 0.9);
+}
+[data-theme='school'] .bg-card {
+  border-radius: 28px;
+  border-color: hsl(250 25% 93%);
+  box-shadow: 0 30px 60px -52px hsl(250 40% 30% / 0.95);
+}
+[data-theme='school'] :is(h1, h2) { letter-spacing: -0.025em; font-weight: 700; }
+[data-theme='school'] .app-main { max-width: 72rem; }
+
+/* Cakeshop: cream card stock, dot texture, red ribbon, hand-lettered headings. */
+[data-theme='cakeshop'] body {
+  background-image: radial-gradient(hsl(20 30% 40% / 0.1) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+[data-theme='cakeshop'] .spotlight {
+  background-image: radial-gradient(ellipse 70% 50% at 50% -10%, hsl(355 70% 70% / 0.28), transparent 70%);
+}
+[data-theme='cakeshop'] .app-sidebar {
+  background: hsl(40 46% 92%);
+  border-right-color: hsl(20 22% 82%);
+}
+[data-theme='cakeshop'] .bg-card {
+  border-radius: 18px;
+  border-color: hsl(20 22% 78%);
+  border-width: 1.5px;
+  box-shadow: 3px 3px 0 hsl(20 25% 80% / 0.6);
+}
+[data-theme='cakeshop'] :is(h1, h2) {
+  font-family: 'Caveat', 'Bradley Hand', cursive;
+  font-weight: 600;
+  font-size: 1.3em;
+  letter-spacing: 0.01em;
+}
+[data-theme='cakeshop'] .app-main { max-width: 74rem; }
 
 /* Batch 6: printable call sheet. The page itself sets `print:` utilities, but
    the app chrome (sidebar, help button, toasts) is rendered by the shell for

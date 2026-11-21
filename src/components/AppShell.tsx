@@ -22,7 +22,9 @@ import Tutorial from './Tutorial';
 import { previewId, exitPreview, pv } from '../lib/preview';
 import { memberViewOn, setMemberView } from '../lib/memberView';
 import { getActAs, stopActAs, type ActAsState } from '../lib/actAs';
-import { ACCENTS, useSidebarCollapsed, useAccent, useDensity } from '../lib/uiPrefs';
+import { useSidebarCollapsed, useDensity } from '../lib/uiPrefs';
+import { useTheme } from '../lib/theme';
+import ThemeBand from './ThemeBand';
 import { cn } from '@project/components/lib/utils';
 import { useMe } from '../lib/me';
 import { useAppSettings } from '../lib/appSettings';
@@ -117,7 +119,11 @@ function Shell() {
   const loc = useLocation();
   usePageView(loc.pathname);
   const { session } = useLivePresence();
-  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const [collapsedPref, setCollapsed] = useSidebarCollapsed();
+  // Ticket 1bbe2d65: periwinkle is an icon rail by design, so its theme forces
+  // the narrow sidebar. The collapse button still remembers the preference.
+  const { choice: themeChoice } = useTheme();
+  const collapsed = collapsedPref || themeChoice.theme === 'periwinkle';
   // Ticket 710307e1: the nav groups fold away, so a member can keep only the
   // things they actually use on screen. Remembered per browser, like the other
   // layout choices, and a group holding the page you are on always stays open.
@@ -134,7 +140,6 @@ function Shell() {
       try { localStorage.setItem('ashtec-nav-closed', JSON.stringify(next)); } catch { /* private mode */ }
       return next;
     });
-  const [accent, setAccent] = useAccent();
   // Ticket 8051f385: compact density drives the single-row sidebar footer and
   // the tightened spacing (via data-density on <html>).
   const [density] = useDensity();
@@ -262,11 +267,6 @@ function Shell() {
   ].filter((l) => showAdmin || (!memberView && l.to === '/admin/attendance')) as NavItem[];
   if (admin.length) groups.push({ label: 'Admin', items: admin });
 
-  const cycleAccent = () => {
-    const i = ACCENTS.findIndex((a) => a.id === accent);
-    setAccent(ACCENTS[(i + 1) % ACCENTS.length].id);
-  };
-
   const paletteItems: PaletteItem[] = useMemo(() => {
     const items: PaletteItem[] = [];
     // Pages, then doing-things, then the live data (events, shows, crew).
@@ -279,7 +279,6 @@ function Shell() {
     const actions: PaletteItem[] = [];
     if (canRunCheckIn) actions.push({ id: 'act:checkin', label: 'Open venue check-in', group: 'Actions', icon: DoorOpen, keywords: 'register attendance sign in', to: '/admin/attendance' });
     actions.push({ id: 'act:support', label: 'Submit a support request', group: 'Actions', icon: LifeBuoy, keywords: 'help bug report feedback problem helpdesk', run: () => window.dispatchEvent(new Event('ashtec:open-support')) });
-    actions.push({ id: 'act:accent', label: 'Change accent colour', group: 'Actions', icon: Palette, keywords: 'theme colour color theme', run: cycleAccent });
     actions.push({ id: 'act:sidebar', label: collapsed ? 'Expand sidebar' : 'Collapse sidebar', group: 'Actions', icon: collapsed ? PanelLeftOpen : PanelLeftClose, keywords: 'menu layout nav navigation', run: () => setCollapsed(!collapsed) });
     if (nonActor) actions.push({ id: 'act:settings', label: 'Open settings', group: 'Actions', icon: Settings2, keywords: 'profile account details', to: '/profile' });
     actions.push({ id: 'act:signout', label: 'Sign out', group: 'Actions', icon: LogOut, keywords: 'log out log out', run: signOut });
@@ -315,7 +314,7 @@ function Shell() {
     }
 
     return items;
-  }, [groups, nonActor, canRunCheckIn, collapsed, accent, search, me.isAdmin, setCollapsed, setAccent]);
+  }, [groups, nonActor, canRunCheckIn, collapsed, search, me.isAdmin, setCollapsed]);
 
   // The title in the mobile app bar: the deepest matching destination.
   const active = groups
@@ -556,6 +555,7 @@ function Shell() {
           </header>
 
           <main className="app-main mx-auto max-w-7xl px-4 pt-6 lg:px-8 lg:pt-8">
+            <ThemeBand />
             <OfflineBanner />
             <PresenceBanner hide={loc.pathname === '/attendance'} />
             {/* Keyed on the path so each page fades/slides in when you navigate.

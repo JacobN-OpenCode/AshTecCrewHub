@@ -53,7 +53,7 @@ import Widget from './pages/Widget';
 import Watch from './pages/Watch';
 import CallSheet from './pages/CallSheet';
 import { MeContext, type Me, type Mentor } from './lib/me';
-import { applyAccent, getAccent, applyAccessibilityPrefs } from './lib/uiPrefs';
+import { applyAccessibilityPrefs } from './lib/uiPrefs';
 import { noteAppVersion } from './lib/appVersion';
 import ThemeBuilder from './pages/ThemeBuilder';
 import { applyChoice } from './lib/theme';
@@ -67,7 +67,7 @@ applyAccessibilityPrefs();
 // The Mac app opens the site as /?app=1.1; remember which copy this browser has.
 noteAppVersion();
 // Apply the saved accent before first paint so the app never flashes the default.
-applyAccent(getAccent());
+// The theme owns colour now (ticket 1bbe2d65); the accent picker is gone.
 // Ticket 1bbe2d65: then the theme, so it wins over the accent when it is not the
 // original look. Both run before the first paint for the same reason.
 applyChoice();

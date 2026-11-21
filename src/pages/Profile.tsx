@@ -26,7 +26,7 @@ import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
 import { buildIcs, downloadIcs } from '../lib/ics';
-import { useSupportCollapsed, useAccent, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, useCatHidden, ACCENTS } from '../lib/uiPrefs';
+import { useSupportCollapsed, useSupportSameTab, useSidebarCollapsed, useDensity, useTicketPageSize, useTicketCustomCount, useTicketView, useTextScale, useHighContrast, useAdminLayout, useCatHidden } from '../lib/uiPrefs';
 import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 import { useSfxMuted, playSfx } from '../lib/sfx';
 import { NOTIFICATION_KINDS } from '../lib/notificationKinds';
@@ -810,7 +810,6 @@ function WhatsAppCommunity() {
  */
 function Preferences() {
   const [collapsed, setCollapsed] = useSupportCollapsed();
-  const [accent, setAccent] = useAccent();
   const [sameTab, setSameTab] = useSupportSameTab();
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   const [density, setDensity] = useDensity();
@@ -838,27 +837,8 @@ function Preferences() {
         </Button>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Accent colour</p>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Accent colour">
-          {ACCENTS.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              role="radio"
-              aria-checked={accent === a.id}
-              aria-label={a.label}
-              title={a.label}
-              onClick={() => setAccent(a.id)}
-              className={cn(
-                'h-9 w-9 rounded-full border-2 transition-transform',
-                accent === a.id ? 'border-foreground scale-110' : 'border-transparent hover:scale-105',
-              )}
-              style={{ backgroundColor: `hsl(${a.hsl})` }}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Ticket 1bbe2d65: the accent picker is gone. Two things were setting
+          colour and the theme kept losing to it. The theme owns it now. */}
 
       <label className="flex items-start justify-between gap-4 cursor-pointer">
         <span>

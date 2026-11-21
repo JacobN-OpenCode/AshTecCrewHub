@@ -1,228 +1,286 @@
 /**
- * Ticket 1bbe2d65: the theme builder.
+ * Ticket 1bbe2d65, second attempt.
  *
- * A theme is a base set of colours (the page, the cards, the borders) plus a few
- * named palettes that swap the one colour everything is built on. They are plain
- * CSS variables, applied inline on <html>, which is why a theme can change the
- * whole app without a stylesheet per theme: the dark rule and the accent
- * preference both lose to an inline style.
+ * The first version only swapped colour variables, and that was not what the
+ * pins showed: each one is a whole interface, with its own shell, its own card
+ * language and its own type. So a theme here is more than a palette. The
+ * variables below only carry colour; `data-theme` on <html> carries the rest
+ * (sidebar, cards, type, texture, header band) and the rules live in index.css.
  *
- * Light themes work the same way. The app still carries the `dark` class (four
- * `dark:` utilities and the backstage screens depend on it) but every colour we
- * care about is overridden by the inline variables, so a light theme still reads
- * light.
+ * Five themes come straight off the five pins. `ashtec` is the original and is
+ * deliberately left alone.
  */
-export type Palette = {
-  id: string;
-  name: string;
-  /** The colours this palette brings. Everything else comes from the theme. */
-  vars: Record<string, string>;
-};
 
-export type Theme = {
+export type Vars = Record<string, string>;
+
+export interface Palette {
   id: string;
   name: string;
   blurb: string;
-  /** True for the ones that paint a light page rather than a dark one. */
-  light: boolean;
-  base: Record<string, string>;
+  /** Only what changes between palettes inside the same theme. */
+  over: Vars;
+}
+
+export interface Theme {
+  id: string;
+  name: string;
+  /** One line for the picker card. */
+  blurb: string;
+  /** Where the look came from, so it is obvious this is a retheme and not a tint. */
+  from: string;
+  base: Vars;
   palettes: Palette[];
+}
+
+const DESTRUCTIVE: Vars = {
+  '--destructive': '0 72% 52%',
+  '--destructive-foreground': '0 0% 100%',
 };
 
-const DESTRUCTIVE = { '--destructive': '0 72% 52%', '--destructive-foreground': '0 0% 100%' };
-
-/** A palette is mostly one colour, so build the bundle from it. */
-function palette(
-  id: string,
-  name: string,
-  primary: string,
-  primaryFg: string,
-  accent: string,
-  accentFg: string,
-): Palette {
-  return {
-    id,
-    name,
-    vars: {
-      '--primary': primary,
-      '--primary-foreground': primaryFg,
-      '--ring': primary,
-      '--accent': accent,
-      '--accent-foreground': accentFg,
-    },
-  };
-}
+const palette = (id: string, name: string, blurb: string, over: Vars): Palette => ({ id, name, blurb, over });
 
 export const THEMES: Theme[] = [
   {
     id: 'ashtec',
     name: 'AshTec',
     blurb: 'The original. Ink and cream, warm amber edges.',
-    light: false,
+    from: 'Where the app started: dark, quiet, out of the way of the work.',
     base: {
+      ...DESTRUCTIVE,
       '--background': '230 22% 6%',
       '--foreground': '40 20% 94%',
       '--card': '230 20% 9%',
       '--card-foreground': '40 20% 94%',
       '--popover': '230 20% 9%',
       '--popover-foreground': '40 20% 94%',
-      '--muted': '230 16% 13%',
-      '--muted-foreground': '230 8% 62%',
-      '--border': '230 14% 17%',
-      '--input': '230 14% 20%',
+      '--primary': '38 96% 56%',
+      '--primary-foreground': '230 30% 7%',
       '--secondary': '230 16% 14%',
       '--secondary-foreground': '40 20% 94%',
-      ...DESTRUCTIVE,
+      '--muted': '230 16% 13%',
+      '--muted-foreground': '230 8% 62%',
+      '--accent': '36 50% 16%',
+      '--accent-foreground': '38 95% 70%',
+      '--border': '230 14% 17%',
+      '--input': '230 14% 20%',
+      '--ring': '38 96% 56%',
+      '--ink': '40 20% 94%',
+      '--tint-1': '230 18% 13%',
+      '--tint-2': '230 18% 16%',
+      '--tint-3': '230 18% 19%',
+      '--tint-4': '230 18% 22%',
     },
     palettes: [
-      palette('amber', 'Amber', '38 96% 56%', '230 30% 7%', '36 50% 16%', '38 95% 70%'),
-      palette('ember', 'Ember', '0 72% 55%', '0 0% 100%', '0 45% 16%', '0 80% 78%'),
-      palette('ivory', 'Ivory', '45 85% 68%', '40 40% 10%', '45 30% 18%', '45 90% 78%'),
+      palette('amber', 'Amber', 'The one everybody knows.', {}),
+      palette('ember', 'Ember', 'Warmer, closer to a stage light.', { '--primary': '18 90% 58%', '--ring': '18 90% 58%', '--primary-foreground': '20 40% 8%' }),
+      palette('ivory', 'Ivory', 'Paler edges, same dark room.', { '--primary': '40 30% 92%', '--primary-foreground': '230 30% 8%', '--ring': '40 30% 92%' }),
     ],
   },
+
   {
-    id: 'christmas',
-    name: 'Christmas',
-    blurb: 'Deep pine, gold lights, and a bit of red ribbon.',
-    light: false,
+    id: 'periwinkle',
+    name: 'Periwinkle',
+    blurb: 'Icon rail, white cards, a greeting and a bear.',
+    from: 'The bold web-layout pin: pastel dashboard, icon-only rail, one wide card that says hello, notifications down the side.',
     base: {
-      '--background': '162 30% 7%',
-      '--foreground': '45 35% 95%',
-      '--card': '162 26% 10%',
-      '--card-foreground': '45 35% 95%',
-      '--popover': '162 26% 10%',
-      '--popover-foreground': '45 35% 95%',
-      '--muted': '162 20% 14%',
-      '--muted-foreground': '150 10% 66%',
-      '--border': '162 18% 19%',
-      '--input': '162 18% 22%',
-      '--secondary': '162 22% 15%',
-      '--secondary-foreground': '45 35% 95%',
       ...DESTRUCTIVE,
-    },
-    palettes: [
-      palette('holly', 'Holly', '150 55% 46%', '150 45% 6%', '150 40% 18%', '140 60% 78%'),
-      palette('gold', 'Gold', '45 85% 60%', '40 60% 8%', '45 45% 18%', '45 90% 78%'),
-      palette('berry', 'Berry', '350 68% 58%', '0 0% 100%', '350 40% 18%', '350 80% 80%'),
-      palette('frost', 'Frost', '195 70% 62%', '200 55% 8%', '195 40% 18%', '195 80% 82%'),
-    ],
-  },
-  {
-    id: 'studio',
-    name: 'Studio',
-    blurb: 'The fancy one. Pale paper, pink and yellow, dark ink text.',
-    light: true,
-    base: {
-      '--background': '40 30% 97%',
-      '--foreground': '340 18% 12%',
+      '--background': '232 55% 95%',
+      '--foreground': '234 30% 18%',
       '--card': '0 0% 100%',
-      '--card-foreground': '340 18% 12%',
+      '--card-foreground': '234 30% 18%',
       '--popover': '0 0% 100%',
-      '--popover-foreground': '340 18% 12%',
-      '--muted': '30 20% 94%',
-      '--muted-foreground': '340 8% 40%',
-      '--border': '30 15% 87%',
-      '--input': '30 15% 87%',
-      '--secondary': '30 22% 94%',
-      '--secondary-foreground': '340 18% 12%',
-      ...DESTRUCTIVE,
+      '--popover-foreground': '234 30% 18%',
+      '--primary': '4 76% 60%',
+      '--primary-foreground': '0 0% 100%',
+      '--secondary': '232 45% 90%',
+      '--secondary-foreground': '234 30% 20%',
+      '--muted': '232 42% 92%',
+      '--muted-foreground': '234 16% 44%',
+      '--accent': '232 46% 88%',
+      '--accent-foreground': '234 30% 20%',
+      '--border': '232 38% 87%',
+      '--input': '232 38% 82%',
+      '--ring': '4 76% 60%',
+      '--ink': '234 34% 22%',
+      '--tint-1': '232 62% 94%',
+      '--tint-2': '350 78% 94%',
+      '--tint-3': '45 92% 90%',
+      '--tint-4': '160 55% 90%',
     },
     palettes: [
-      palette('blush', 'Blush', '340 75% 55%', '0 0% 100%', '340 80% 95%', '340 60% 28%'),
-      palette('butter', 'Butter', '45 92% 55%', '40 60% 10%', '45 90% 93%', '40 70% 28%'),
-      palette('peach', 'Peach', '20 85% 58%', '20 60% 10%', '20 85% 94%', '20 70% 28%'),
-      palette('ink', 'Ink', '235 25% 22%', '0 0% 100%', '235 30% 94%', '235 40% 26%'),
+      palette('coral', 'Coral', 'Red buttons on blue. Straight off the pin.', {}),
+      palette('cobalt', 'Cobalt', 'Everything blue, quieter.', { '--primary': '228 68% 56%', '--ring': '228 68% 56%' }),
+      palette('violet', 'Violet', 'The same shapes, colder.', { '--primary': '268 62% 60%', '--ring': '268 62% 60%' }),
     ],
   },
+
   {
-    id: 'dashboard',
-    name: 'Dashboard',
-    blurb: 'The pale blue one, with the crew cat where the bear was.',
-    light: true,
+    id: 'quiet',
+    name: 'Quiet',
+    blurb: 'Cream paper, sage, serifs, and a line of pines.',
+    from: 'The writing-app pin: cream and sage, a hand-drawn forest across the top, serif headings, everything calmer and slower.',
     base: {
-      '--background': '205 45% 97%',
-      '--foreground': '215 30% 15%',
+      ...DESTRUCTIVE,
+      '--background': '42 30% 95%',
+      '--foreground': '150 12% 20%',
+      '--card': '44 40% 98%',
+      '--card-foreground': '150 12% 20%',
+      '--popover': '44 40% 98%',
+      '--popover-foreground': '150 12% 20%',
+      '--primary': '145 20% 34%',
+      '--primary-foreground': '44 40% 98%',
+      '--secondary': '100 16% 88%',
+      '--secondary-foreground': '150 14% 22%',
+      '--muted': '90 14% 90%',
+      '--muted-foreground': '150 8% 42%',
+      '--accent': '96 20% 86%',
+      '--accent-foreground': '150 16% 22%',
+      '--border': '60 14% 84%',
+      '--input': '60 12% 80%',
+      '--ring': '145 20% 40%',
+      '--ink': '150 16% 24%',
+      '--tint-1': '100 22% 90%',
+      '--tint-2': '40 32% 93%',
+      '--tint-3': '150 14% 88%',
+      '--tint-4': '20 26% 92%',
+    },
+    palettes: [
+      palette('sage', 'Sage', 'Green on cream. The pin exactly.', {}),
+      palette('moss', 'Moss', 'Deeper, more forest.', { '--primary': '120 18% 28%', '--ring': '120 18% 34%' }),
+      palette('clay', 'Clay', 'Warm brown instead of green.', { '--primary': '18 30% 44%', '--ring': '18 30% 48%' }),
+    ],
+  },
+
+  {
+    id: 'intelly',
+    name: 'Intelly',
+    blurb: 'Black sidebar, pastel cards, black pill buttons.',
+    from: 'The healthcare-dashboard pin: black labelled sidebar, cream page, butter and lilac card fills, tight serif headings, a timeline down the right.',
+    base: {
+      ...DESTRUCTIVE,
+      '--background': '40 28% 94%',
+      '--foreground': '220 8% 14%',
+      '--card': '44 70% 92%',
+      '--card-foreground': '220 8% 14%',
+      '--popover': '40 32% 97%',
+      '--popover-foreground': '220 8% 14%',
+      '--primary': '220 9% 12%',
+      '--primary-foreground': '40 32% 97%',
+      '--secondary': '44 55% 90%',
+      '--secondary-foreground': '220 8% 16%',
+      '--muted': '40 20% 90%',
+      '--muted-foreground': '220 6% 40%',
+      '--accent': '340 60% 92%',
+      '--accent-foreground': '220 8% 16%',
+      '--border': '40 12% 82%',
+      '--input': '40 12% 78%',
+      '--ring': '220 9% 20%',
+      '--ink': '220 10% 12%',
+      '--tint-1': '46 90% 88%',
+      '--tint-2': '340 70% 92%',
+      '--tint-3': '150 32% 88%',
+      '--tint-4': '265 45% 92%',
+    },
+    palettes: [
+      palette('butter', 'Butter', 'Yellow cards on cream, black type.', {}),
+      palette('rose', 'Rose', 'Pink cards, same black sidebar.', { '--card': '342 68% 93%', '--accent': '46 90% 88%' }),
+      palette('lilac', 'Lilac', 'The colder of the three.', { '--card': '265 48% 93%', '--accent': '150 32% 88%' }),
+    ],
+  },
+
+  {
+    id: 'school',
+    name: 'School',
+    blurb: 'A white shell floating on pink and mint.',
+    from: 'The online-education pin: everything sits in one big rounded white shell, mint and pink behind it, filled stat cards with a circular arrow in the corner.',
+    base: {
+      ...DESTRUCTIVE,
+      '--background': '340 60% 96%',
+      '--foreground': '250 20% 18%',
       '--card': '0 0% 100%',
-      '--card-foreground': '215 30% 15%',
+      '--card-foreground': '250 20% 18%',
       '--popover': '0 0% 100%',
-      '--popover-foreground': '215 30% 15%',
-      '--muted': '205 35% 93%',
-      '--muted-foreground': '212 12% 42%',
-      '--border': '205 25% 88%',
-      '--input': '205 25% 88%',
-      '--secondary': '205 35% 94%',
-      '--secondary-foreground': '215 30% 15%',
-      ...DESTRUCTIVE,
+      '--popover-foreground': '250 20% 18%',
+      '--primary': '342 72% 60%',
+      '--primary-foreground': '0 0% 100%',
+      '--secondary': '160 45% 90%',
+      '--secondary-foreground': '250 20% 20%',
+      '--muted': '250 20% 94%',
+      '--muted-foreground': '250 10% 45%',
+      '--accent': '160 50% 88%',
+      '--accent-foreground': '250 20% 20%',
+      '--border': '250 22% 91%',
+      '--input': '250 18% 86%',
+      '--ring': '342 72% 60%',
+      '--ink': '250 24% 22%',
+      '--tint-1': '160 55% 88%',
+      '--tint-2': '342 78% 92%',
+      '--tint-3': '46 95% 88%',
+      '--tint-4': '265 50% 92%',
     },
     palettes: [
-      palette('sky', 'Sky', '205 85% 50%', '0 0% 100%', '200 70% 94%', '205 60% 26%'),
-      palette('mint', 'Mint', '165 55% 40%', '0 0% 100%', '165 50% 94%', '165 60% 22%'),
-      palette('slate', 'Slate', '215 25% 30%', '0 0% 100%', '215 25% 94%', '215 30% 24%'),
-      palette('lilac', 'Lilac', '265 60% 58%', '0 0% 100%', '265 55% 95%', '265 45% 28%'),
+      palette('blossom', 'Blossom', 'Pink buttons, mint behind.', {}),
+      palette('mint', 'Mint', 'Green buttons, calmer.', { '--primary': '160 45% 42%', '--ring': '160 45% 42%' }),
+      palette('lemon', 'Lemon', 'Bright, a bit loud.', { '--primary': '42 90% 52%', '--primary-foreground': '250 24% 16%', '--ring': '42 90% 52%' }),
     ],
   },
+
   {
-    id: 'plum',
-    name: 'Midnight plum',
-    blurb: 'Very dark violet, for people who work late.',
-    light: false,
+    id: 'cakeshop',
+    name: 'Cakeshop',
+    blurb: 'Cream paper, red ribbon, pale blue cards, dots.',
+    from: 'The cake-shop branding pin: cream card stock, hand-lettered headings, a red accent, pale blue panels and a halftone dot texture.',
     base: {
-      '--background': '270 30% 8%',
-      '--foreground': '280 20% 95%',
-      '--card': '270 26% 11%',
-      '--card-foreground': '280 20% 95%',
-      '--popover': '270 26% 11%',
-      '--popover-foreground': '280 20% 95%',
-      '--muted': '270 20% 15%',
-      '--muted-foreground': '275 10% 66%',
-      '--border': '270 18% 20%',
-      '--input': '270 18% 23%',
-      '--secondary': '270 22% 16%',
-      '--secondary-foreground': '280 20% 95%',
       ...DESTRUCTIVE,
+      '--background': '40 50% 94%',
+      '--foreground': '20 22% 18%',
+      '--card': '202 42% 92%',
+      '--card-foreground': '215 25% 18%',
+      '--popover': '40 50% 97%',
+      '--popover-foreground': '20 22% 18%',
+      '--primary': '355 68% 52%',
+      '--primary-foreground': '40 50% 98%',
+      '--secondary': '40 40% 88%',
+      '--secondary-foreground': '20 22% 20%',
+      '--muted': '40 32% 90%',
+      '--muted-foreground': '20 12% 42%',
+      '--accent': '202 42% 86%',
+      '--accent-foreground': '215 25% 20%',
+      '--border': '20 20% 80%',
+      '--input': '20 18% 78%',
+      '--ring': '355 68% 52%',
+      '--ink': '20 25% 22%',
+      '--tint-1': '202 42% 90%',
+      '--tint-2': '40 48% 90%',
+      '--tint-3': '355 48% 92%',
+      '--tint-4': '20 26% 90%',
     },
     palettes: [
-      palette('violet', 'Violet', '265 70% 62%', '0 0% 100%', '265 40% 20%', '265 80% 82%'),
-      palette('orchid', 'Orchid', '300 65% 62%', '0 0% 100%', '300 35% 20%', '300 80% 84%'),
-      palette('teal', 'Teal', '175 60% 45%', '180 40% 6%', '175 35% 18%', '175 70% 78%'),
-      palette('gold', 'Gold', '42 85% 58%', '40 60% 8%', '42 35% 18%', '42 90% 78%'),
-    ],
-  },
-  {
-    id: 'paper',
-    name: 'Paper',
-    blurb: 'Cream pages and quiet type. Closest to a printed programme.',
-    light: true,
-    base: {
-      '--background': '42 35% 96%',
-      '--foreground': '30 15% 15%',
-      '--card': '45 40% 99%',
-      '--card-foreground': '30 15% 15%',
-      '--popover': '45 40% 99%',
-      '--popover-foreground': '30 15% 15%',
-      '--muted': '40 20% 91%',
-      '--muted-foreground': '30 10% 40%',
-      '--border': '38 18% 84%',
-      '--input': '38 18% 84%',
-      '--secondary': '40 22% 92%',
-      '--secondary-foreground': '30 15% 15%',
-      ...DESTRUCTIVE,
-    },
-    palettes: [
-      palette('sepia', 'Sepia', '30 45% 35%', '40 40% 96%', '40 60% 92%', '30 50% 24%'),
-      palette('forest', 'Forest', '150 40% 32%', '0 0% 100%', '150 30% 93%', '150 45% 22%'),
-      palette('brick', 'Brick', '10 60% 45%', '0 0% 100%', '10 55% 94%', '10 60% 30%'),
-      palette('navy', 'Navy', '220 45% 30%', '0 0% 100%', '220 40% 93%', '220 45% 24%'),
+      palette('cherry', 'Cherry', 'Red ribbon on cream.', {}),
+      palette('cocoa', 'Cocoa', 'Brown instead of red.', { '--primary': '22 35% 34%', '--ring': '22 35% 40%' }),
+      palette('vanilla', 'Vanilla', 'Gold, softer.', { '--primary': '40 55% 58%', '--primary-foreground': '20 25% 16%', '--ring': '40 55% 58%' }),
     ],
   },
 ];
 
-export const findTheme = (id: string): Theme => THEMES.find((t) => t.id === id) ?? THEMES[0];
-export const findPalette = (theme: Theme, id: string): Palette =>
-  theme.palettes.find((p) => p.id === id) ?? theme.palettes[0];
+export const DEFAULT_THEME = 'ashtec';
+export const DEFAULT_PALETTE = 'amber';
 
-/** The full set of variables one theme + palette asks for. */
-export function themeVars(themeId: string, paletteId: string): Record<string, string> {
+export function findTheme(id: string): Theme {
+  return THEMES.find((t) => t.id === id) ?? THEMES[0];
+}
+
+export function findPalette(themeId: string, paletteId?: string): Palette {
   const theme = findTheme(themeId);
-  return { ...theme.base, ...findPalette(theme, paletteId).vars };
+  return theme.palettes.find((p) => p.id === paletteId) ?? theme.palettes[0];
+}
+
+/**
+ * The full variable set for one theme + palette. Every theme returns the same
+ * keys, which is what lets `applyVars` clear a previous theme cleanly.
+ */
+export function themeVars(themeId: string, paletteId?: string): Vars {
+  const theme = findTheme(themeId);
+  const p = findPalette(themeId, paletteId);
+  return { ...theme.base, ...p.over };
 }

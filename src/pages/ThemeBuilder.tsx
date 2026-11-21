@@ -68,7 +68,8 @@ function ThemeBuilder() {
             <PaletteIcon className="h-6 w-6 text-primary" /> Themes
           </h1>
           <p className="text-muted-foreground">
-            Six looks, a few palettes each, and five of your own. It changes as you click.
+            Five looks taken off the pins, plus the original. Each one changes the shell, the cards
+            and the type, not just the colour. It moves as you click.
           </p>
         </div>
         <Button
@@ -100,8 +101,9 @@ function ThemeBuilder() {
                 {selected && <Check className="h-4 w-4 text-primary" />}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{t.blurb}</p>
+              <p className="mt-2 text-xs text-muted-foreground/80">{t.from}</p>
               <div className="mt-3">
-                <Swatches vars={{ ...t.base, ...t.palettes[0].vars }} />
+                <Swatches vars={themeVars(t.id, t.palettes[0].id)} />
               </div>
             </button>
           );
@@ -124,7 +126,7 @@ function ThemeBuilder() {
         <div>
           <h2 className="font-semibold">Colours for {theme.name}</h2>
           <p className="text-sm text-muted-foreground">
-            One colour does most of the work: buttons, links, the calendar, the cat's collar.
+            Same shell, different colour. Buttons, links, the calendar and the cat's collar follow it.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -142,7 +144,7 @@ function ThemeBuilder() {
               >
                 <span
                   className="h-3.5 w-3.5 rounded-full border border-black/20"
-                  style={{ background: `hsl(${p.vars['--primary']})` }}
+                  style={{ background: `hsl(${themeVars(theme.id, p.id)['--primary']})` }}
                 />
                 {p.name}
               </button>
@@ -157,7 +159,7 @@ function ThemeBuilder() {
           <p className="text-sm text-muted-foreground">
             {full
               ? `That is all ${MAX_SAVED}. Delete one to make room.`
-              : `Name the colours you have picked and it stays here. ${MAX_SAVED - saved.length} of ${MAX_SAVED} left.`}
+              : `Name the colours you have picked and it stays here. ${MAX_SAVED - saved.length} of ${MAX_SAVED} left. A saved look keeps the colour only, not the shell.`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -209,8 +211,8 @@ function ThemeBuilder() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Kept in this browser only, so it does not follow you to another computer. The original
-        theme still follows the accent colour on My settings; any other theme brings its own.
+        Kept in this browser only, so it does not follow you to another computer. On a shared
+        machine the next person gets their own look back.
       </p>
     </div>
   );
