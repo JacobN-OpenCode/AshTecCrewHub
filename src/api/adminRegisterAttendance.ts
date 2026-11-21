@@ -34,6 +34,9 @@ export default createEndpoint({
     present: z.boolean().optional(),
     state: STATE.optional(),
     reason: z.string().max(200).optional(),
+    // ISO timestamp: when a member is away for a while, the time they said
+    // they would be back. Only yellow keeps one.
+    returnAt: z.string().optional(),
   }),
   outputSchema: z.object({ ok: z.boolean(), state: STATE }),
   execute: async ({ input, context }) => {
@@ -42,6 +45,12 @@ export default createEndpoint({
     const reason = (input.reason ?? '').trim().replace(/\s+/g, ' ');
     if ((state === 'yellow' || state === 'red') && reason.length < 2) {
       throw new Error('Give a reason for that, so the register says why.');
+    }
+
+    let returnAt: string | null = null;
+    if (state === 'yellow' && input.returnAt) {
+      if (Number.isNaN(Date.parse(input.returnAt))) throw new Error('That is not a time I can read. Try again.');
+      returnAt = new Date(input.returnAt).toISOString();
     }
 
     const existing = (await zite.attendance.findAll({ filters: { subEvent: input.subEventId }, limit: 2000 })).records
@@ -60,6 +69,7 @@ export default createEndpoint({
       status: state === 'green' ? 'Expected Arrival' : 'Not Attending',
       reason: state === 'green' ? '' : reason,
       registerState: state,
+      returnAt,
       byAdmin: true,
     }]);
     return { ok: true, state };

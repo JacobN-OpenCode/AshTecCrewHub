@@ -308,9 +308,15 @@ export async function notifyOverdueReturn(memberId: string, name: string, expect
     }
   }
   const when = new Date(expectedBackAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const admins = (await adminRecipients()).filter((id) => id !== memberId);
-  if (admins.length) {
-    await sendToMembers(admins, {
+  // One admin alert per person per return time. The hourly pass would otherwise
+  // repeat itself for as long as the row says "away", and a register can stay
+  // yellow for a whole afternoon.
+  const told: string[] = [];
+  for (const admin of (await adminRecipients()).filter((id) => id !== memberId)) {
+    if (await claimNotification(admin, 'overdue-return-admin', expectedBackAt)) told.push(admin);
+  }
+  if (told.length) {
+    await sendToMembers(told, {
       title: 'Not returned yet',
       body: `${name} said they would be back by ${when}.`,
       url: '/admin/attendance',

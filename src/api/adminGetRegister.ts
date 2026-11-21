@@ -74,7 +74,10 @@ export default createEndpoint({
       showIds.length ? zite.showResponses.findAll({ limit: 4000 }) : Promise.resolve({ records: [] }),
     ]);
 
-    const attByMember = new Map<string, { status: string; byAdmin: boolean; state: string; reason: string }>();
+    const attByMember = new Map<
+      string,
+      { status: string; byAdmin: boolean; state: string; reason: string; returnAt: string | null }
+    >();
     for (const a of attRecords.records) {
       const mid = ids(a.member)[0];
       if (!mid) continue;
@@ -87,6 +90,8 @@ export default createEndpoint({
           ? mark
           : a.status === 'Expected Arrival' && a.enteredByAdmin ? 'green' : '',
         reason: a.reason ?? '',
+        // "Away until 14:30", set when an admin marks a yellow row.
+        returnAt: ((a as unknown as { returnAt?: string | null }).returnAt ?? null) as string | null,
       });
     }
 
@@ -119,6 +124,10 @@ export default createEndpoint({
           // The register colour, and the reason that came with it.
           state: att?.state ?? '',
           reason: att?.state ? att.reason : '',
+          // Away with a time that has already passed: someone should go and
+          // find them (ticket 2bb49af3).
+          returnAt: att?.state === 'yellow' ? (att.returnAt ?? null) : null,
+          overdue: !!(att?.state === 'yellow' && att.returnAt && Date.parse(att.returnAt) < Date.now()),
           rsvp: att
             ? att.status === 'Expected Arrival' && !att.byAdmin
               ? 'Coming'

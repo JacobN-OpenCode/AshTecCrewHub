@@ -120,6 +120,26 @@ export default createEndpoint({
       overdue++;
     }
 
+    // 4. The register's own "back by". An admin marks someone away for a while
+    //    and says when they should be back; once that time passes the same
+    //    overdue alert goes out, so nobody has to watch the clock (ticket
+    //    2bb49af3). Only today's events, because a stale row from last week is
+    //    history, not a missing person.
+    const todaysEvents = new Set(subs.records.filter((s) => (s.date ?? '') === today).map((s) => s.id));
+    for (const a of att.records) {
+      const subId = ids(a.subEvent)[0] ?? '';
+      if (!todaysEvents.has(subId)) continue;
+      const row = a as unknown as { registerState?: string; returnAt?: string | null };
+      if (row.registerState !== 'yellow' || !row.returnAt) continue;
+      if (Date.parse(row.returnAt) > now) continue;
+      const memberId = ids(a.member)[0];
+      if (!memberId) continue;
+      const m = members.records.find((x) => x.id === memberId);
+      const name = m ? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim() || 'A crew member' : 'A crew member';
+      await notifyOverdueReturn(memberId, name, row.returnAt);
+      overdue++;
+    }
+
     return { date: today, forms, checkins, overdue };
   },
 });

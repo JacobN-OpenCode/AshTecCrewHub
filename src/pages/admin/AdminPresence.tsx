@@ -44,6 +44,9 @@ type Row = {
   ticked: boolean; rsvp: string; expected: boolean;
   // The register colour, and the reason that came with it.
   state: Mark; reason: string;
+  // Yellow only: the time they said they would be back, and whether that time
+  // has already gone by.
+  returnAt?: string | null; overdue?: boolean;
 };
 
 /** Green is in, yellow is away for a while, red is not in at all. */
@@ -57,6 +60,22 @@ const MARKS = [
 // taps first and typing only if none of them fit.
 const AWAY_REASONS = ['Lunch', 'Dinner', 'Meeting with someone', 'Called to the office', 'In another lesson'];
 const OUT_REASONS = ['External appointment', 'Unwell', 'Not in school today', 'Left early'];
+
+/** 14:30 from an ISO timestamp, in the browser's own timezone. */
+function hhmm(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** A HH:MM clock time hung on today's date. */
+function isoAt(time: string): string | null {
+  const [h, m] = time.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
 
 const tint = (state: Mark) =>
   state === 'green' ? 'bg-emerald-500/5'
@@ -108,6 +127,8 @@ export default function AdminCheckIn() {
   const [busy, setBusy] = useState('');
   const [reasonFor, setReasonFor] = useState<{ member: Row; colour: 'yellow' | 'red' } | null>(null);
   const [reasonText, setReasonText] = useState('');
+  // The "back by" clock, kept as HH:MM because that is what the time field gives.
+  const [returnTime, setReturnTime] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState('');
@@ -193,13 +214,19 @@ export default function AdminCheckIn() {
   };
 
   /** Write one colour straight away. Every tap lands on the attendance record. */
-  const write = async (m: Row, state: Mark, reason = '') => {
+  const write = async (m: Row, state: Mark, reason = '', returnAt: string | null = null) => {
     if (busy) return;
     setBusy(m.id);
     // Optimistic: a door queue should not wait on a round trip to show a colour.
-    setRoster((r) => (r ? { ...r, members: r.members.map((x) => (x.id === m.id ? { ...x, state, reason, ticked: state === 'green' } : x)) } : r));
+    setRoster((r) => (r ? { ...r, members: r.members.map((x) => (x.id === m.id ? { ...x, state, reason, returnAt, overdue: false, ticked: state === 'green' } : x)) } : r));
     try {
-      await adminRegisterAttendance({ subEventId: chosen, memberId: m.id, state, ...(reason ? { reason } : {}) });
+      await adminRegisterAttendance({
+        subEventId: chosen,
+        memberId: m.id,
+        state,
+        ...(reason ? { reason } : {}),
+        ...(returnAt ? { returnAt } : {}),
+      });
       await loadRoster(chosen, true);
     } catch (e) {
       toast.error((e as Error).message);
@@ -220,6 +247,7 @@ export default function AdminCheckIn() {
     if (colour === 'green') { void write(m, 'green'); return; }
     setReasonFor({ member: m, colour });
     setReasonText(m.reason || '');
+    setReturnTime(m.returnAt ? hhmm(m.returnAt) : '');
   };
 
   const saveReason = (colour: 'yellow' | 'red') => {
@@ -228,7 +256,11 @@ export default function AdminCheckIn() {
     if (!target || reason.length < 2) return;
     setReasonFor(null);
     setReasonText('');
-    void write(target.member, colour, reason);
+    setReturnTime('');
+    // "Away until 14:30": hung on today, because a register only ever asks
+    // about now.
+    const back = colour === 'yellow' && returnTime ? isoAt(returnTime) : null;
+    void write(target.member, colour, reason, back);
   };
 
   const startDoor = async () => {
@@ -497,6 +529,12 @@ export default function AdminCheckIn() {
                   m.state === 'yellow' ? 'text-amber-500' : m.state === 'red' ? 'text-rose-500' : 'text-muted-foreground',
                 )}>
                   {m.reason}
+                  {m.returnAt && (
+                    <span className={m.overdue ? 'text-rose-500' : 'text-muted-foreground'}>
+                      {' · '}
+                      {m.overdue ? `not back yet (was due ${hhmm(m.returnAt)})` : `back by ${hhmm(m.returnAt)}`}
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -575,6 +613,23 @@ export default function AdminCheckIn() {
             placeholder="Or type the reason"
             className="h-11"
           />
+          {reasonFor?.colour === 'yellow' && (
+            <div className="space-y-1.5">
+              <label htmlFor="back-by" className="text-sm font-medium">
+                Back by <span className="font-normal text-muted-foreground">(optional)</span>
+              </label>
+              <Input
+                id="back-by"
+                type="time"
+                value={returnTime}
+                onChange={(e) => setReturnTime(e.target.value)}
+                className="h-11 w-40"
+              />
+              <p className="text-xs text-muted-foreground">
+                If they are not back by then, the register flags them and the admins get a notification.
+              </p>
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
@@ -582,6 +637,7 @@ export default function AdminCheckIn() {
                 const target = reasonFor;
                 setReasonFor(null);
                 setReasonText('');
+                setReturnTime('');
                 if (target) void write(target.member, '');
               }}
             >
