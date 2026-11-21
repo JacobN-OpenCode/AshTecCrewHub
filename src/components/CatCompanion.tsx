@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cat } from 'lucide-react';
@@ -12,13 +12,50 @@ import { playSfx } from '../lib/sfx';
  *
  * It sits quietly in the corner and now and then says something, which is the
  * whole of "more of the cat". Feedback round 2: it is desktop-only now (it got
- * in the way on phones) and the Hide button is gone.
+ * in the way on phones) and the Hide button is gone. Five quick taps decapitate
+ * it and silence it, which is ticket f009cd42's other way out.
  */
 export default function CatCompanion() {
-  const [hidden] = useCatHidden();
+  const [hidden, setCatHidden] = useCatHidden();
   const { catName } = useAppSettings();
   const [line, setLine] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  /**
+   * Ticket f009cd42: five quick taps and the cat loses its head, which is also
+   * the second way to silence it (the switch on the cat page is the first).
+   *
+   * Taps are timed rather than counted so a slow double tap is just a click, and
+   * the trip to the cat page waits a moment so five fast taps never navigate
+   * halfway through the fifth.
+   */
+  const taps = useRef<number[]>([]);
+  const goTimer = useRef<number | null>(null);
+  const [chopped, setChopped] = useState(false);
+
+  function chop() {
+    taps.current = [];
+    if (goTimer.current) { window.clearTimeout(goTimer.current); goTimer.current = null; }
+    playSfx('error');
+    setChopped(true);
+    setLine('...ow.');
+    window.setTimeout(() => setCatHidden(true), 1500);
+  }
+
+  function tap() {
+    if (chopped) return;
+    const now = Date.now();
+    // The window is generous enough to survive five real taps, short enough
+    // that idle clicking on the cat does not eventually kill it.
+    taps.current = [...taps.current, now].filter((t) => now - t < 1800);
+    if (taps.current.length >= 5) { chop(); return; }
+    playSfx('pop');
+    if (goTimer.current) window.clearTimeout(goTimer.current);
+    goTimer.current = window.setTimeout(() => navigate('/mascot'), 340);
+  }
+
+  // A fresh page load should always bring back a head, if the cat is around.
+  useEffect(() => { if (!hidden) setChopped(false); }, [hidden]);
 
   // Say something shortly after arriving, then keep it to a slow rotation so it
   // is company rather than noise.
@@ -55,21 +92,58 @@ export default function CatCompanion() {
 
       <button
         type="button"
-        onClick={() => { playSfx('pop'); navigate('/mascot'); }}
-        title={`${catName}, the crew cat`}
-        aria-label={`Open the ${catName} page`}
+        onClick={tap}
+        title={chopped ? `${catName} has left` : `${catName}, the crew cat`}
+        aria-label={chopped ? `${catName} has left` : `Open the ${catName} page`}
         className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
-        <motion.img
-          src={MASCOT.image}
-          alt=""
-          width={56}
-          height={58}
-          draggable={false}
-          animate={{ y: [0, -4, 0] }}
-          transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
-          className="h-14 w-14 drop-shadow-lg transition-transform hover:scale-105"
-        />
+        {chopped ? (
+          // Two halves of one picture: the head slides off one way, the body
+          // slumps the other, with a bright line where they parted.
+          <span className="relative block h-14 w-14" aria-hidden="true">
+            <motion.img
+              src={MASCOT.image}
+              alt=""
+              width={56}
+              height={58}
+              draggable={false}
+              initial={{ y: 0, rotate: 0 }}
+              animate={{ y: -16, rotate: -18, opacity: 0 }}
+              transition={{ duration: 1.2, ease: 'easeIn' }}
+              style={{ clipPath: 'inset(0 0 46% 0)' }}
+              className="absolute inset-0 h-14 w-14 drop-shadow-lg"
+            />
+            <motion.img
+              src={MASCOT.image}
+              alt=""
+              width={56}
+              height={58}
+              draggable={false}
+              initial={{ y: 0, rotate: 0 }}
+              animate={{ y: 4, rotate: 4, opacity: 0 }}
+              transition={{ duration: 1.2, ease: 'easeIn', delay: 0.35 }}
+              style={{ clipPath: 'inset(46% 0 0 0)' }}
+              className="absolute inset-0 h-14 w-14 drop-shadow-lg"
+            />
+            <motion.span
+              initial={{ opacity: 1, scaleX: 0.4 }}
+              animate={{ opacity: 0, scaleX: 1.15 }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+              className="absolute left-0 right-0 top-[46%] h-[2px] rounded-full bg-red-500"
+            />
+          </span>
+        ) : (
+          <motion.img
+            src={MASCOT.image}
+            alt=""
+            width={56}
+            height={58}
+            draggable={false}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ repeat: Infinity, duration: 3.4, ease: 'easeInOut' }}
+            className="h-14 w-14 drop-shadow-lg transition-transform hover:scale-105"
+          />
+        )}
       </button>
     </div>
   );
