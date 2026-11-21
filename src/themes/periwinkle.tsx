@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Bell, CalendarDays, ClipboardList, LogOut, MessageSquare, Search, Sparkles } from 'lucide-react';
+import { Bell, CalendarDays, ClipboardList, LogOut, MessageSquare, Search, Sparkles, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
@@ -20,6 +20,7 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, memberVie
         <Link to="/" title={platformName} className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#6c72d6] text-white">
           <Sparkles className="h-5 w-5" />
         </Link>
+        <Link to="/theme" title="Themes" aria-label="Themes" className={rail}><Palette className="h-4 w-4" /></Link>
         <button type="button" onClick={onSearch} title="Search" className={rail}>
           <Search className="h-5 w-5" />
         </button>

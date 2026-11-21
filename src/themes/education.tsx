@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Bell, ChevronRight, LogOut, Search } from 'lucide-react';
+import { ArrowUpRight, Bell, ChevronRight, LogOut, Search, Palette } from 'lucide-react';
 import { flatNav, initials, type ShellProps } from './types';
 import { clock, dayMonth, greeting, useDash, weekday } from '../lib/dash';
 
@@ -30,6 +30,7 @@ export function Shell({ groups, me, platformName, onSearch, onSignOut, children 
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <Link to="/theme" title="Themes" aria-label="Themes" className="rounded-full p-2 text-[#4b4b4b] hover:bg-[#f4f4f4]"><Palette className="h-4 w-4" /></Link>
             <button type="button" onClick={onSearch} className="rounded-full p-2 text-[#4b4b4b] hover:bg-[#f4f4f4]"><Search className="h-4 w-4" /></button>
             <Link to="/profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f4f4] text-xs font-semibold">{initials(me.firstName, me.lastName)}</Link>
             <button type="button" onClick={onSignOut} className="rounded-full p-2 text-[#8a8a8a] hover:bg-[#f4f4f4]"><LogOut className="h-4 w-4" /></button>
