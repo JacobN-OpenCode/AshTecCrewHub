@@ -120,8 +120,12 @@ export default function SupportButton() {
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="text-sm">Pictures <span className="text-muted-foreground">(optional, up to 4)</span></label>
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
-                onChange={(e) => addPictures(e.target.files)} />
+              {/* sr-only, not hidden: a display:none input is not clickable
+                  from script in the Mac app's web view, so the picture picker
+                  did nothing there (ticket f1985757). Kept in the layout but
+                  out of sight, the click lands and Finder opens. */}
+              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only"
+                onChange={(e) => addPictures(e.target.files)} aria-label="Add pictures to this ticket" />
               <Button type="button" variant="outline" size="sm" disabled={uploading || pictures.length >= 4}
                 onClick={() => fileRef.current?.click()}>
                 {uploading ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <ImagePlus className="h-4 w-4 mr-1.5" />}

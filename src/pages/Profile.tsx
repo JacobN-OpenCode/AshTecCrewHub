@@ -212,7 +212,10 @@ export default function Profile() {
                 ref={fileRef}
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                className="hidden"
+                /* ticket f1985757: sr-only keeps the input clickable in the Mac
+                   app, where a display:none input refused to open the picker */
+                className="sr-only"
+                aria-label="Choose a new profile picture"
                 onChange={(e) => void pickPicture(e.target.files?.[0])}
               />
               <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
