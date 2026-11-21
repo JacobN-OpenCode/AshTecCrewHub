@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { adminSaveSubEvent } from 'zitejs/api';
+import { adminSaveSubEvent } from '#api';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@project/components/ui/dialog';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
@@ -8,49 +8,106 @@ import { Textarea } from '@project/components/ui/textarea';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { DatePicker } from '@project/components/ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
-import { type AdminShow, type AdminSubEvent, toIso, fromIso } from '../../lib/useAdminData';
-import { SUBTYPES } from '../../lib/constants';
+import { type AdminShow, type AdminSubEvent, type AdminMember, toIso, fromIso } from '../../lib/useAdminData';
+import { SUBTYPES, EVENT_TYPES, isClubSession, isContractor } from '../../lib/constants';
 
+type Recurrence = 'none' | 'weekly' | 'fortnightly' | 'monthly';
 type Form = {
-  title: string; type: 'Rehearsal' | 'Performance'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
-  description: string; meetTime: string; timings: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
+  title: string; type: 'Rehearsal' | 'Performance' | 'Club Session'; subtype: string; showIds: string[]; date: string | null; dateTbc: boolean;
+  description: string; meetTime: string; startTime: string; endTime: string; thingsToBring: string; importance: 'High' | 'Medium' | 'Low';
   dueDate: string | null; dueUnknown: boolean; hidden: boolean;
+  needsContractors: boolean; contractorIds: string[]; contractorMessage: string;
+  recurrence: Recurrence; recurrenceUntil: string | null;
 };
-const blank = (showId?: string): Form => ({
-  title: '', type: 'Rehearsal', subtype: 'Part Day Rehearsal', showIds: showId ? [showId] : [], date: null, dateTbc: false,
-  description: '', meetTime: '', timings: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
+const blank = (showId?: string, type: Form['type'] = 'Rehearsal'): Form => ({
+  title: '', type, subtype: SUBTYPES[type][0], showIds: showId ? [showId] : [], date: null, dateTbc: false,
+  description: '', meetTime: '', startTime: '', endTime: '', thingsToBring: '', importance: 'Medium', dueDate: null, dueUnknown: true, hidden: false,
+  needsContractors: false, contractorIds: [], contractorMessage: '', recurrence: 'none', recurrenceUntil: null,
 });
 
-export default function SubEventDialog({ open, ev, shows, defaultShowId, onClose, onSaved }: {
-  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; defaultShowId?: string; onClose: () => void; onSaved: () => void;
+/**
+ * Two structured HH:MM fields replace the old free-text "Timings" string, so
+ * the calendar feed and every list in the app get a real start/end pair
+ * instead of guessing from a meet time.
+ *
+ * Both-or-neither: leaving one half empty (start with no end, or vice
+ * versa) is rejected on save, because a half-range would render as an
+ * accidental 1-hour event in subscribers' calendars.
+ */
+const HHMM_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+const hhmmHint = 'HH:MM (24-hour)';
+
+export default function SubEventDialog({ open, ev, shows, members, defaultShowId, defaultType, onClose, onSaved }: {
+  open: boolean; ev: AdminSubEvent | null; shows: AdminShow[]; members: AdminMember[];
+  defaultShowId?: string; defaultType?: Form['type']; onClose: () => void; onSaved: () => void;
 }) {
+  // Only real contractor accounts can be invited (preview accounts cannot sign in).
+  const contractors = members.filter((m) => isContractor(m.memberType) && !m.isPreview);
   const [f, setF] = useState<Form>(blank());
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
-    setF(ev ? { ...ev, type: ev.type as Form['type'], importance: ev.importance as Form['importance'] } : blank(defaultShowId));
-  }, [open, ev, defaultShowId]);
+    setF(ev
+      ? {
+          ...ev,
+          type: ev.type as Form['type'],
+          importance: ev.importance as Form['importance'],
+          startTime: ev.startTime ?? '',
+          endTime: ev.endTime ?? '',
+          recurrence: 'none',
+          recurrenceUntil: null,
+        }
+      : blank(defaultShowId, defaultType));
+  }, [open, ev, defaultShowId, defaultType]);
   const set = (p: Partial<Form>) => setF((x) => ({ ...x, ...p }));
-  const valid = f.title.trim() && f.showIds.length && (f.dateTbc || f.date);
+  // A club session is not part of a production, so it is the only type that may
+  // be saved with no show attached.
+  const club = isClubSession(f.type);
+  // A half-filled time range is useless on the calendar.
+  const halfFilled = (!!f.startTime) !== (!!f.endTime);
+  const bothBlank = !f.startTime && !f.endTime;
+  // Ticket 57ce12eb: a repeating series needs a real first date and an end date
+  // so the instances can be generated; TBC dates have nothing to step from.
+  const repeats = !ev && f.recurrence !== 'none';
+  const recurrenceOk = !repeats || (!!f.date && !f.dateTbc && !!f.recurrenceUntil && f.recurrenceUntil >= (f.date ?? ''));
+  const valid =
+    f.title.trim() &&
+    (club || f.showIds.length) &&
+    (f.dateTbc || f.date) &&
+    recurrenceOk &&
+    ((f.startTime === '' && f.endTime === '') || (!halfFilled && HHMM_RE.test(f.startTime) && HHMM_RE.test(f.endTime)));
+  const timeHelp = f.startTime && !HHMM_RE.test(f.startTime)
+    ? `Use ${hhmmHint}, e.g. 09:00 or 19:30.`
+    : f.endTime && !HHMM_RE.test(f.endTime)
+      ? `Use ${hhmmHint}, e.g. 16:00 or 21:30.`
+      : 'Leave both blank if the times are not yet known; the subscribe feed renders them as an all-day block.';
 
   const save = async () => {
     setBusy(true);
-    try { await adminSaveSubEvent({ id: ev?.id, ...f }); toast.success('Saved'); onSaved(); }
-    catch (e) { toast.error((e as Error).message); }
+    try {
+      await adminSaveSubEvent({
+        id: ev?.id,
+        ...f,
+        startTime: f.startTime || null,
+        endTime: f.endTime || null,
+      });
+      toast.success('Saved');
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
 
   const L = ({ children }: { children: React.ReactNode }) => <label className="text-sm">{children}</label>;
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{ev ? 'Edit' : 'Add'} rehearsal / performance</DialogTitle></DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{ev ? 'Edit' : 'Add'} event</DialogTitle></DialogHeader>
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2 space-y-1"><L>Title *</L><Input value={f.title} onChange={(e) => set({ title: e.target.value })} placeholder="Tech run – Act 1" /></div>
           <div className="space-y-1"><L>Type</L>
-            <Select value={f.type} onValueChange={(v) => set({ type: v as Form['type'], subtype: SUBTYPES[v][0] })}>
+            <Select value={f.type} onValueChange={(v) => set({ type: v as Form['type'], subtype: SUBTYPES[v][0], showIds: v === 'Club Session' ? [] : f.showIds })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="Rehearsal">Rehearsal</SelectItem><SelectItem value="Performance">Performance</SelectItem></SelectContent>
+              <SelectContent>{EVENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1"><L>Kind</L>
@@ -59,26 +116,105 @@ export default function SubEventDialog({ open, ev, shows, defaultShowId, onClose
               <SelectContent>{SUBTYPES[f.type].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="sm:col-span-2 space-y-1"><L>Show(s) *</L>
-            <div className="flex flex-wrap gap-4">{shows.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
-                <Checkbox checked={f.showIds.includes(s.id)} onCheckedChange={(c) => set({ showIds: c ? [...f.showIds, s.id] : f.showIds.filter((x) => x !== s.id) })} />
-                {s.name}{s.code && ` (${s.code})`}
-              </label>))}
-            </div>
+          <div className="sm:col-span-2 space-y-1">
+            <L>Show(s) {club ? '' : '*'}</L>
+            {club ? (
+              <p className="text-xs text-muted-foreground">Club sessions are scheduled separately and are not part of a show.</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">{shows.map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={f.showIds.includes(s.id)} onCheckedChange={(c) => set({ showIds: c ? [...f.showIds, s.id] : f.showIds.filter((x) => x !== s.id) })} />
+                  {s.name}{s.code && ` (${s.code})`}
+                </label>))}
+              </div>
+            )}
           </div>
           <div className="space-y-1"><L>Date *</L>
             <label className="flex items-center gap-2 text-sm mb-1"><Checkbox checked={f.dateTbc} onCheckedChange={(c) => set({ dateTbc: !!c })} />TBC</label>
             {!f.dateTbc && <DatePicker value={fromIso(f.date)} onChange={(d) => set({ date: toIso(d) })} />}
           </div>
+          {/* Ticket 57ce12eb: repeat a club session (or any event) on a weekly,
+              fortnightly or monthly cadence. Only offered when creating, so
+              editing one instance of a series cannot silently rewrite the rest. */}
+          {!ev && (
+            <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+              <L>Repeats</L>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Select value={f.recurrence} onValueChange={(v) => set({ recurrence: v as Recurrence })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Does not repeat</SelectItem>
+                    <SelectItem value="weekly">Every week</SelectItem>
+                    <SelectItem value="fortnightly">Every two weeks</SelectItem>
+                    <SelectItem value="monthly">Every month</SelectItem>
+                  </SelectContent>
+                </Select>
+                {f.recurrence !== 'none' && (
+                  <div className="space-y-1">
+                    <L>Repeat until *</L>
+                    <DatePicker value={fromIso(f.recurrenceUntil)} onChange={(d) => set({ recurrenceUntil: toIso(d) })} />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {f.recurrence === 'none'
+                  ? 'One session only.'
+                  : f.dateTbc
+                    ? 'Give the first session a real date so the repeats can be worked out.'
+                    : 'Each repeat is created as its own session, so a register can be taken at each one.'}
+              </p>
+            </div>
+          )}
           <div className="space-y-1"><L>Importance</L>
             <Select value={f.importance} onValueChange={(v) => set({ importance: v as Form['importance'] })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{['High', 'Medium', 'Low'].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-1"><L>Meet time</L><Input value={f.meetTime} onChange={(e) => set({ meetTime: e.target.value })} placeholder="08:45, Main Hall stage door" /></div>
-          <div className="space-y-1"><L>Timings</L><Input value={f.timings} onChange={(e) => set({ timings: e.target.value })} placeholder="09:00 – 16:00" /></div>
+          <div className="space-y-1 sm:col-span-2">
+            <L>Meet time</L>
+            <Input value={f.meetTime} onChange={(e) => set({ meetTime: e.target.value })} placeholder="08:45, Main Hall stage door" />
+            <p className="text-xs text-muted-foreground">Where the crew should be, and at what time. Free text - "8:45, Main Hall stage door".</p>
+          </div>
+          {/* Support ticket 00c0715c: external members can be invited per event. */}
+          <div className="sm:col-span-2 space-y-2 rounded-xl border p-3">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox checked={f.needsContractors} onCheckedChange={(c) => set({ needsContractors: !!c })} />
+              Contractors needed
+            </label>
+            {f.needsContractors && <>
+              <p className="text-xs text-muted-foreground">
+                Invited contractors see this event and their own attendance in the app. They never see the stage layout or student information.
+              </p>
+              {contractors.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No contractor accounts yet. Add someone with member type “Contractor” in Crew, then invite them here.</p>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {contractors.map((m) => (
+                    <label key={m.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={f.contractorIds.includes(m.id)}
+                        onCheckedChange={(c) => set({ contractorIds: c ? [...f.contractorIds, m.id] : f.contractorIds.filter((x) => x !== m.id) })} />
+                      {m.firstName} {m.lastName}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="space-y-1">
+                <L>Message for the invited contractor</L>
+                <Textarea value={f.contractorMessage} onChange={(e) => set({ contractorMessage: e.target.value })}
+                  placeholder="What we need you for, where to go and when, who to ask for…" />
+              </div>
+            </>}
+          </div>
+          <div className="space-y-1">
+            <L>Start time</L>
+            <Input value={f.startTime} onChange={(e) => set({ startTime: e.target.value })} placeholder={hhmmHint} />
+          </div>
+          <div className="space-y-1">
+            <L>End time</L>
+            <Input value={f.endTime} onChange={(e) => set({ endTime: e.target.value })} placeholder={hhmmHint} />
+          </div>
+          <p className="sm:col-span-2 text-xs text-muted-foreground">{timeHelp}</p>
           <div className="sm:col-span-2 space-y-1"><L>Description</L><Textarea value={f.description} onChange={(e) => set({ description: e.target.value })} /></div>
           <div className="sm:col-span-2 space-y-1"><L>Things to bring</L><Textarea rows={2} value={f.thingsToBring} onChange={(e) => set({ thingsToBring: e.target.value })} placeholder="Blacks, torch, packed lunch" /></div>
           <div className="sm:col-span-2 space-y-1"><L>Response due date</L>

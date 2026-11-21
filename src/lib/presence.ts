@@ -6,7 +6,7 @@
 // here answers "are you in the room right now?". Mixing them means every
 // presence read would drag RSVP state along with it, and the two disagree
 // constantly: someone can be signed out of the venue while marked as attending.
-import { zite } from 'zitejs/db';
+import { zite } from '#db';
 import { ids } from './server';
 
 /** Where a member stands relative to the current session. */
@@ -59,7 +59,9 @@ export async function findPresence(sessionId: string, memberId: string) {
 
 /** Strips the internal bookkeeping down to what the UI actually renders. */
 export function mapPresence(p: {
-  id: string
+  // Optional: this helper only reshapes presentation fields, and rows arrive
+  // typed as a bare record index signature from the database layer.
+  id?: string
   state?: string
   reasonLabel?: string
   reason?: string
@@ -85,6 +87,40 @@ export function mapPresence(p: {
 
 export async function findPresenceByToken(token: string) {
   return zite.venuePresence.findOne({ filters: { approvalToken: token } });
+}
+
+/**
+ * Append one row to the venue check-in timeline (ticket 168e8274).
+ *
+ * The VenuePresence row is overwritten on every approval, so it can only show
+ * the latest sign-in/out. This is the durable record the admin backlog reads:
+ * who did what, when, and which admin approved it. Never updated or deleted.
+ */
+export async function logPresenceEvent(event: {
+  session: string;
+  member?: string | null;
+  action: string;
+  reasonLabel?: string;
+  reason?: string;
+  comingBack?: boolean;
+  expectedBackAt?: string | null;
+  at: string;
+  by: string;
+}): Promise<void> {
+  await zite.venuePresenceEvents.create({
+    record: {
+      eventKey: `${event.session}:${event.at}:${event.action}:${event.member ?? 'session'}`,
+      session: event.session,
+      member: event.member ?? null,
+      action: event.action,
+      reasonLabel: event.reasonLabel ?? '',
+      reason: event.reason ?? '',
+      comingBack: !!event.comingBack,
+      expectedBackAt: event.expectedBackAt ?? null,
+      at: event.at,
+      by: event.by,
+    } as never,
+  });
 }
 
 /** The member ids behind a set of presence rows, for name lookups. */

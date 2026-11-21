@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { actingMember, wordCount } from '../lib/server';
 import { CUSTOM_REASON } from '../lib/constants';
 import { findPresence, newToken, presenceKey, requireActiveSession } from '../lib/presence';
+import { notifyPresenceWaiting } from '../../server/notify';
 
 /**
  * A member asks to sign in or out. Nothing changes yet: the request parks on
@@ -69,6 +70,10 @@ export default createEndpoint({
     const existing = await findPresence(session.id, me.id);
     if (existing) await zite.venuePresence.update({ id: existing.id, record });
     else await zite.venuePresence.create({ record });
+
+    // Tell the admins someone is waiting rather than making them poll the page.
+    const name = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim() || me.schoolEmail || 'A crew member';
+    await notifyPresenceWaiting(name, input.action);
 
     return { token, pendingAction: input.action };
   },

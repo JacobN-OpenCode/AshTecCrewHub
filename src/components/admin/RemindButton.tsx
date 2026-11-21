@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { adminSendReminder } from 'zitejs/api';
+import { adminSendReminder } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Loader2, Mail } from 'lucide-react';
 import type { AdminData } from '../../lib/useAdminData';
@@ -10,6 +10,8 @@ export default function RemindButton({ memberId, data }: { memberId: string; dat
   const [busy, setBusy] = useState(false);
   const mem = data.members.find((m) => m.id === memberId);
   const isActor = mem?.memberType === 'Actor' || !!mem?.isPreview;
+  if (mem?.isStaff) return null; // staff have no crew forms, nothing to remind about
+  if (mem?.isAdmin) return null; // ticket ffe32315: never remind admins about forms
   const pending = isActor ? [] : pendingForms(memberId, data);
   const send = async (e: React.MouseEvent) => {
     e.stopPropagation();

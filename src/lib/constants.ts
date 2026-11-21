@@ -1,16 +1,43 @@
 export const PLATFORM = 'AshTec Crew Hub';
 export const SCHOOL = 'Ashford School Tech Crew';
 
-export const ROLES = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound'];
+/** Ticket d6b098db: the club's WhatsApp community, offered on the profile page. */
+export const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/JhA4KCg171A0iabtZEshFv';
+
+export const ROLES = ['Stage Left', 'Stage Right', 'Microphone Management', 'Lighting', 'Sound', 'Follow Spot'];
 export const YEARS = ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12', 'Year 13', 'Staff'];
 
 /** Years a member may set for themselves. Staff is admin-managed so nobody self-promotes. */
 export const SELF_YEARS = YEARS.filter((y) => y !== 'Staff');
-export const MEMBER_TYPES = ['Normal Member', 'Expert', 'Teacher', 'Actor'];
+// "Contractor" (support ticket 00c0715c "External Member / Contractor") is a
+// platform-only account: no stage layout, no student information, just their
+// own attendance and the events they have been invited to.
+export const MEMBER_TYPES = ['Normal Member', 'Expert', 'Teacher', 'Actor', 'Contractor'];
+export const isContractor = (type?: string) => type === 'Contractor';
 export const SUBTYPES: Record<string, string[]> = {
   Rehearsal: ['Weekend Rehearsal', 'All Day Rehearsal', 'Part Day Rehearsal'],
   Performance: ['Normal Performance', 'Matinee Performance'],
+  // Ticket 43e07671. Club sessions are the regular club meetings, not part of a
+  // production, so they carry no show and get their own category everywhere.
+  'Club Session': ['Weekly Session', 'Workshop', 'Social', 'Trip'],
 };
+
+/** Club sessions are the only event type that does not belong to a show. */
+export const CLUB_SESSION = 'Club Session';
+export const isClubSession = (type?: string) => type === CLUB_SESSION;
+
+/** The event types an admin can choose, in the order they appear in pickers. */
+export const EVENT_TYPES = ['Rehearsal', 'Performance', CLUB_SESSION] as const;
+
+/**
+ * Ticket 67b24cc3: keyboard hints used to hard-code "Cmd", which is wrong on
+ * Windows/Linux. Guarded with `typeof navigator` because this module is also
+ * imported by server code, where there is no window.
+ */
+export const IS_APPLE =
+  typeof navigator !== 'undefined' &&
+  /Mac|iPhone|iPad|iPod/.test(navigator.userAgent || navigator.platform || '');
+export const MOD_KEY_LABEL = IS_APPLE ? 'Cmd' : 'Ctrl';
 
 export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 export const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -47,9 +74,9 @@ export const IMPORTANCE_STYLE: Record<string, string> = {
  * matter to a stage manager, and free text turns the roster into a wall of
  * sentences. "Other" is the escape hatch and does require a written reason.
  *
- * Lives here rather than in lib/presence.ts because that file imports
- * zitejs/db and is backend-only, while the picker that renders these options is
- * a React component.
+ * Lives here rather than in lib/presence.ts because that file imports the
+ * database layer and is backend-only, while the picker that renders these
+ * options is a React component.
  */
 export const SIGN_OUT_REASONS = ['Toilet', 'Food', 'Phone call', 'Runs off stage', 'Ill', 'Other'];
 export const CUSTOM_REASON = 'Other';

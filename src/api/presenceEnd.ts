@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
 import { requireAdmin } from '../lib/server';
-import { activeSession } from '../lib/presence';
+import { activeSession, logPresenceEvent } from '../lib/presence';
 
 /**
  * Closes the venue check-in session. Admins only.
@@ -27,6 +27,7 @@ export default createEndpoint({
       id: session.id,
       record: { status: 'Ended', endedAt, endedBy: me.id } as never,
     });
+    await logPresenceEvent({ session: session.id, action: 'Session Closed', at: endedAt, by: me.id });
 
     const { records } = await zite.venuePresence.findAll({
       filters: { session: session.id },

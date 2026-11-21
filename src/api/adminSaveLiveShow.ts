@@ -1,0 +1,83 @@
+import { z } from 'zod';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { requireAdmin } from '../lib/server';
+import { mapLiveShow, isLiveShowStatus } from '../lib/liveShow';
+
+export default createEndpoint({
+  description: 'Creates or updates a live show config for a show (admins)',
+  authenticated: true,
+  inputSchema: z.object({
+    showId: z.string(),
+    name: z.string().optional(),
+    areaName: z.string().optional(),
+    status: z.string().optional(),
+    open: z.boolean().optional(),
+    intermissionMinutes: z.number().optional(),
+    currentSceneIndex: z.number().optional(),
+    crewCanEdit: z.boolean().optional(),
+    movementAlert: z.boolean().optional(),
+    movementMessage: z.string().max(400).optional(),
+    movementSeconds: z.number().min(10).max(600).optional(),
+    movementAdmins: z.array(z.string()).max(50).optional(),
+  }),
+  outputSchema: z.any(),
+  execute: async ({ input, context }) => {
+    const admin = await requireAdmin(context.user.email);
+    let liveShow = await zite.liveShows.findOne({ filters: { showId: input.showId } });
+    const record: Record<string, unknown> = {};
+    if (input.name !== undefined) record.name = input.name;
+    if (input.areaName !== undefined) record.areaName = input.areaName;
+    if (input.status !== undefined) record.status = isLiveShowStatus(input.status) ? input.status : 'standby';
+    if (input.intermissionMinutes !== undefined) record.intermissionMinutes = Math.max(0, Math.floor(input.intermissionMinutes));
+    if (input.currentSceneIndex !== undefined) record.currentSceneIndex = Math.max(0, Math.floor(input.currentSceneIndex));
+    if (input.crewCanEdit !== undefined) record.crewCanEdit = !!input.crewCanEdit;
+    if (input.movementAlert !== undefined) record.movementAlert = !!input.movementAlert;
+    if (input.movementMessage !== undefined) record.movementMessage = input.movementMessage.slice(0, 400);
+    if (input.movementSeconds !== undefined) record.movementSeconds = Math.max(10, Math.min(600, Math.floor(input.movementSeconds)));
+    if (input.movementAdmins !== undefined) record.movementAdmins = [...new Set(input.movementAdmins)];
+    if (input.open !== undefined) record.open = !!input.open;
+    // dd0dd794: ending a show (or starting a fresh one) resets the show clock so
+    // the next show never inherits the previous run's elapsed time.
+    if (input.open === false) {
+      record.timerMode = 'stopped';
+      record.timerStartAt = null;
+      record.timerElapsedMs = 0;
+    }
+    if (input.open === true) {
+      record.timerMode = 'stopped';
+      record.timerStartAt = null;
+      record.timerElapsedMs = 0;
+    }
+    record.updatedBy = admin.id;
+
+    if (liveShow) {
+      await zite.liveShows.update({ id: liveShow.id, record });
+    } else {
+      liveShow = await zite.liveShows.create({ record: { showId: input.showId, ...record } });
+    }
+    if (input.open === false) {
+      // Ticket 50c01a2a: "the stop show button doesn't work". Stop only ever
+      // closed the row matching the show the admin had selected, so a show left
+      // open under a different showId kept every screen live. Stopping is a
+      // global action: after it, nothing is open.
+      const { records } = await zite.liveShows.findAll({ limit: 100 });
+      for (const other of records) {
+        if (other.open && other.id !== liveShow.id) {
+          await zite.liveShows.update({
+            id: other.id,
+            record: { open: false, status: 'finished', timerMode: 'stopped', timerStartAt: null, timerElapsedMs: 0 },
+          });
+        }
+      }
+    }
+    if (input.open) {
+      // Only one show can be open at a time: opening one closes any other.
+      const { records } = await zite.liveShows.findAll({ limit: 100 });
+      for (const other of records) {
+        if (other.open && other.id !== liveShow.id) await zite.liveShows.update({ id: other.id, record: { open: false } });
+      }
+    }
+    return { liveShow: mapLiveShow(liveShow) };
+  },
+});

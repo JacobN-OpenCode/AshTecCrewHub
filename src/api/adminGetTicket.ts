@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint } from '#backend';
+import { zite, type CrewMembersRecordType } from '#db';
 import { requireAdmin } from '../lib/server';
 import { REPLY_KIND, fullName } from '../lib/support';
 import { ids } from '../lib/server';
 
-const person = (m: { id: string; firstName?: string | null; lastName?: string | null; schoolEmail?: string | null; isMaintainer?: boolean | null; isAdmin?: boolean | null; isPreview?: boolean | null } | undefined) =>
-  m ? { id: m.id, name: fullName(m), email: m.schoolEmail ?? '', isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin } : null;
+const person = (m: CrewMembersRecordType | undefined) =>
+  m ? { id: String(m.id), name: fullName(m), email: m.schoolEmail ?? '', isMaintainer: !!m.isMaintainer, isAdmin: !!m.isAdmin } : null;
 
 export default createEndpoint({
   description: 'Returns one support ticket with its full reply thread and the maintainer list (admins)',
@@ -40,10 +40,15 @@ export default createEndpoint({
       ticket: {
         id: ticket.id, subject: ticket.subject ?? '', type: ticket.type ?? 'General Support',
         message: ticket.message ?? '', status: ticket.status ?? 'Open', adminNotes: ticket.adminNotes ?? '',
-        page: ticket.page ?? '', submittedAt: ticket.submittedAt ?? '',
+        severity: (ticket as { severity?: string }).severity ?? '',
+        page: ticket.page ?? '', submittedAt: ticket.submittedAt ?? ticket.createdAt ?? '',
         referToOpencode: !!(ticket as { referToOpencode?: boolean }).referToOpencode,
+        pinned: !!(ticket as { pinned?: boolean }).pinned,
         assignedMaintainerIds: ids(ticket.assignedMaintainers),
         lastReplyAt: ticket.lastReplyAt ?? '', lastReplyFrom: ticket.lastReplyFrom ?? '', escalatedAt: ticket.escalatedAt ?? '',
+        // Ticket 5a04aaf1: pictures the submitter attached, as paths we host.
+        attachments: ((ticket as { attachments?: string }).attachments ?? '')
+          .split(',').map((u) => u.trim()).filter((u) => u.startsWith('/api/uploads/')),
       },
       replies,
       submitter: person(members.find((m) => m.id === ids(ticket.submittedBy)[0])),

@@ -1,0 +1,1045 @@
+-- AshTec Crew Hub — PostgreSQL schema
+--
+-- IDENTIFIERS ARE DELIBERATELY ZITE-SHAPED ("CrewMembers", "schoolEmail").
+-- src/lib/server.ts contains three raw `zite.sql` queries written against those
+-- exact names ("SELECT ... FROM "CrewMembers" WHERE lower("schoolEmail") = ...").
+-- Mirroring the identifiers keeps that business-critical membership/alternate-email
+-- lookup byte-identical instead of translated, and removes ~90 camel<->snake
+-- mappings from the data layer. Postgres is case-sensitive here, so every
+-- hand-written query must quote identifiers.
+--
+-- Column set is derived from the Zite production CSV exports (real columns only --
+-- Zite's linked-record/rollup display columns are intentionally NOT reproduced)
+-- cross-checked against every field the 33 endpoints in src/api read or write.
+--
+-- Deliberate choices:
+--  * Zite UUIDs are preserved verbatim as "id", so links already recorded in
+--    email bodies keep pointing at the right rows.
+--  * NO foreign-key constraints. The production export contains rows whose member
+--    was later deleted in Zite (23 attendance rows and 7 show-response rows point
+--    at member ids that no longer exist). Zite soft-deletes, so those child rows
+--    survived. Enforcing FKs would reject the import; dropping the rows would
+--    lose data. Links are plain columns and nothing in the app iterates children
+--    of a non-existent member, so the orphans are inert.
+--  * "roles"/"headOf" are text[] because src/lib/server.ts mapMember and the admin
+--    UI treat them as arrays (.includes/.map/.length). Zite's CSV export flattens
+--    multi-selects to a comma-joined string, so the importer splits them back.
+--  * "alternateEmails" stays `text`, NOT text[]: findMemberByEmail calls
+--    string_to_array() on it inside SQL, which requires text.
+--  * Blank CSV cells become NULL, matching the nulls the endpoints write
+--    (e.g. `pendingAction: null`).
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS "CrewMembers" (
+  "id"                 uuid PRIMARY KEY,
+  "schoolEmail"        text NOT NULL,
+  "firstName"          text NOT NULL DEFAULT '',
+  "lastName"           text NOT NULL DEFAULT '',
+  "year"               text NOT NULL DEFAULT '',
+  "isAdmin"            boolean NOT NULL DEFAULT false,
+  "memberType"         text NOT NULL DEFAULT 'Normal Member',
+  "roles"              text[] NOT NULL DEFAULT '{}',
+  "headOf"             text[] NOT NULL DEFAULT '{}',
+  "preferredRole1"     text NOT NULL DEFAULT '',
+  "preferredRole2"     text NOT NULL DEFAULT '',
+  "adminNotes"         text NOT NULL DEFAULT '',
+  "isMaintainer"       boolean NOT NULL DEFAULT false,
+  "isPreviewAccount"   boolean NOT NULL DEFAULT false,
+  "alternateEmails"    text NOT NULL DEFAULT '',
+  "createdAt"          timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"          timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "CrewMembers_schoolEmail_key" ON "CrewMembers" (lower("schoolEmail"));
+
+CREATE TABLE IF NOT EXISTS "Shows" (
+  "id"                uuid PRIMARY KEY,
+  "showName"          text NOT NULL,
+  "shortCode"         text NOT NULL DEFAULT '',
+  "description"       text NOT NULL DEFAULT '',
+  "responseDueDate"   date,
+  "dueDateUnknown"    boolean NOT NULL DEFAULT false,
+  "hidden"            boolean NOT NULL DEFAULT false,
+  "createdAt"         timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"         timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "SubEvents" (
+  "id"                uuid PRIMARY KEY,
+  "title"             text NOT NULL,
+  "type"              text NOT NULL DEFAULT 'Rehearsal',
+  "subtype"           text NOT NULL DEFAULT '',
+  "shows"             uuid[] NOT NULL DEFAULT '{}',
+  "date"              date,
+  "dateTbc"           boolean NOT NULL DEFAULT false,
+  "description"       text NOT NULL DEFAULT '',
+  "meetTime"          text NOT NULL DEFAULT '',
+  -- Structured start/end for the calendar feed. Both are HH:MM in 24-hour
+  -- time (so "19:30"), nullable because dates can still be set ahead of
+  -- times. The previous free-text "timings" column was dropped when these
+  -- landed, and the live data was migrated from it.
+  "startTime"         text,
+  "endTime"           text,
+  "importance"        text NOT NULL DEFAULT 'Medium',
+  "thingsToBring"     text NOT NULL DEFAULT '',
+  "responseDueDate"   date,
+  "dueDateUnknown"    boolean NOT NULL DEFAULT false,
+  "hidden"            boolean NOT NULL DEFAULT false,
+  -- Contractors (ticket 00c0715c): whether this event needs contractors, which
+  -- ones are invited, and the message they see in the app.
+  "needsContractors"  boolean NOT NULL DEFAULT false,
+  "contractors"       uuid[]  NOT NULL DEFAULT '{}',
+  "contractorMessage" text    NOT NULL DEFAULT '',
+  "createdAt"         timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "SubEvents_date_idx" ON "SubEvents" ("date");
+-- Bring any older SubEvents table up to date: add the structured times so
+-- the data-migration script (scripts/migrate.ts end-of-run step) can find
+-- a place to land the parsed values. The actual row-by-row migration runs
+-- in TypeScript so the parsing is easy to test; setting them up here
+-- makes the rest of the schema apply idempotently even on a freshly
+-- imported database that never had "timings".
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "startTime" text;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "endTime" text;
+-- Support ticket 00c0715c: an event can ask for contractors and name which
+-- ones are invited (plus a message shown to them in the app).
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "needsContractors"  boolean NOT NULL DEFAULT false;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractors"       uuid[]  NOT NULL DEFAULT '{}';
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "contractorMessage" text    NOT NULL DEFAULT '';
+-- Support ticket 57ce12eb: recurring club sessions. Every instance of a
+-- repeating event shares a recurrenceGroup so the set can be edited or removed
+-- together, and recurrenceRule records how it repeats ('weekly', 'fortnightly'
+-- or 'monthly') so the UI can describe the series without recomputing it.
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "recurrenceGroup" uuid;
+ALTER TABLE "SubEvents" ADD COLUMN IF NOT EXISTS "recurrenceRule"  text NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS "ShowResponses" (
+  "id"               uuid PRIMARY KEY,
+  "responseKey"      text NOT NULL DEFAULT '',
+  "member"           uuid,
+  "show"             uuid,
+  "response"         text NOT NULL DEFAULT '',
+  "enteredByAdmin"   boolean NOT NULL DEFAULT false,
+  "createdAt"        timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowResponses_member_idx" ON "ShowResponses" ("member");
+CREATE INDEX IF NOT EXISTS "ShowResponses_show_idx" ON "ShowResponses" ("show");
+-- The upsert target for zite.showResponses.bulkCreate({ matchOn: ['responseKey'] })
+-- in setShowResponse.ts: one response per member per show.
+CREATE UNIQUE INDEX IF NOT EXISTS "ShowResponses_responseKey_uniq"
+  ON "ShowResponses" ("responseKey") WHERE "responseKey" <> '';
+
+CREATE TABLE IF NOT EXISTS "Attendance" (
+  "id"               uuid PRIMARY KEY,
+  "attendanceKey"    text NOT NULL DEFAULT '',
+  "member"           uuid,
+  "subEvent"         uuid,
+  "status"           text NOT NULL DEFAULT '',
+  "reason"           text NOT NULL DEFAULT '',
+  "enteredByAdmin"   boolean NOT NULL DEFAULT false,
+  "createdAt"        timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "Attendance_member_idx" ON "Attendance" ("member");
+CREATE INDEX IF NOT EXISTS "Attendance_subEvent_idx" ON "Attendance" ("subEvent");
+-- The upsert target for zite.attendance.bulkCreate({ matchOn: ['attendanceKey'] })
+-- in upsertAttendance(). Partial so that rows imported without a key (there are
+-- none today, but the column is NOT NULL DEFAULT '') can never block each other.
+CREATE UNIQUE INDEX IF NOT EXISTS "Attendance_attendanceKey_uniq"
+  ON "Attendance" ("attendanceKey") WHERE "attendanceKey" <> '';
+
+-- The venue register marks each person in one of three colours: green (in),
+-- yellow (away for a while, e.g. lunch or a meeting) or red (not in, e.g. an
+-- appointment). The colour is kept next to the reason so a register that was
+-- half-taken reopens exactly as it was left. '' means nobody has marked them.
+ALTER TABLE "Attendance" ADD COLUMN IF NOT EXISTS "registerState" text NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS "PresenceSessions" (
+  "id"           uuid PRIMARY KEY,
+  "sessionKey"   text NOT NULL DEFAULT '',
+  "subEvent"     uuid,
+  "startedBy"    uuid,
+  "startedAt"    timestamptz,
+  "endedAt"      timestamptz,
+  "endedBy"      uuid,
+  "status"       text NOT NULL DEFAULT 'Active',
+  "createdAt"    timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"    timestamptz NOT NULL DEFAULT now()
+);
+-- Enforces the "one global active check-in session" rule from src/lib/presence.ts
+-- in the database as well, so a race can't create two.
+CREATE UNIQUE INDEX IF NOT EXISTS "PresenceSessions_one_active"
+  ON "PresenceSessions" ((true)) WHERE "status" = 'Active';
+
+CREATE TABLE IF NOT EXISTS "VenuePresence" (
+  "id"                uuid PRIMARY KEY,
+  "presenceKey"       text NOT NULL DEFAULT '',
+  "session"           uuid,
+  "member"            uuid,
+  "state"             text,
+  "reasonLabel"       text NOT NULL DEFAULT '',
+  "reason"            text NOT NULL DEFAULT '',
+  "comingBack"        boolean NOT NULL DEFAULT false,
+  "expectedBackAt"    timestamptz,
+  "signedInAt"        timestamptz,
+  "signedOutAt"       timestamptz,
+  "updatedBy"         uuid,
+  "approvalToken"     text NOT NULL DEFAULT '',
+  "pendingAction"     text,
+  "createdAt"         timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"         timestamptz NOT NULL DEFAULT now()
+);
+
+-- Append-only log of every venue check-in decision (ticket 168e8274). The
+-- VenuePresence row above is one row per member per session and is overwritten
+-- on each approval, so it can only ever show the latest sign-in/out. This table
+-- keeps the whole timeline: each sign-in, sign-out, decline and the session
+-- open/close, with the admin who made the call.
+CREATE TABLE IF NOT EXISTS "VenuePresenceEvents" (
+  "id"             uuid PRIMARY KEY,
+  "eventKey"       text NOT NULL DEFAULT '',
+  "session"        uuid,
+  "member"         uuid,
+  "action"         text NOT NULL,
+  "reasonLabel"    text NOT NULL DEFAULT '',
+  "reason"         text NOT NULL DEFAULT '',
+  "comingBack"     boolean NOT NULL DEFAULT false,
+  "expectedBackAt" timestamptz,
+  "at"             timestamptz NOT NULL DEFAULT now(),
+  "by"             uuid,
+  "createdAt"      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "VenuePresenceEvents_session_idx" ON "VenuePresenceEvents" ("session");
+CREATE INDEX IF NOT EXISTS "VenuePresenceEvents_member_idx" ON "VenuePresenceEvents" ("member");
+CREATE INDEX IF NOT EXISTS "VenuePresence_member_idx" ON "VenuePresence" ("member");
+CREATE INDEX IF NOT EXISTS "VenuePresence_session_idx" ON "VenuePresence" ("session");
+
+CREATE TABLE IF NOT EXISTS "SupportTickets" (
+  "id"                   uuid PRIMARY KEY,
+  "subject"              text NOT NULL,
+  "type"                 text NOT NULL DEFAULT '',
+  "severity"             text NOT NULL DEFAULT '',
+  "message"              text NOT NULL DEFAULT '',
+  "submittedBy"          uuid,
+  "status"               text NOT NULL DEFAULT 'Open',
+  "pinned"               boolean NOT NULL DEFAULT false,
+  "adminNotes"           text NOT NULL DEFAULT '',
+  "page"                 text NOT NULL DEFAULT '',
+  "submittedAt"          timestamptz,
+  "assignedMaintainers"  uuid[] NOT NULL DEFAULT '{}',
+  "lastReplyFrom"        text NOT NULL DEFAULT '',
+  "lastReplyAt"          timestamptz,
+  "escalatedAt"          timestamptz,
+  "referToOpencode"      text NOT NULL DEFAULT '',
+  "createdAt"            timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"            timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "SupportTickets_status_idx" ON "SupportTickets" ("status");
+
+CREATE TABLE IF NOT EXISTS "SupportReplies" (
+  "id"               uuid PRIMARY KEY,
+  "replyKey"         text NOT NULL DEFAULT '',
+  "ticket"           uuid,
+  "author"           uuid,
+  "kind"             text NOT NULL DEFAULT '',
+  "body"             text NOT NULL DEFAULT '',
+  "recipients"       text NOT NULL DEFAULT '',
+  "sentAt"           timestamptz,
+  "emailMessageId"   text NOT NULL DEFAULT '',
+  "createdAt"        timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"        timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "SupportReplies_ticket_idx" ON "SupportReplies" ("ticket");
+
+CREATE TABLE IF NOT EXISTS "EmailLog" (
+  "id"              uuid PRIMARY KEY,
+  "subject"         text NOT NULL DEFAULT '',
+  "member"          uuid,
+  "recipientEmail"  text NOT NULL DEFAULT '',
+  "purpose"         text NOT NULL DEFAULT '',
+  "shows"           uuid[] NOT NULL DEFAULT '{}',
+  "body"            text NOT NULL DEFAULT '',
+  "sentBy"          text NOT NULL DEFAULT '',
+  "sentAt"          timestamptz,
+  "batchId"         text NOT NULL DEFAULT '',
+  "createdAt"       timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "EmailLog_member_idx" ON "EmailLog" ("member");
+
+-- ---------------------------------------------------------------------------
+-- Auth: magic link + DB-backed session cookie.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS "AuthMagicTokens" (
+  "token"      text PRIMARY KEY,
+  "email"      text NOT NULL,
+  "firstName"  text NOT NULL DEFAULT '',
+  "lastName"   text NOT NULL DEFAULT '',
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "expiresAt"  timestamptz NOT NULL,
+  "usedAt"     timestamptz
+);
+CREATE INDEX IF NOT EXISTS "AuthMagicTokens_email_idx" ON "AuthMagicTokens" ("email");
+
+CREATE TABLE IF NOT EXISTS "AuthSessions" (
+  "id"         uuid PRIMARY KEY,
+  "email"      text NOT NULL,
+  "firstName"  text NOT NULL DEFAULT '',
+  "lastName"   text NOT NULL DEFAULT '',
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "expiresAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
+
+-- Admin-notification opt-in, per member. NULL means "not chosen" and falls back
+-- to the sensible default: on for admins, off for everyone else. A column rather
+-- than a settings row because it is genuinely per-person.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "adminNotifications" boolean;
+
+-- Profile picture, as a URL the member pastes in Settings. We deliberately do
+-- not host the image ourselves, so there is no upload column or blob storage:
+-- just the link, which can be cleared by setting it to an empty string.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "avatarUrl" text NOT NULL DEFAULT '';
+
+-- Small key/value store for app-wide settings the server sets for itself (the
+-- generated VAPID keypair) and that an admin can flip at runtime. Created IF NOT
+-- EXISTS so it is safe to re-run.
+CREATE TABLE IF NOT EXISTS "AppSettings" (
+  "key"   text PRIMARY KEY,
+  "value" text NOT NULL
+);
+
+-- Web Push subscriptions, one row per browser/device a member has enabled
+-- notifications on. A member can have several (phone + laptop), so this is keyed
+-- by the subscription endpoint rather than by member.
+CREATE TABLE IF NOT EXISTS "PushSubscriptions" (
+  "id"         uuid PRIMARY KEY,
+  "endpoint"   text NOT NULL,
+  "member"     uuid,
+  "p256dh"     text NOT NULL,
+  "auth"       text NOT NULL,
+  "userAgent"  text NOT NULL DEFAULT '',
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "PushSubscriptions_endpoint_idx" ON "PushSubscriptions" ("endpoint");
+CREATE INDEX IF NOT EXISTS "PushSubscriptions_member_idx" ON "PushSubscriptions" ("member");
+
+-- What has already been pushed, so a scheduler that runs every minute does not
+-- send the same "your form is due" twenty times. The key is the member, the kind
+-- of notification and the thing it refers to; one row means "sent once".
+CREATE TABLE IF NOT EXISTS "NotificationLog" (
+  "id"         uuid PRIMARY KEY,
+  "dedupeKey"  text NOT NULL,
+  "member"     uuid,
+  "kind"       text NOT NULL,
+  "sentAt"     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "NotificationLog_dedupe_idx" ON "NotificationLog" ("dedupeKey");
+
+-- ---------------------------------------------------------------------------
+-- Activity log: one row per HTTP request plus client-reported page views.
+-- ---------------------------------------------------------------------------
+-- Feeds the "Logs" popup on Server diagnostics. Every request the Express
+-- server handles is recorded here (method, path, status, latency, who made it,
+-- from which device/IP and referring page). Member page views are added by the
+-- client via /analyticsView so SPA navigation is captured too, and the browser
+-- reports how long someone stayed on a view via /analyticsLeave, which fills in
+-- "viewSeconds" in place. Both kinds share one row shape: API calls and static
+-- file loads carry latencyMs and status, views carry viewSeconds.
+--
+-- Retention: 30 days, enforced by the hourly prune in server/index.ts.
+CREATE TABLE IF NOT EXISTS "RequestLogs" (
+  "id"           uuid PRIMARY KEY,
+  "at"           timestamptz NOT NULL DEFAULT now(),
+  "method"       text NOT NULL DEFAULT '',
+  "path"         text NOT NULL DEFAULT '',
+  "status"       integer NOT NULL DEFAULT 0,
+  "latencyMs"    integer NOT NULL DEFAULT 0,
+  "viewSeconds"  integer NOT NULL DEFAULT 0,
+  "authorized"   boolean NOT NULL DEFAULT false,
+  "email"        text NOT NULL DEFAULT '',
+  "ip"           text NOT NULL DEFAULT '',
+  "userAgent"    text NOT NULL DEFAULT '',
+  "referer"      text NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS "RequestLogs_at_idx" ON "RequestLogs" ("at" DESC);
+CREATE INDEX IF NOT EXISTS "RequestLogs_email_idx" ON "RequestLogs" ("email");
+CREATE INDEX IF NOT EXISTS "RequestLogs_path_idx" ON "RequestLogs" ("path");
+
+-- ---------------------------------------------------------------------------
+-- Live Show: the backstage live-show dashboard (ticket 0cdcd997). One config
+-- row per show (per-show customisation), opened by an admin at runtime. When a
+-- row is "open", /show-dash is public behind a show code, the Live Show tab
+-- appears for everyone, and signed-in crew get a dashboard with slightly more
+-- access (crewCanEdit). Only one show can be open at a time, enforced by
+-- adminSaveLiveShow closing any other open row first.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "LiveShows" (
+  "id"                  uuid PRIMARY KEY,
+  "showId"              uuid,
+  "name"                text NOT NULL DEFAULT '',
+  "areaName"            text NOT NULL DEFAULT 'Stage',
+  "status"              text NOT NULL DEFAULT 'standby',
+  "open"                boolean NOT NULL DEFAULT false,
+  "intermissionMinutes" int NOT NULL DEFAULT 15,
+  "timerMode"           text NOT NULL DEFAULT 'stopped',
+  "timerStartAt"        timestamptz,
+  "timerElapsedMs"      bigint NOT NULL DEFAULT 0,
+  "currentSceneIndex"   int NOT NULL DEFAULT 0,
+  "crewCanEdit"         boolean NOT NULL DEFAULT false,
+  "updatedBy"           uuid,
+  "createdAt"           timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"           timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShows_showId_key" ON "LiveShows" ("showId") WHERE "showId" IS NOT NULL;
+
+-- One row per scene in the show's running order. Admin-customisable; the order
+-- comes from sortIndex (0, 1, 2...), re-written wholesale on save.
+CREATE TABLE IF NOT EXISTS "LiveShowScenes" (
+  "id"           uuid PRIMARY KEY,
+  "liveShowId"   uuid NOT NULL,
+  "label"        text NOT NULL DEFAULT '',
+  "title"        text NOT NULL DEFAULT '',
+  "minutes"      int NOT NULL DEFAULT 0,
+  "cast"         text[] NOT NULL DEFAULT '{}',
+  "props"        text[] NOT NULL DEFAULT '{}',
+  "notes"        text[] NOT NULL DEFAULT '{}',
+  "sortIndex"    int NOT NULL DEFAULT 0,
+  "createdAt"    timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowScenes_liveShowId_idx" ON "LiveShowScenes" ("liveShowId");
+
+-- Editable scripts (ticket 12d8df62). One shared document per live show plus
+-- one private per member; upsert targets are the two partial unique indexes.
+CREATE TABLE IF NOT EXISTS "LiveShowScripts" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "scope"       text NOT NULL,
+  "authorId"    uuid,
+  "content"     text NOT NULL DEFAULT '',
+  "sharedLink"  text NOT NULL DEFAULT '',
+  "privateLink" text NOT NULL DEFAULT '',
+  "updatedBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_shared_key"
+  ON "LiveShowScripts" ("liveShowId", "scope") WHERE "scope" = 'shared';
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowScripts_private_key"
+  ON "LiveShowScripts" ("liveShowId", "scope", "authorId") WHERE "scope" = 'private' AND "authorId" IS NOT NULL;
+
+-- Additive changes for databases created before these columns existed. The
+-- CREATE TABLE IF NOT EXISTS statements above cannot add columns, so idempotent
+-- ALTERs bring older databases up to date. No-ops on a fresh install.
+ALTER TABLE "SupportTickets"  ADD COLUMN IF NOT EXISTS "severity"    text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShowScenes"  ADD COLUMN IF NOT EXISTS "props"        text[] NOT NULL DEFAULT '{}';
+ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "sharedLink"  text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShowScripts" ADD COLUMN IF NOT EXISTS "privateLink" text NOT NULL DEFAULT '';
+
+-- ---------------------------------------------------------------------------
+-- Live Show, part two (ticket f75f7b40). The stage manager's one-page board is
+-- the centre of the show, so it also carries: announcements that stay up for a
+-- chosen time, a live chat the public can read but only admins can write, a
+-- device list so an admin can see every screen watching the show, and a
+-- movement alert that warns (and pings special admins) when someone bumps a
+-- locked-off display.
+-- ---------------------------------------------------------------------------
+
+-- The show no longer carries a passcode (the "show code" was removed): a stage
+-- screen is enabled by selecting an admin and entering their cat-login secret.
+ALTER TABLE "LiveShows" DROP COLUMN IF EXISTS "code";
+
+-- Movement/key-alert DEFAULTS live on the live show. Each device copies these
+-- when it is first enabled and can then override them (see LiveShowDevices).
+-- movementAdmins are the "special admins" who receive a PWA push.
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementAlert"   boolean NOT NULL DEFAULT false;
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementMessage" text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementSeconds" int NOT NULL DEFAULT 30;
+ALTER TABLE "LiveShows" ADD COLUMN IF NOT EXISTS "movementAdmins"  uuid[] NOT NULL DEFAULT '{}';
+
+-- One row per browser enabled for the board. deviceKey is minted by the browser
+-- and kept in localStorage, so a reload/reboot re-attaches to the same row. A
+-- screen only shows the board once an admin has enabled it (enabled = true) by
+-- picking their name and entering their cat-login PIN; that is remembered for
+-- the life of the show. Movement config is per device, seeded from the show's
+-- defaults on enable and then independently adjustable from the device panel.
+CREATE TABLE IF NOT EXISTS "LiveShowDevices" (
+  "id"              uuid PRIMARY KEY,
+  "liveShowId"      uuid NOT NULL,
+  "deviceKey"       text NOT NULL,
+  "name"            text NOT NULL DEFAULT '',
+  "platform"        text NOT NULL DEFAULT '',
+  "userAgent"       text NOT NULL DEFAULT '',
+  "member"          uuid,
+  "enabled"         boolean NOT NULL DEFAULT false,
+  "online"          boolean NOT NULL DEFAULT true,
+  "adminView"       boolean NOT NULL DEFAULT false,
+  "movementAlert"   boolean NOT NULL DEFAULT false,
+  "movementMessage" text NOT NULL DEFAULT '',
+  "movementSeconds" int NOT NULL DEFAULT 30,
+  "movementAdmins"  uuid[] NOT NULL DEFAULT '{}',
+  "lastSeenAt"      timestamptz NOT NULL DEFAULT now(),
+  "lastMovementAt"  timestamptz,
+  "movementAckAt"   timestamptz,
+  "createdAt"       timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"       timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "LiveShowDevices_key" ON "LiveShowDevices" ("liveShowId", "deviceKey");
+CREATE INDEX IF NOT EXISTS "LiveShowDevices_show_idx" ON "LiveShowDevices" ("liveShowId");
+
+-- Additive columns for device rows created before per-device config existed.
+ALTER TABLE "LiveShowDevices" ADD COLUMN IF NOT EXISTS "enabled"         boolean NOT NULL DEFAULT false;
+ALTER TABLE "LiveShowDevices" ADD COLUMN IF NOT EXISTS "movementAlert"   boolean NOT NULL DEFAULT false;
+ALTER TABLE "LiveShowDevices" ADD COLUMN IF NOT EXISTS "movementMessage" text NOT NULL DEFAULT '';
+ALTER TABLE "LiveShowDevices" ADD COLUMN IF NOT EXISTS "movementSeconds" int NOT NULL DEFAULT 30;
+ALTER TABLE "LiveShowDevices" ADD COLUMN IF NOT EXISTS "movementAdmins"  uuid[] NOT NULL DEFAULT '{}';
+
+-- Every time a screen is bumped or a key is pressed on it (a "touch"), we log a
+-- row so Show Setup can review who touched which screen and when. kind is
+-- 'movement' for a physical bump and 'key' for a key press.
+CREATE TABLE IF NOT EXISTS "LiveShowTouches" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "deviceKey"   text NOT NULL DEFAULT '',
+  "deviceName"  text NOT NULL DEFAULT '',
+  "kind"        text NOT NULL DEFAULT 'movement',
+  "createdAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowTouches_show_idx" ON "LiveShowTouches" ("liveShowId");
+
+-- The public live chat. Anyone can read it; only admins write. kind is 'chat'
+-- for ordinary posts, 'announcement' when an admin broadcast it (so a timed-out
+-- announcement still survives in the chat log) and 'system' for joins/controls.
+CREATE TABLE IF NOT EXISTS "LiveShowMessages" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "author"      uuid,
+  "authorName"  text NOT NULL DEFAULT '',
+  "body"        text NOT NULL DEFAULT '',
+  "kind"        text NOT NULL DEFAULT 'chat',
+  "createdAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowMessages_show_idx" ON "LiveShowMessages" ("liveShowId");
+
+-- Announcements: a banner on the board. seconds is how long it stays up (0 =
+-- until an admin clears it); expiresAt is computed on create so a poll only has
+-- to compare timestamps. clearedAt is set when an admin takes it down early.
+CREATE TABLE IF NOT EXISTS "LiveShowAnnouncements" (
+  "id"          uuid PRIMARY KEY,
+  "liveShowId"  uuid NOT NULL,
+  "body"        text NOT NULL DEFAULT '',
+  "author"      uuid,
+  "authorName"  text NOT NULL DEFAULT '',
+  "seconds"     int NOT NULL DEFAULT 0,
+  "expiresAt"   timestamptz,
+  "clearedAt"   timestamptz,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LiveShowAnnouncements_show_idx" ON "LiveShowAnnouncements" ("liveShowId");
+
+-- One member's answer to a feedback form (/feedback/:formId). A member answers a
+-- given form exactly once and cannot edit it afterwards, which the unique index
+-- on (form, member) enforces at the database, not just in the endpoint. `selected`
+-- holds feature ids from src/lib/feedback.ts; `other` is the free-text box.
+CREATE TABLE IF NOT EXISTS "FeedbackResponses" (
+  "id"          uuid PRIMARY KEY,
+  "form"        text NOT NULL,
+  "member"      uuid,
+  "memberEmail" text NOT NULL DEFAULT '',
+  "memberName"  text NOT NULL DEFAULT '',
+  "selected"    text[] NOT NULL DEFAULT '{}',
+  "other"       text NOT NULL DEFAULT '',
+  "submittedAt" timestamptz NOT NULL DEFAULT now(),
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "FeedbackResponses_form_member_idx" ON "FeedbackResponses" ("form", "member");
+CREATE INDEX IF NOT EXISTS "FeedbackResponses_form_idx" ON "FeedbackResponses" ("form");
+-- A freeform form (src/lib/feedback.ts `kind: 'freeform'`) has no tick-boxes, so
+-- its paragraph answers live here: a { promptId: text } map. `selected` stays
+-- empty for those. Additive, so the ideas forms are untouched.
+ALTER TABLE "FeedbackResponses" ADD COLUMN IF NOT EXISTS "answers" jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+
+-- Member profile extras (status, birthday, contact sharing, mentorship)
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusText" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "statusEmoji" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "birthday" text NOT NULL DEFAULT ''; -- MM-DD
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "contactShare" boolean NOT NULL DEFAULT false;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "mentorId" uuid;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "isMentor" boolean NOT NULL DEFAULT false;
+
+-- ---------------------------------------------------------------------------
+-- Show workspace (Batch 3 of the feedback roadmap): everything that hangs off
+-- a single show. Each table carries the show id, and the child rows that can be
+-- ticked off or signed carry who did it and when so the record is auditable.
+-- ---------------------------------------------------------------------------
+
+-- Show checklists you can tick off: props, costumes, cues. One flat list per
+-- show, grouped by an optional category label.
+CREATE TABLE IF NOT EXISTS "ShowChecklistItems" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "category"   text NOT NULL DEFAULT '',
+  "label"      text NOT NULL,
+  "notes"      text NOT NULL DEFAULT '',
+  "position"   int NOT NULL DEFAULT 0,
+  "done"       boolean NOT NULL DEFAULT false,
+  "doneBy"     uuid,
+  "doneAt"     timestamptz,
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowChecklistItems_show_idx" ON "ShowChecklistItems" ("show");
+
+-- Lighting and sound cue sheets stored per show.
+CREATE TABLE IF NOT EXISTS "ShowCues" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "number"     text NOT NULL DEFAULT '',
+  "department" text NOT NULL DEFAULT 'Lighting',
+  "scene"      text NOT NULL DEFAULT '',
+  "description" text NOT NULL DEFAULT '',
+  "standby"    text NOT NULL DEFAULT '',
+  "go"         text NOT NULL DEFAULT '',
+  "notes"      text NOT NULL DEFAULT '',
+  "position"   int NOT NULL DEFAULT 0,
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowCues_show_idx" ON "ShowCues" ("show");
+
+-- Prop & costume inventory: where it is and who has it.
+CREATE TABLE IF NOT EXISTS "ShowProps" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "name"       text NOT NULL,
+  "category"   text NOT NULL DEFAULT 'Prop',
+  "quantity"   int NOT NULL DEFAULT 1,
+  "location"   text NOT NULL DEFAULT '',
+  "holder"     uuid,
+  "status"     text NOT NULL DEFAULT 'Available',
+  "notes"      text NOT NULL DEFAULT '',
+  "createdBy"  uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowProps_show_idx" ON "ShowProps" ("show");
+
+-- Show scenes: label, title, who is in it (free-text names) and an estimate.
+-- Feeds the rehearsal-order shuffle and the scene run-time summaries.
+CREATE TABLE IF NOT EXISTS "ShowScenes" (
+  "id"        uuid PRIMARY KEY,
+  "show"      uuid NOT NULL,
+  "label"     text NOT NULL DEFAULT '',
+  "title"     text NOT NULL DEFAULT '',
+  "minutes"   int NOT NULL DEFAULT 0,
+  "cast"      text[] NOT NULL DEFAULT '{}',
+  "position"  int NOT NULL DEFAULT 0,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowScenes_show_idx" ON "ShowScenes" ("show");
+
+-- Rehearsal notes and blocking, per show and optionally per scene or event.
+CREATE TABLE IF NOT EXISTS "RehearsalNotes" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "subEvent"   uuid,
+  "scene"      text NOT NULL DEFAULT '',
+  "body"       text NOT NULL,
+  "author"     uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "RehearsalNotes_show_idx" ON "RehearsalNotes" ("show");
+
+-- Estimated and actual scene run-times, learned from rehearsals.
+CREATE TABLE IF NOT EXISTS "SceneTimings" (
+  "id"         uuid PRIMARY KEY,
+  "show"       uuid NOT NULL,
+  "scene"      text NOT NULL,
+  "minutes"    int NOT NULL DEFAULT 0,
+  "kind"       text NOT NULL DEFAULT 'Actual',
+  "recordedBy" uuid,
+  "recordedAt" timestamptz NOT NULL DEFAULT now(),
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "SceneTimings_show_idx" ON "SceneTimings" ("show");
+
+-- One-tap roll call for who is at a rehearsal. Separate from Attendance, which
+-- is the RSVP: a roll call records who actually turned up.
+CREATE TABLE IF NOT EXISTS "RollCalls" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "present"   boolean NOT NULL DEFAULT true,
+  "by"        uuid,
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "RollCalls_subEvent_member_idx" ON "RollCalls" ("subEvent", "member");
+
+-- Pre-show sign-off: everyone confirms their bit before curtain up.
+CREATE TABLE IF NOT EXISTS "ShowSignoffs" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "role"      text NOT NULL DEFAULT '',
+  "note"      text NOT NULL DEFAULT '',
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "ShowSignoffs_subEvent_member_idx" ON "ShowSignoffs" ("subEvent", "member");
+
+-- Quick cue calls to specific people, and last-minute cover requests.
+CREATE TABLE IF NOT EXISTS "CueCalls" (
+  "id"        uuid PRIMARY KEY,
+  "subEvent"  uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "message"   text NOT NULL DEFAULT '',
+  "by"        uuid,
+  "at"        timestamptz NOT NULL DEFAULT now(),
+  "ackedAt"   timestamptz,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "CueCalls_subEvent_idx" ON "CueCalls" ("subEvent");
+
+CREATE TABLE IF NOT EXISTS "CoverRequests" (
+  "id"          uuid PRIMARY KEY,
+  "subEvent"    uuid NOT NULL,
+  "member"      uuid,
+  "role"        text NOT NULL DEFAULT '',
+  "reason"      text NOT NULL DEFAULT '',
+  "status"      text NOT NULL DEFAULT 'Open',
+  "filledBy"    uuid,
+  "message"     text NOT NULL DEFAULT '',
+  "createdBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "CoverRequests_subEvent_idx" ON "CoverRequests" ("subEvent");
+
+-- Tech Week mode locks a show's plan down: once on, the plan and event changes
+-- are frozen so nothing moves under the crew's feet mid-tech.
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLocked"   boolean NOT NULL DEFAULT false;
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedAt" timestamptz;
+ALTER TABLE "Shows" ADD COLUMN IF NOT EXISTS "techLockedBy" uuid;
+
+-- ---------------------------------------------------------------------------
+-- Batch 4: show-day extras. Backstage photos are referenced by URL (the same
+-- no-upload approach used for member avatars), debriefs and green-room notes
+-- are simple running logs, lost property is a tracked inventory, and box-office
+-- counts are one row per event so a run's numbers can be charted.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "ShowPhotos" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "url"       text NOT NULL,
+  "caption"   text NOT NULL DEFAULT '',
+  "scene"     text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowPhotos_show_idx" ON "ShowPhotos" ("show");
+CREATE TABLE IF NOT EXISTS "ShowDebriefs" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "subEvent"  uuid,
+  "body"      text NOT NULL,
+  "author"    uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "ShowDebriefs_show_idx" ON "ShowDebriefs" ("show");
+
+CREATE TABLE IF NOT EXISTS "GreenRoomNotes" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"      uuid NOT NULL,
+  "subEvent"  uuid,
+  "title"     text NOT NULL DEFAULT '',
+  "body"      text NOT NULL,
+  "pinned"    boolean NOT NULL DEFAULT false,
+  "author"    uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "GreenRoomNotes_show_idx" ON "GreenRoomNotes" ("show");
+
+CREATE TABLE IF NOT EXISTS "LostProperty" (
+  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"        uuid NOT NULL,
+  "subEvent"    uuid,
+  "item"        text NOT NULL,
+  "description" text NOT NULL DEFAULT '',
+  "location"    text NOT NULL DEFAULT '',
+  "status"      text NOT NULL DEFAULT 'Lost',
+  "holder"      uuid,
+  "notes"       text NOT NULL DEFAULT '',
+  "createdBy"   uuid,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "LostProperty_show_idx" ON "LostProperty" ("show");
+
+CREATE TABLE IF NOT EXISTS "AudienceCounts" (
+  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "show"        uuid NOT NULL,
+  "subEvent"    uuid NOT NULL,
+  "count"       integer NOT NULL DEFAULT 0,
+  "capacity"    integer NOT NULL DEFAULT 0,
+  "notes"       text NOT NULL DEFAULT '',
+  "recordedBy"  uuid,
+  "recordedAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "AudienceCounts_subEvent_idx" ON "AudienceCounts" ("subEvent");
+
+-- The update shim always writes "updatedAt"; make sure the tables it can update
+-- carry the column even if they were first created without it.
+ALTER TABLE "ShowPhotos" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "GreenRoomNotes" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+ALTER TABLE "AudienceCounts" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+
+-- ---------------------------------------------------------------------------
+-- Batch 5: scheduling. Exam blackout dates, the member's "I am not free" log,
+-- self sign-up rotas (front-of-house, stewarding) and per-member travel time /
+-- reminder preferences.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "ExamBlackouts" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "label"     text NOT NULL DEFAULT '',
+  "startDate" text NOT NULL DEFAULT '',
+  "endDate"   text NOT NULL DEFAULT '',
+  "note"      text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "MemberAvailability" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "member"    uuid NOT NULL,
+  "date"      text NOT NULL DEFAULT '',
+  "allDay"    boolean NOT NULL DEFAULT true,
+  "fromTime"  text NOT NULL DEFAULT '',
+  "toTime"    text NOT NULL DEFAULT '',
+  "reason"    text NOT NULL DEFAULT '',
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "MemberAvailability_member_idx" ON "MemberAvailability" ("member");
+
+CREATE TABLE IF NOT EXISTS "RotaSlots" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "subEvent"  uuid NOT NULL,
+  "role"      text NOT NULL DEFAULT '',
+  "capacity"  integer NOT NULL DEFAULT 1,
+  "note"      text NOT NULL DEFAULT '',
+  "createdBy" uuid,
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "RotaSlots_subEvent_idx" ON "RotaSlots" ("subEvent");
+
+CREATE TABLE IF NOT EXISTS "RotaSignups" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "slot"      uuid NOT NULL,
+  "member"    uuid NOT NULL,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "RotaSignups_slot_member_idx" ON "RotaSignups" ("slot", "member");
+
+-- Travel time is per member (minutes to pad before a call time); reminder
+-- preferences are a small JSON blob the member tunes per event type.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "travelMinutes" integer NOT NULL DEFAULT 0;
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "reminderPrefs" text NOT NULL DEFAULT '';
+
+-- ---------------------------------------------------------------------------
+-- Batch 6: app polish. Fine-grained push controls and a notification history
+-- so a member can catch up on what they missed while offline.
+-- ---------------------------------------------------------------------------
+-- Per-member push tuning: a small JSON blob of { kind: boolean }. A kind that
+-- is absent (or the blob empty) means "on", so the default stays useful and a
+-- new kind needs no backfill.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "notificationPrefs" text NOT NULL DEFAULT '';
+
+-- One row per push actually delivered to a member (not per device), so the app
+-- can show "what you missed". Kept separate from NotificationLog on purpose:
+-- that table is the per-kind dedupe ledger keyed by a unique dedupeKey, and a
+-- history row must never interfere with "have we already sent this".
+CREATE TABLE IF NOT EXISTS "NotificationHistory" (
+  "id"      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "member"  uuid NOT NULL,
+  "kind"    text NOT NULL DEFAULT '',
+  "title"   text NOT NULL DEFAULT '',
+  "body"    text NOT NULL DEFAULT '',
+  "url"     text NOT NULL DEFAULT '/',
+  "sentAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "NotificationHistory_member_idx" ON "NotificationHistory" ("member", "sentAt" DESC);
+
+-- ---------------------------------------------------------------------------
+-- Batch 7: the crew. A crew-wide announcements feed, direct messages between
+-- members, and a skills directory ("who can teach me this?").
+-- ---------------------------------------------------------------------------
+-- Announcements: admin-authored notices every member can read. Pinned ones
+-- float to the top. authorName is denormalised so the feed renders without a
+-- join and survives the author leaving.
+CREATE TABLE IF NOT EXISTS "Announcements" (
+  "id"         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "title"      text NOT NULL DEFAULT '',
+  "body"       text NOT NULL DEFAULT '',
+  "author"     uuid,
+  "authorName" text NOT NULL DEFAULT '',
+  "pinned"     boolean NOT NULL DEFAULT false,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "Announcements_createdAt_idx" ON "Announcements" ("createdAt" DESC);
+
+-- Direct messages: one row per message. `from`/`to` are member ids; a thread is
+-- every row where either side is you and the other is the same person. readAt
+-- is set the first time the recipient opens the thread.
+CREATE TABLE IF NOT EXISTS "DirectMessages" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "from"      uuid NOT NULL,
+  "to"        uuid NOT NULL,
+  "body"      text NOT NULL DEFAULT '',
+  "createdAt" timestamptz NOT NULL DEFAULT now(),
+  "readAt"    timestamptz
+);
+CREATE INDEX IF NOT EXISTS "DirectMessages_to_idx" ON "DirectMessages" ("to", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "DirectMessages_pair_idx" ON "DirectMessages" ("from", "to", "createdAt");
+
+-- Skills directory: two comma-separated tag lists the member edits in Settings.
+-- Free text on purpose (there is no maintained taxonomy), sanitised on the way
+-- in and matched case-insensitively on the way out.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsTeach" text NOT NULL DEFAULT '';
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "skillsLearn" text NOT NULL DEFAULT '';
+
+-- ---------------------------------------------------------------------------
+-- Support-ticket pinning (ticket 636bde75). A pinned ticket floats to the top of
+-- the Support list whatever the chosen sort, so the team can keep the few that
+-- matter in view. Existing databases get the column added below.
+-- ---------------------------------------------------------------------------
+ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "pinned" boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS "SupportTickets_pinned_idx" ON "SupportTickets" ("pinned") WHERE "pinned";
+
+-- ---------------------------------------------------------------------------
+-- Badges were removed in feedback round 2. The "MemberBadges" table is no
+-- longer created; on a database that already has it, it is simply left unused.
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Feedback round 2: privacy controls, skill options and app settings.
+-- ---------------------------------------------------------------------------
+-- Per-member visibility. `privacy` is { avatar, email, skills } each one of
+-- 'crew' | 'admins' | 'none', plus `blocked`: member ids this member hides from.
+-- Admins are never restricted, and a member always sees their own record.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "privacy" jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+-- Per-member permission overrides: { granted: [], revoked: [] } over the
+-- catalogue in src/lib/permissions.ts. Empty means "just the defaults".
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "permissions" jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+-- ---------------------------------------------------------------------------
+-- Signed-in devices (feedback round 2). A session row is a device; the id stays
+-- secret (it is the cookie), so the UI refers to a device by a separate publicId.
+-- ---------------------------------------------------------------------------
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "publicId" uuid NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "userAgent" text NOT NULL DEFAULT '';
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "ip" text NOT NULL DEFAULT '';
+ALTER TABLE "AuthSessions" ADD COLUMN IF NOT EXISTS "lastSeenAt" timestamptz NOT NULL DEFAULT now();
+CREATE UNIQUE INDEX IF NOT EXISTS "AuthSessions_publicId_idx" ON "AuthSessions" ("publicId");
+CREATE INDEX IF NOT EXISTS "AuthSessions_email_idx" ON "AuthSessions" ("email");
+
+-- Feedback round 2: where a scene timing came from, so shows can take priority
+-- over rehearsals when we average how long a scene really runs.
+ALTER TABLE "SceneTimings" ADD COLUMN IF NOT EXISTS "source" text NOT NULL DEFAULT 'rehearsal';
+
+-- Ticket d1ae2a76 / 09b3e402: how this member wants support email. '' follows
+-- the site-wide default, so nobody's inbox changes until they pick something.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "supportEmailMode" text NOT NULL DEFAULT '';
+
+-- Ticket 5a04aaf1: pictures attached to a support ticket. Comma-separated
+-- /api/uploads/tickets/... paths, same hosting as profile pictures.
+ALTER TABLE "SupportTickets" ADD COLUMN IF NOT EXISTS "attachments" text NOT NULL DEFAULT '';
+
+-- For parents: the address a parent can type on the public For parents page to
+-- see their child's dates. Comma-separated, so two parents can both look in.
+-- Nothing is ever sent to it, and it is never shown anywhere but that lookup.
+ALTER TABLE "CrewMembers" ADD COLUMN IF NOT EXISTS "parentEmail" text NOT NULL DEFAULT '';
+
+-- A tiny key/value store for app-wide settings the admins curate (the skill
+-- options, the cat's name, and whatever else the settings page grows). Kept
+-- generic so a new setting does not need a schema change.
+CREATE TABLE IF NOT EXISTS "Settings" (
+  "key"       text PRIMARY KEY,
+  "value"     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  "updatedAt" timestamptz NOT NULL DEFAULT now()
+);
+
+
+-- Ticket 7958eb6c: "Documents". A link an admin or staff member wants the crew
+-- to have, with a say in who can see it. Links only, and the audience is checked
+-- on every read, so a shared document is never public just because it has a URL.
+CREATE TABLE IF NOT EXISTS "Documents" (
+  "id"          uuid PRIMARY KEY,
+  "title"       text NOT NULL DEFAULT '',
+  "description" text NOT NULL DEFAULT '',
+  "url"         text NOT NULL DEFAULT '',
+  "category"    text NOT NULL DEFAULT '',
+  "audience"    text NOT NULL DEFAULT 'crew',
+  "memberIds"   uuid[] NOT NULL DEFAULT '{}',
+  "createdBy"   uuid,
+  "hidden"      boolean NOT NULL DEFAULT false,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"   timestamptz NOT NULL DEFAULT now()
+);
+
+-- Ticket for the MCP page: named keys, so one machine can be cut off without
+-- disturbing the others, and a log of what the tools were actually asked to do.
+CREATE TABLE IF NOT EXISTS "McpKeys" (
+  "id"         uuid PRIMARY KEY,
+  "name"       text NOT NULL DEFAULT '',
+  "prefix"     text NOT NULL DEFAULT '',
+  "tokenHash"  text NOT NULL DEFAULT '',
+  "enabled"    boolean NOT NULL DEFAULT true,
+  "createdBy"  uuid,
+  "memberId"   uuid,
+  "createdAt"  timestamptz NOT NULL DEFAULT now(),
+  "updatedAt"  timestamptz NOT NULL DEFAULT now(),
+  "lastUsedAt" timestamptz
+);
+CREATE INDEX IF NOT EXISTS "McpKeys_hash_idx" ON "McpKeys" ("tokenHash");
+-- Added after the first cut of this table: zite.update always stamps updatedAt.
+ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now();
+-- Which crew member a key acts as. Empty falls back to MCP_EMAIL, then the first admin.
+ALTER TABLE "McpKeys" ADD COLUMN IF NOT EXISTS "memberId" uuid;
+
+CREATE TABLE IF NOT EXISTS "McpCallLog" (
+  "id"        uuid PRIMARY KEY,
+  "keyName"   text NOT NULL DEFAULT '',
+  "method"    text NOT NULL DEFAULT '',
+  "tool"      text NOT NULL DEFAULT '',
+  "ok"        boolean NOT NULL DEFAULT true,
+  "detail"    text NOT NULL DEFAULT '',
+  "ms"        integer NOT NULL DEFAULT 0,
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "McpCallLog_created_idx" ON "McpCallLog" ("createdAt");
+
+COMMIT;

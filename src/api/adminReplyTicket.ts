@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
-import { Email } from 'zitejs/email';
+import { createEndpoint } from '#backend';
+import { zite } from '#db';
+import { Email } from '#email';
 import { requireAdmin, ids } from '../lib/server';
 import { REPLY_KIND, ticketUrl, fullName } from '../lib/support';
 import { SUPPORT_MESSAGE_MAX, noReplyNotice, automatedFooter } from '../lib/emails';
@@ -9,11 +9,17 @@ import { SUPPORT_MESSAGE_MAX, noReplyNotice, automatedFooter } from '../lib/emai
 export default createEndpoint({
   description: 'Emails a support reply to the person who raised a ticket and records it on the thread (admins)',
   authenticated: true,
-  inputSchema: z.object({ id: z.string(), message: z.string().min(1).max(SUPPORT_MESSAGE_MAX) }),
+  inputSchema: z.object({
+    id: z.string(),
+    message: z.string().min(1).max(SUPPORT_MESSAGE_MAX),
+    // Used by the MCP server so an agent's reply is signed as the agent, not as
+    // whichever admin the key belongs to. The email still comes from that admin.
+    asName: z.string().max(80).optional(),
+  }),
   outputSchema: z.object({ sent: z.boolean(), messageId: z.string() }),
   execute: async ({ input, context }) => {
     const admin = await requireAdmin(context.user.email);
-    const adminName = fullName(admin);
+    const adminName = (input.asName ?? '').trim() || fullName(admin);
     const adminEmail = admin.schoolEmail ?? context.user.email;
 
     const { records: tickets } = await zite.supportTickets.findAll({ limit: 2000 });
@@ -51,7 +57,7 @@ export default createEndpoint({
     await zite.emailLog.create({
       record: {
         subject, member: submitter.id, recipientEmail: submitter.schoolEmail, purpose: 'Support Reply',
-        body, sentBy: adminName, batchId: '',
+        body, sentBy: adminName, sentAt, batchId: '',
       } as never,
     });
     // Replying re-arms the escalation clock and moves an untouched ticket along.

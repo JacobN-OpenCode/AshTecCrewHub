@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getCalendar } from 'zitejs/api';
+import { getCalendar, setShowResponse, adminGetData } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Checkbox } from '@project/components/ui/checkbox';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -9,12 +10,14 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@project/components/ui/dialog';
 import { cn } from '@project/components/lib/utils';
-import { pv } from '../lib/preview';
+import { pv, previewId } from '../lib/preview';
 import { useMe } from '../lib/me';
 import MultiFilter from '../components/admin/MultiFilter';
 import SubEventDialog from '../components/admin/SubEventDialog';
-import { type AdminShow, type AdminSubEvent } from '../lib/useAdminData';
+import { type AdminShow, type AdminSubEvent, type AdminMember } from '../lib/useAdminData';
 import { buildIcs, downloadIcs } from '../lib/ics';
+import { formatEventTimeRange } from '../lib/icsBuild';
+import { isClubSession } from '../lib/constants';
 
 type CalShow = AdminShow;
 
@@ -22,9 +25,19 @@ type CalResponse = { showId: string; response: string | null };
 type CalEvent = {
   id: string; title: string; type: string; subtype?: string; showIds: string[];
   date: string | null; dateTbc: boolean; meetTime?: string; importance: string; hidden: boolean;
-  description?: string; timings?: string; thingsToBring?: string;
-  dueDate?: string | null; dueUnknown?: boolean; responses?: CalResponse[];
+  description?: string; startTime?: string | null; endTime?: string | null; thingsToBring?: string;
+  dueDate?: string | null; dueUnknown?: boolean; responses?: CalResponse[]; status?: string | null;
 };
+
+/** One colour per event category, so club sessions read as their own thing. */
+const typeCard = (t: string) =>
+  t === 'Performance' ? 'border-pink-500/30 bg-pink-500/5'
+    : isClubSession(t) ? 'border-emerald-500/30 bg-emerald-500/5'
+      : 'border-sky-500/30 bg-sky-500/5';
+const typeChip = (t: string) =>
+  t === 'Performance' ? 'bg-pink-500/15 text-pink-300 border-pink-500/30'
+    : isClubSession(t) ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+      : 'bg-sky-500/15 text-sky-300 border-sky-500/30';
 
 /** Local YYYY-MM-DD. toISOString would shift the day across the UTC boundary. */
 const iso = (d: Date) =>
@@ -51,6 +64,7 @@ const buildWeeks = (month: Date) => {
 
 export default function Calendar() {
   const { me } = useMe();
+  const [searchParams] = useSearchParams();
   const [shows, setShows] = useState<CalShow[]>([]);
   const [events, setEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +77,40 @@ export default function Calendar() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const [month, setMonth] = useState(() => firstOfMonth(new Date()));
-  const [pickedShows, setPickedShows] = useState<string[]>([]);
+  // Admins can edit an event straight from the calendar, and that dialog now
+  // offers the contractor picker (ticket 00c0715c), which needs the crew list.
+  // Only admins fetch it; everyone else keeps the plain calendar.
+  const [members, setMembers] = useState<AdminMember[]>([]);
+  useEffect(() => {
+    if (!me.isAdmin) return;
+    adminGetData({}).then((d) => setMembers(d.members as AdminMember[])).catch(() => {});
+  }, [me.isAdmin]);
+
+  // Allow /calendar?date=YYYY-MM-DD&event=<id> to focus the requested day
+  // (admin events row links to this). The event id, if provided, opens
+  // that day's sheet so the event is front-and-center.
+  const initialDate = useMemo(() => {
+    const d = searchParams.get('date');
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+    const [y, m, day] = d.split('-').map(Number);
+    const parsed = new Date(y, m - 1, day);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  }, [searchParams]);
+  const initialEventId = searchParams.get('event') ?? '';
+
+  const [month, setMonth] = useState(() => firstOfMonth(initialDate ?? new Date()));
+  // Allow /calendar?show=<id> to start with that show's filter applied, so a
+  // show picked in the command palette lands on its events.
+  const [pickedShows, setPickedShows] = useState<string[]>(() => {
+    const s = searchParams.get('show');
+    return s ? [s] : [];
+  });
   const [types, setTypes] = useState<string[]>([]);
   const [responses, setResponses] = useState<string[]>([]);
   const [editEvent, setEditEvent] = useState<AdminSubEvent | null>(null);
   const [calBusy, setCalBusy] = useState(false);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
   // Hidden events are only ever returned to admins, so only they can use this.
   const canSeeHidden = me.isAdmin;
   const [includeHidden, setIncludeHidden] = useState(true);
@@ -78,6 +120,25 @@ export default function Calendar() {
   // What the detail sheet is showing: a whole day from the grid, or a single
   // undated event that has no day to sit on.
   const [sheet, setSheet] = useState<{ day: string } | { event: CalEvent } | null>(null);
+
+  // Open the focused-day sheet once the data lands and the event is known.
+  // Gated on `initialDate` so a plain /calendar visit never auto-opens.
+  useEffect(() => {
+    if (!initialDate || loading) return;
+    const focusDate = iso(initialDate);
+    if (initialEventId) {
+      const target = events.find((e) => e.id === initialEventId && e.date === focusDate);
+      if (target) {
+        setSheet({ event: target });
+        return;
+      }
+    }
+    // Fall back to the day sheet when the id missed (event moved/deleted) but
+    // the day itself still has something on it.
+    if (events.some((e) => e.date === focusDate)) {
+      setSheet({ day: focusDate });
+    }
+  }, [initialDate, initialEventId, events, loading]);
 
   const filtered = useMemo(
     () =>
@@ -101,7 +162,7 @@ export default function Calendar() {
       map.set(e.date, list);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => (a.meetTime || '99').localeCompare(b.meetTime || '99'));
+      list.sort((a, b) => (a.startTime ?? '99:99').localeCompare(b.startTime ?? '99:99'));
     }
     return map;
   }, [filtered]);
@@ -148,12 +209,30 @@ export default function Calendar() {
     }
   };
 
+  /**
+   * Ticket 66ed2183: members set their attending / maybe / no from the calendar
+   * too, not only from My Events. A response belongs to a show, so an event that
+   * sits in several shows offers a control for each.
+   */
+  const respondToShow = async (showId: string, response: 'Yes' | 'Maybe' | 'No') => {
+    setRespondingTo(showId);
+    try {
+      await setShowResponse({ showId, response, memberId: previewId() });
+      toast.success('Response saved');
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
   /** One event in the day sheet, with everything the admin wrote on it. */
   const DayRow = ({ e }: { e: CalEvent }) => (
     <div
       className={cn(
         'rounded-xl border p-3.5 space-y-2',
-        e.type === 'Performance' ? 'border-pink-500/30 bg-pink-500/5' : 'border-sky-500/30 bg-sky-500/5',
+        typeCard(e.type),
         e.hidden && 'border-dashed opacity-70',
       )}
     >
@@ -178,7 +257,11 @@ export default function Calendar() {
       {e.meetTime && (
         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5 shrink-0" /> Meet {e.meetTime}
-          {e.timings && ` · ${e.timings}`}
+        </p>
+      )}
+      {(e.startTime || e.endTime) && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
+          <span className="text-primary">●</span> {formatEventTimeRange(e.startTime ?? null, e.endTime ?? null)}
         </p>
       )}
       {e.description && <p className="text-sm leading-relaxed whitespace-pre-line">{e.description}</p>}
@@ -197,26 +280,68 @@ export default function Calendar() {
           Responses due by {new Date(e.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}
         </p>
       ) : null}
+      {/* Members respond here; admins get the full Edit control instead. */}
+      {!me.isAdmin && e.showIds.length > 0 && (
+        <div className="space-y-1.5 border-t pt-2 mt-1">
+          {e.showIds.map((showId) => {
+            const s = shows.find((x) => x.id === showId);
+            if (!s) return null;
+            const current = e.responses?.find((r) => r.showId === showId)?.response ?? null;
+            return (
+              <div key={showId} className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground truncate">{s.name}</span>
+                <div className="flex gap-1 shrink-0">
+                  {(['Yes', 'Maybe', 'No'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      disabled={respondingTo === showId}
+                      onClick={() => respondToShow(showId, r)}
+                      className={cn(
+                        'px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-50',
+                        current === r
+                          ? r === 'Yes'
+                            ? 'bg-emerald-500 text-white border-emerald-500'
+                            : r === 'No'
+                              ? 'bg-red-500 text-white border-red-500'
+                              : 'bg-yellow-500 text-black border-yellow-500'
+                          : 'hover:bg-muted',
+                      )}
+                    >
+                      {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Can’t go' : 'Maybe'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {/* Ticket 57ce12eb: club sessions are register-only, so members do not
+          answer them here (or anywhere). The session is shown for information. */}
+      {!me.isAdmin && isClubSession(e.type) && (
+        <p className="border-t pt-2 mt-1 text-xs text-muted-foreground">
+          Club session - no response needed. A register is taken at the venue.
+        </p>
+      )}
     </div>
   );
 
   const Chip = ({ e }: { e: CalEvent }) => (
     <div
-      title={[e.title, e.subtype || e.type, e.meetTime, showName(e)].filter(Boolean).join(' · ')}
+      title={[e.title, e.subtype || e.type, formatEventTimeRange(e.startTime ?? null, e.endTime ?? null), e.meetTime, showName(e)].filter(Boolean).join(' · ')}
       className={cn(
         'text-[11px] leading-tight rounded-md px-1.5 py-1 border truncate',
-        e.type === 'Performance'
-          ? 'bg-pink-500/15 text-pink-300 border-pink-500/30'
-          : 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+        typeChip(e.type),
         e.hidden && 'opacity-60 border-dashed',
       )}
     >
       <div className="flex items-center gap-1">
-        {e.meetTime && <span className="font-mono opacity-80 shrink-0">{e.meetTime}</span>}
+        {e.startTime && <span className="font-mono opacity-80 shrink-0">{e.startTime}</span>}
         <span className="truncate">{e.title}</span>
         {e.hidden && <EyeOff className="h-3 w-3 shrink-0 opacity-70" />}
       </div>
-      <div className="truncate opacity-70">{showName(e) || 'No show'}</div>
+      <div className="truncate opacity-70">{showName(e) || (isClubSession(e.type) ? 'Club session' : 'No show')}</div>
     </div>
   );
 
@@ -255,7 +380,7 @@ export default function Calendar() {
         />
         <MultiFilter
           label="Type"
-          options={[{ value: 'Rehearsal', label: 'Rehearsal' }, { value: 'Performance', label: 'Performance' }]}
+          options={[{ value: 'Rehearsal', label: 'Rehearsal' }, { value: 'Performance', label: 'Performance' }, { value: 'Club Session', label: 'Club Session' }]}
           selected={types}
           onChange={setTypes}
         />
@@ -348,6 +473,7 @@ export default function Calendar() {
           open={!!editEvent}
           ev={editEvent}
           shows={shows}
+          members={members}
           defaultShowId={editEvent?.showIds[0]}
           onClose={() => setEditEvent(null)}
           onSaved={async () => { setEditEvent(null); await load(); }}
@@ -374,7 +500,7 @@ export default function Calendar() {
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
                   {e.subtype || e.type} · {showName(e) || 'No show'}
-                  {e.meetTime && ` · meet ${e.meetTime}`}
+                  {(e.startTime || e.endTime) && ` · ${formatEventTimeRange(e.startTime ?? null, e.endTime ?? null)}`}
                 </p>
                 {e.description && <p className="text-xs text-muted-foreground line-clamp-2">{e.description}</p>}
                 <p className="text-[11px] text-primary">Click for details</p>

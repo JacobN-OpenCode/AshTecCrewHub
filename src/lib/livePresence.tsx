@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getPresence } from 'zitejs/api';
+import { getPresence } from '#api';
 import { pv } from './preview';
 
 export type MyPresence = {

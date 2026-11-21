@@ -1,8 +1,11 @@
 import { z } from 'zod';
-import { createEndpoint } from 'zitejs/backend';
-import { zite } from 'zitejs/db';
+import { createEndpoint, ZiteError } from '#backend';
+import { zite } from '#db';
 import { requireMember } from '../lib/server';
 import { YEARS, ROLES } from '../lib/constants';
+import { parsePrivacy, onlyKnownSkills } from '../lib/settings';
+import { readAppSettings } from './getSettings';
+import { isAvatarUrl, AVATAR_URL_MESSAGE } from '../lib/avatarUrl';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -10,16 +13,50 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const parseAlternates = (raw: string | null | undefined) =>
   (raw ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
+/**
+ * Skills are a controlled list now (feedback round 2): the member picks from the
+ * options an admin curates, so we keep only the values that are still real
+ * options, tidied and de-duplicated.
+ */
+const parseTags = (raw: string[], options: string[]) =>
+  onlyKnownSkills(
+    [...new Set(raw.map((s) => s.trim().replace(/\s+/g, ' ')).filter(Boolean))],
+    options,
+  ).slice(0, 20).join(', ');
+
 export default createEndpoint({
   description: 'Lets a member edit their own name, year, school email and preferred roles. Nothing else.',
   authenticated: true,
   inputSchema: z.object({
+    // New rule: only a first initial (max 2 characters) is stored, never a full
+    // first name.
     firstName: z.string().max(80).optional(),
     lastName: z.string().max(80).optional(),
     year: z.string().optional(),
     schoolEmail: z.string().max(200).optional(),
     preferredRole1: z.string().optional(),
     preferredRole2: z.string().optional(),
+    // Profile picture as a link, not an upload: we do not host images. Empty
+    // clears it back to the initial-letter fallback.
+    avatarUrl: z.string().max(500).optional(),
+    statusText: z.string().max(120).optional(),
+    statusEmoji: z.string().max(4).optional(),
+    birthday: z.string().max(5).optional(),
+    contactShare: z.boolean().optional(),
+    // For parents: up to two addresses, comma-separated. Nothing is ever sent
+    // to them; they only unlock the public For parents lookup.
+    parentEmail: z.string().max(200).optional(),
+    // Skills: the member picks from the admin-curated options, so these are
+    // lists of chosen labels, not free text.
+    skillsTeach: z.array(z.string()).max(40).optional(),
+    skillsLearn: z.array(z.string()).max(40).optional(),
+    // Privacy (feedback round 2): what this member hides, and from whom.
+    privacy: z.object({
+      avatar: z.enum(['crew', 'admins', 'none']).optional(),
+      email: z.enum(['crew', 'admins', 'none']).optional(),
+      skills: z.enum(['crew', 'admins', 'none']).optional(),
+      blocked: z.array(z.string()).max(200).optional(),
+    }).optional(),
   }),
   outputSchema: z.object({ success: z.boolean(), emailChanged: z.boolean() }),
   execute: async ({ input, context }) => {
@@ -47,7 +84,65 @@ export default createEndpoint({
     }
     const p1 = (input.preferredRole1 ?? me.preferredRole1 ?? '') as string;
     const p2 = (input.preferredRole2 ?? me.preferredRole2 ?? '') as string;
-    if (p1 && p1 === p2) throw new Error('Pick two different roles.');
+    // Ticket 2070a91c: admins are not required to set stage roles (the form
+    // hides the pickers for them), so an admin whose stored roles happen to be
+    // equal was blocked from saving anything. The two-distinct-roles rule only
+    // applies to people who actually choose roles.
+    if (!me.isAdmin && p1 && p1 === p2) throw new Error('Pick two different roles.');
+
+    if (input.avatarUrl !== undefined) {
+      const url = input.avatarUrl.trim();
+      // Ticket 76cf803c: a mistyped picture link is a 400, not a 500. It used to
+      // read as "the crew hub broke" and paged the maintainers over a typo.
+      // Ticket 3bf93c2e: accept the relative path our own uploader returns, not
+      // just absolute links, or an uploaded picture can never be saved.
+      if (!url) record.avatarUrl = '';
+      else if (!isAvatarUrl(url)) throw new ZiteError({ code: 'BAD_REQUEST', message: AVATAR_URL_MESSAGE });
+      else record.avatarUrl = url;
+    }
+    if (input.statusText !== undefined) record.statusText = input.statusText.trim().slice(0, 120);
+    if (input.statusEmoji !== undefined) record.statusEmoji = input.statusEmoji.trim().slice(0, 4);
+    if (input.birthday !== undefined) {
+      const b = input.birthday.trim();
+      if (b && !/^(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])$/.test(b)) throw new Error('Birthday should be MM-DD.');
+      record.birthday = b;
+    }
+    if (input.contactShare !== undefined) record.contactShare = !!input.contactShare;
+
+    if (input.parentEmail !== undefined) {
+      const list = input.parentEmail.split(',').map((v) => v.trim().toLowerCase()).filter(Boolean);
+      if (list.length > 2) throw new Error('Add at most two parent addresses.');
+      for (const addr of list) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) throw new Error(`"${addr}" does not look like an email address.`);
+      }
+      record.parentEmail = list.join(',');
+    }
+
+    // Skills are admin-curated now. If an admin has turned member editing off,
+    // only an admin may change them; otherwise keep the chosen labels that are
+    // still real options.
+    if (input.skillsTeach !== undefined || input.skillsLearn !== undefined) {
+      const settings = await readAppSettings();
+      if (!settings.skillsEditable && !me.isAdmin) {
+        throw new ZiteError({ code: 'FORBIDDEN', message: 'Skills are managed by a crew admin.' });
+      }
+      if (input.skillsTeach !== undefined) record.skillsTeach = parseTags(input.skillsTeach, settings.skillOptions);
+      if (input.skillsLearn !== undefined) record.skillsLearn = parseTags(input.skillsLearn, settings.skillOptions);
+    }
+
+    if (input.privacy !== undefined) {
+      // Merge over the stored blob so a partial update never wipes the rest.
+      const current = parsePrivacy((me as unknown as { privacy?: unknown }).privacy);
+      const next = parsePrivacy({
+        avatar: input.privacy.avatar ?? current.avatar,
+        email: input.privacy.email ?? current.email,
+        skills: input.privacy.skills ?? current.skills,
+        blocked: input.privacy.blocked ?? current.blocked,
+      });
+      // Nobody can hide from themselves; drop the caller's own id from the list.
+      next.blocked = next.blocked.filter((id) => id !== me.id);
+      record.privacy = JSON.stringify(next);
+    }
 
     let emailChanged = false;
     if (input.schoolEmail !== undefined) {

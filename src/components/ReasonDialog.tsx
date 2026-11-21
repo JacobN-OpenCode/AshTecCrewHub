@@ -15,7 +15,7 @@ export default function ReasonDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Please explain why you can’t attend (at least 8 words).</DialogDescription>
+          <DialogDescription>Tell the stage manager why you can’t attend, in at least 8 words.</DialogDescription>
         </DialogHeader>
         <Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. I have a family event that weekend which was booked months ago" />
         <p className={`text-xs ${n >= 8 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{n} / 8 words</p>

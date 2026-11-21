@@ -1,293 +1,604 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { adminGetPresence, presenceEnd, presenceStart } from 'zitejs/api';
-import { Button } from '@project/components/ui/button';
-import { Badge } from '@project/components/ui/badge';
-import { Skeleton } from '@project/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@project/components/ui/select';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@project/components/ui/alert-dialog';
-import { DoorOpen, Loader2, LogOut, MapPin, TriangleAlert, UserCheck } from 'lucide-react';
+  adminCheckInScan, adminGetPresence, adminGetRegister, adminRegisterAttendance,
+  presenceDecision, presenceEnd, presenceStart,
+} from '#api';
+import { Button } from '@project/components/ui/button';
+import { Input } from '@project/components/ui/input';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@project/components/ui/dialog';
+import QrScanner from '../../components/admin/QrScanner';
+import {
+  ArrowLeft, Camera, Check, ChevronRight, Clock, DoorOpen, Loader2, Search, Users, X,
+} from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
-import { fmtDate } from '../../lib/constants';
+
+/**
+ * One check-in page (feedback round 3).
+ *
+ * The old screen asked the admin to open a presence session, then choose
+ * between a QR tab and a register tab, then approve each scan on a third page.
+ * This is the same work in the order it actually happens: pick the session in
+ * front of you, then tap names or scan codes. A club session has nothing to
+ * scan for, so it never offers the camera.
+ *
+ * Every tap writes attendance immediately, so a half-taken register is never
+ * lost if the page is closed or the phone locks.
+ */
+
+type Mode = 'scan' | 'register';
+
+type EventOption = {
+  id: string; title: string; type: string; subtype: string;
+  date: string | null; startTime: string | null; endTime: string | null;
+  showNames: string[]; mode: Mode;
+};
+
+type Mark = '' | 'green' | 'yellow' | 'red';
 
 type Row = {
-  id: string
-  memberId: string
-  name: string
-  year: string
-  roles: string[]
-  state: string | null
-  reasonLabel: string
-  reason: string
-  comingBack: boolean
-  expectedBackAt: string | null
-  signedInAt: string | null
-  signedOutAt: string | null
-  pendingAction: string | null
+  id: string; name: string; year: string; roles: string[];
+  ticked: boolean; rsvp: string; expected: boolean;
+  // The register colour, and the reason that came with it.
+  state: Mark; reason: string;
 };
 
-type Payload = {
-  session: { id: string; title: string; type: string; date: string | null; startedAt: string | null } | null
-  roster: Row[]
-  canManage: boolean
-  subEvents: { id: string; title: string; date: string | null }[]
+/** Green is in, yellow is away for a while, red is not in at all. */
+const MARKS = [
+  { key: 'green' as const, label: 'In', icon: Check, on: 'border-emerald-500 bg-emerald-500 text-white', off: 'border-emerald-500/40 text-emerald-500' },
+  { key: 'yellow' as const, label: 'Away', icon: Clock, on: 'border-amber-500 bg-amber-500 text-white', off: 'border-amber-500/40 text-amber-500' },
+  { key: 'red' as const, label: 'Not in', icon: X, on: 'border-rose-500 bg-rose-500 text-white', off: 'border-rose-500/40 text-rose-500' },
+];
+
+// A school register wants the same handful of reasons every time, so they are
+// taps first and typing only if none of them fit.
+const AWAY_REASONS = ['Lunch', 'Dinner', 'Meeting with someone', 'Called to the office', 'In another lesson'];
+const OUT_REASONS = ['External appointment', 'Unwell', 'Not in school today', 'Left early'];
+
+const tint = (state: Mark) =>
+  state === 'green' ? 'bg-emerald-500/5'
+    : state === 'yellow' ? 'bg-amber-500/5'
+      : state === 'red' ? 'bg-rose-500/5'
+        : '';
+
+type PresenceRow = {
+  id: string; memberId: string; name: string; year: string; roles: string[];
+  state: string | null; pendingAction: string | null; token: string | null;
+  reasonLabel: string; reason: string; comingBack: boolean;
 };
 
-const STATE_STYLE: Record<string, string> = {
-  'On Site': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  'Off Site': 'bg-muted text-muted-foreground border-border',
-  'Expected Back': 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  'Not at Venue': 'bg-red-500/15 text-red-400 border-red-500/30',
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const clock = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+const when = (date: string | null) => {
+  if (!date) return 'No date';
+  const d = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return date;
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+};
 
-/** "back at 19:30", from the time the member said they would return. */
-function backLabel(iso: string | null) {
-  return iso ? `back at ${new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '';
-}
+const timeRange = (start: string | null, end: string | null) => {
+  if (!start) return '';
+  return end ? `${start}–${end}` : start;
+};
 
-function RosterGroup({
-  title, hint, rows, empty,
-}: {
-  title: string
-  hint?: string
-  rows: Row[]
-  empty: string
-}) {
-  return (
-    <section className="space-y-2">
-      <div className="flex items-baseline gap-2">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="font-mono text-xs text-muted-foreground">{rows.length}</span>
-        {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
-      </div>
-      {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-3.5 py-3 text-sm text-muted-foreground">{empty}</p>
-      ) : (
-        <ul className="divide-y rounded-2xl border">
-          {rows.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-2 px-3.5 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{r.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[r.year, ...r.roles].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                {r.reasonLabel && <span className="text-muted-foreground">{r.reasonLabel}</span>}
-                {r.reason && <span className="max-w-[22ch] truncate italic text-muted-foreground">“{r.reason}”</span>}
-                {r.comingBack && backLabel(r.expectedBackAt) && (
-                  <span className="text-yellow-400">{backLabel(r.expectedBackAt)}</span>
-                )}
-                {r.pendingAction && (
-                  <Badge variant="outline" className="border-yellow-500/40 bg-yellow-500/10 text-yellow-400">
-                    wants to {r.pendingAction.toLowerCase()}
-                  </Badge>
-                )}
-                {r.state && (
-                  <Badge variant="outline" className={cn('border', STATE_STYLE[r.state] ?? STATE_STYLE['Off Site'])}>
-                    {r.state}
-                  </Badge>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
+const kindLabel = (e: EventOption) => e.subtype || e.type || 'Event';
 
-export default function AdminPresence() {
-  const [live, setLive] = useState<Payload | null>(null);
+export default function AdminCheckIn() {
+  const [params, setParams] = useSearchParams();
+  const [pick, setPick] = useState<{ events: EventOption[]; openSession: { title: string; subEventId: string } | null } | null>(null);
+  const [chosen, setChosen] = useState('');
+  // Ticket 0a192bf9: people who answered "not attending" are hidden from the
+  // list by default; this brings them back for as long as the page is open.
+  const [showNo, setShowNo] = useState(false);
+  const showNoRef = useRef(false);
+  const [roster, setRoster] = useState<{
+    event: EventOption; members: Row[]; ticked: number;
+    counts: { green: number; yellow: number; red: number; none: number };
+    notAttending?: number;
+    sessionFor: { thisEvent: boolean; open: boolean };
+  } | null>(null);
+  const [presence, setPresence] = useState<{ session: { id: string; title: string } | null; roster: PresenceRow[] } | null>(null);
+  const [q, setQ] = useState('');
+  const [busy, setBusy] = useState('');
+  const [reasonFor, setReasonFor] = useState<{ member: Row; colour: 'yellow' | 'red' } | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [eventId, setEventId] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [problem, setProblem] = useState('');
+  const wantScan = useRef(params.get('scan') === '1');
 
-  const load = useCallback(async () => {
+  const loadPick = useCallback(async () => {
     try {
-      setLive(await adminGetPresence({}));
-    } catch {
-      // A failed poll should not blank the roster that is already on screen.
+      const r = await adminGetRegister({});
+      setPick({ events: r.events as EventOption[], openSession: r.openSession });
+      setProblem('');
+    } catch (e) {
+      setProblem((e as Error).message);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    load();
-    // Polls because a stage manager is watching this on a laptop across the
-    // room while crew scan in; without it the numbers only move on reload.
-    const t = setInterval(load, 15000);
-    return () => clearInterval(t);
-  }, [load]);
-
-  // Only dated, non-hidden events can host check-in: a TBC date has nothing to
-  // check in against. The endpoint already filters both out, so the picker can
-  // never offer a choice the start call would reject.
-  const canManage = live?.canManage ?? false;
-  const options = live?.subEvents ?? [];
-  useEffect(() => {
-    if (options.length && !options.some((e) => e.id === eventId)) setEventId(options[0].id);
-  }, [options, eventId]);
-
-  const start = async () => {
-    if (!eventId) return;
-    setBusy(true);
+  const loadRoster = useCallback(async (subEventId: string, quiet = false) => {
+    if (!quiet) setLoading(true);
     try {
-      await presenceStart({ subEventId: eventId });
-      toast.success('Check-in is open');
-      await load();
+      const [r, p] = await Promise.all([
+        adminGetRegister({ subEventId, ...(showNoRef.current ? { showNotAttending: true } : {}) }),
+        adminGetPresence({}).catch(() => null),
+      ]);
+      setRoster(r as never);
+      if (p) setPresence(p as never);
+      setProblem('');
+      return r as { event: EventOption };
+    } catch (e) {
+      setProblem((e as Error).message);
+      return null;
+    } finally {
+      if (!quiet) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadPick(); }, [loadPick]);
+
+  // Opening a session in the URL (?session=…) keeps a refresh on the same
+  // register, which matters on a phone that reloads when you switch apps.
+  useEffect(() => {
+    if (pick && !chosen) {
+      const fromUrl = params.get('session');
+      if (fromUrl && pick.events.some((e) => e.id === fromUrl)) setChosen(fromUrl);
+    }
+  }, [pick, chosen, params]);
+
+  useEffect(() => {
+    if (!chosen) { setRoster(null); return; }
+    void loadRoster(chosen).then((r) => {
+      if (r && wantScan.current && r.event.mode === 'scan') {
+        wantScan.current = false;
+        setScannerOpen(true);
+      }
+    });
+  }, [chosen, loadRoster]);
+
+  // The door list changes while you are looking at it: people scan in on their
+  // own phones, so the waiting list has to keep up without a manual refresh.
+  useEffect(() => {
+    if (!chosen || roster?.event.mode !== 'scan') return;
+    const t = setInterval(() => { void loadRoster(chosen, true); }, 15000);
+    return () => clearInterval(t);
+  }, [chosen, roster?.event.mode, loadRoster]);
+
+  const pickEvent = (id: string) => {
+    setChosen(id);
+    setQ('');
+    const next = new URLSearchParams(params);
+    next.set('session', id);
+    next.delete('scan');
+    setParams(next, { replace: true });
+  };
+
+  const back = () => {
+    setChosen('');
+    setRoster(null);
+    setQ('');
+    const next = new URLSearchParams(params);
+    next.delete('session');
+    setParams(next, { replace: true });
+    void loadPick();
+  };
+
+  /** Write one colour straight away. Every tap lands on the attendance record. */
+  const write = async (m: Row, state: Mark, reason = '') => {
+    if (busy) return;
+    setBusy(m.id);
+    // Optimistic: a door queue should not wait on a round trip to show a colour.
+    setRoster((r) => (r ? { ...r, members: r.members.map((x) => (x.id === m.id ? { ...x, state, reason, ticked: state === 'green' } : x)) } : r));
+    try {
+      await adminRegisterAttendance({ subEventId: chosen, memberId: m.id, state, ...(reason ? { reason } : {}) });
+      await loadRoster(chosen, true);
     } catch (e) {
       toast.error((e as Error).message);
+      await loadRoster(chosen, true);
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
-  const end = async () => {
-    setBusy(true);
+  /**
+   * One tap sets the colour. Tapping the colour that is already set clears it,
+   * so a wrong tap is one tap to undo. Yellow and red stop to ask why: a school
+   * needs the reason on the record, not just the fact someone was not there.
+   */
+  const mark = (m: Row, colour: 'green' | 'yellow' | 'red') => {
+    if (busy) return;
+    if (m.state === colour) { void write(m, ''); return; }
+    if (colour === 'green') { void write(m, 'green'); return; }
+    setReasonFor({ member: m, colour });
+    setReasonText(m.reason || '');
+  };
+
+  const saveReason = (colour: 'yellow' | 'red') => {
+    const target = reasonFor;
+    const reason = reasonText.trim().replace(/\s+/g, ' ');
+    if (!target || reason.length < 2) return;
+    setReasonFor(null);
+    setReasonText('');
+    void write(target.member, colour, reason);
+  };
+
+  const startDoor = async () => {
+    setBusy('door');
+    try {
+      await presenceStart({ subEventId: chosen });
+      toast.success('Door check-in open. Codes can be scanned now.');
+      await loadRoster(chosen, true);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally { setBusy(''); }
+  };
+
+  const endDoor = async () => {
+    setBusy('door');
     try {
       const r = await presenceEnd({});
-      toast.success(r.voided ? `Check-in closed. ${r.voided} pending code(s) voided.` : 'Check-in closed');
-      await load();
+      toast.success(`Door check-in closed${r.voided ? `. ${r.voided} waiting code${r.voided === 1 ? '' : 's'} voided` : ''}.`);
+      await loadRoster(chosen, true);
     } catch (e) {
       toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-      setConfirmEnd(false);
+    } finally { setBusy(''); }
+  };
+
+  const approve = async (row: PresenceRow) => {
+    if (!row.token) return;
+    setBusy(row.memberId);
+    try {
+      await presenceDecision({ token: row.token, decision: 'approve' });
+      toast.success(`${row.name} ${row.pendingAction === 'Sign Out' ? 'signed out' : 'is in'}.`);
+      await loadRoster(chosen, true);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally { setBusy(''); }
+  };
+
+  const onToken = async (token: string) => {
+    setScannerOpen(false);
+    try {
+      const r = await adminCheckInScan({ subEventId: chosen, token });
+      toast.success(`${r.memberName} checked in.`);
+      await loadRoster(chosen, true);
+    } catch (e) {
+      toast.error((e as Error).message);
     }
   };
 
-  if (loading || !live) return <Skeleton className="h-96 rounded-2xl" />;
+  const filtered = useMemo(() => {
+    const rows = roster?.members ?? [];
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((m) =>
+      m.name.toLowerCase().includes(needle) ||
+      m.year.toLowerCase().includes(needle) ||
+      m.roles.join(' ').toLowerCase().includes(needle),
+    );
+  }, [roster, q]);
 
-  const roster = live?.roster ?? [];
-  const waiting = roster.filter((r) => r.pendingAction);
-  const onSite = roster.filter((r) => !r.pendingAction && r.state === 'On Site');
-  const away = roster.filter((r) => !r.pendingAction && r.state !== 'On Site');
+  const groups = useMemo(() => {
+    const events = pick?.events ?? [];
+    const today = todayLocal();
+    const start = (e: EventOption) => `${e.date ?? '9999'}${e.startTime ?? ''}`;
+    return [
+      { label: 'Today', rows: events.filter((e) => e.date === today).sort((a, b) => start(a).localeCompare(start(b))) },
+      { label: 'Coming up', rows: events.filter((e) => (e.date ?? '') > today).sort((a, b) => start(a).localeCompare(start(b))) },
+      { label: 'Already happened', rows: events.filter((e) => (e.date ?? '') < today).sort((a, b) => start(b).localeCompare(start(a))).slice(0, 12) },
+    ].filter((g) => g.rows.length);
+  }, [pick]);
+
+  if (loading && !roster) {
+    return <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading check-in…</div>;
+  }
+
+  if (problem && !pick && !roster) {
+    return <div className="p-6 text-sm text-red-400">{problem}</div>;
+  }
+
+  // ---------------------------------------------------------------- picker
+  if (!chosen || !roster) {
+    return (
+      <div className="space-y-5">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Check-in</h1>
+          <p className="text-sm text-muted-foreground">
+            Pick the session you are standing at. Club sessions are a register; shows also take a code.
+          </p>
+        </header>
+
+        {pick?.openSession && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm">
+            <DoorOpen className="h-4 w-4 text-emerald-400" />
+            <span className="font-medium">Door check-in open:</span>
+            <span className="text-muted-foreground">{pick.openSession.title}</span>
+          </div>
+        )}
+
+        {!groups.length && (
+          <p className="rounded-xl border p-4 text-sm text-muted-foreground">No dated events yet. Add one under Events first.</p>
+        )}
+
+        {groups.map((g) => (
+          <section key={g.label} className="space-y-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</h2>
+            <ul className="divide-y overflow-hidden rounded-xl border">
+              {g.rows.map((e) => (
+                <li key={e.id}>
+                  <button
+                    onClick={() => pickEvent(e.id)}
+                    className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-muted/40 active:bg-muted"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{e.title || 'Untitled event'}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {when(e.date)} · {timeRange(e.startTime, e.endTime) || 'No time'} · {kindLabel(e)}
+                        {e.showNames.length ? ` · ${e.showNames.join(', ')}` : ''}
+                      </p>
+                    </div>
+                    <span className={cn(
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                      e.mode === 'scan' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+                    )}>
+                      {e.mode === 'scan' ? 'Show' : 'Register'}
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------- roster
+  const event = roster.event;
+  const waiting = (presence?.roster ?? []).filter((r) => r.pendingAction);
+  const inRoom = (presence?.roster ?? []).filter((r) => !r.pendingAction && r.state === 'On Site');
+  const doorOpenHere = roster.sessionFor.thisEvent;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">Venue Check-in</h1>
-        {live.session && canManage && (
-          <Button variant="outline" onClick={() => setConfirmEnd(true)} disabled={busy}>
-            <LogOut className="h-4 w-4 mr-1" />End check-in
-          </Button>
-        )}
-        {live.session && !canManage && (
-          <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
-            Read-only
-          </span>
-        )}
-      </div>
-
-      {!live.session ? (
-        <div className="rounded-2xl border p-6">
-          <h2 className="text-lg font-semibold">No check-in is open</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {canManage
-              ? 'Open one when the crew arrives. Only one can run at a time, so the roster always has a single room in it.'
-              : 'An admin opens one when the crew arrives. This page fills in on its own.'}
+    <div className="space-y-4 pb-24">
+      <header className="space-y-2">
+        <button onClick={back} className="-ml-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />All sessions
+        </button>
+        <div>
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl">{event.title || 'Untitled event'}</h1>
+          <p className="text-xs text-muted-foreground">
+            {when(event.date)} · {timeRange(event.startTime, event.endTime) || 'No time'} · {kindLabel(event)}
+            {event.showNames.length ? ` · ${event.showNames.join(', ')}` : ''}
           </p>
-          {canManage && (
-          <div className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-[16rem] flex-1 space-y-2">
-              <label className="text-sm font-medium">Event</label>
-              <Select value={eventId} onValueChange={setEventId}>
-                <SelectTrigger><SelectValue placeholder="Pick an event" /></SelectTrigger>
-                <SelectContent>
-                  {options.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.title} — {fmtDate(e.date)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={start} disabled={busy || !eventId}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DoorOpen className="mr-2 h-4 w-4" />}
-              Open check-in
-            </Button>
-          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-500">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />{roster.counts.green} in
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />{roster.counts.yellow} away
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">
+            <span className="h-2 w-2 rounded-full bg-rose-500" />{roster.counts.red} not in
+          </span>
+          <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{roster.counts.none} to mark</span>
+          {((roster.notAttending ?? 0) > 0 || showNo) && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showNo;
+                showNoRef.current = next;
+                setShowNo(next);
+                void loadRoster(chosen, true);
+              }}
+              className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              {showNo ? 'Hide people not coming' : `${roster.notAttending} not coming · show`}
+            </button>
           )}
-          {canManage && options.length === 0 && (
-            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <TriangleAlert className="h-4 w-4" />No dated events yet. Add one under Events first.
-            </p>
+          {event.mode === 'register' && (
+            <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">Register only</span>
+          )}
+          {doorOpenHere && (
+            <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400">Door open</span>
           )}
         </div>
-      ) : (
-        <>
-          <div className="rounded-2xl border border-primary/25 bg-primary/[0.04] p-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Check-in open
-              </span>
-              <p className="font-semibold">{live.session.title}</p>
-              <span className="text-sm text-muted-foreground">
-                {fmtDate(live.session.date)} · since {clock(live.session.startedAt)}
-              </span>
-            </div>
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span className="font-mono text-foreground">{onSite.length}</span> in the room
-              {waiting.length > 0 && <>, <span className="font-mono text-yellow-400">{waiting.length}</span> waiting on you</>}
-            </p>
-          </div>
+      </header>
 
-          <div className="space-y-5">
-            <RosterGroup
-              title="Waiting for you to approve"
-              rows={waiting}
-              empty={
-                canManage
-                  ? "Nobody is waiting. Scan a crew member’s code with your phone camera to approve it."
-                  : 'Nobody is waiting on an admin right now.'
-              }
-            />
-            <RosterGroup
-              title="In the room"
-              rows={onSite}
-              empty="Nobody has been scanned in yet."
-            />
-            <RosterGroup
-              title="Stepped out"
-              rows={away}
-              empty="Nobody has left."
-            />
-          </div>
-
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            {canManage
-              ? "Crew approve their own sign-in and sign-out by showing you the code on their phone. Opening their code takes you to a page with Approve and Decline."
-              : 'Admins approve every change, so this roster only lists people who are actually in the room.'}
-          </p>
-        </>
+      {/* Door controls. A show needs an open check-in before a code means
+          anything, so it is one tap here rather than a separate screen. */}
+      {event.mode === 'scan' && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            className="h-12 w-full text-base"
+            onClick={() => {
+              if (doorOpenHere) setScannerOpen(true);
+              else void startDoor().then(() => setScannerOpen(true));
+            }}
+          >
+            <Camera className="mr-2 h-5 w-5" />Scan a code
+          </Button>
+          {doorOpenHere ? (
+            <Button variant="outline" className="h-12 w-full" onClick={endDoor} disabled={busy === 'door'}>
+              {busy === 'door' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DoorOpen className="mr-2 h-4 w-4" />}
+              Close door check-in
+            </Button>
+          ) : (
+            <Button variant="outline" className="h-12 w-full" onClick={startDoor} disabled={busy === 'door'}>
+              {busy === 'door' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DoorOpen className="mr-2 h-4 w-4" />}
+              Open door check-in
+            </Button>
+          )}
+        </div>
       )}
 
-      <AlertDialog open={confirmEnd} onOpenChange={setConfirmEnd}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>End check-in?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The roster closes as it stands. Anyone still holding an approval code has it voided, and the crew
-              cannot sign in or out until a new session is opened.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep it open</AlertDialogCancel>
-            <AlertDialogAction onClick={end} disabled={busy}>End check-in</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {waiting.length > 0 && (
+        <section className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-amber-400">
+            <Clock className="h-4 w-4" />Waiting on you ({waiting.length})
+          </h2>
+          <ul className="mt-2 space-y-2">
+            {waiting.map((r) => (
+              <li key={r.id} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{r.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">wants to {r.pendingAction}{r.reasonLabel ? ` · ${r.reasonLabel}` : ''}</p>
+                </div>
+                <Button size="sm" className="h-9" onClick={() => approve(r)} disabled={busy === r.memberId}>
+                  {busy === r.memberId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  <span className="ml-1.5">Approve</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="sticky top-0 z-10 -mx-1 bg-background/95 px-1 py-2 backdrop-blur">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search a name, year or role"
+            className="h-12 pl-9 text-base"
+            inputMode="search"
+          />
+          {q && (
+            <button onClick={() => setQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:text-foreground" aria-label="Clear search">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      <ul className="divide-y overflow-hidden rounded-xl border">
+        {filtered.map((m) => (
+          <li key={m.id} className={cn('flex items-center gap-2 px-3 py-2.5 transition', tint(m.state))}>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{m.name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {[m.year, m.roles.join(', ')].filter(Boolean).join(' · ') || 'Crew member'}
+                {m.rsvp && !m.state ? ` · answered ${m.rsvp}` : ''}
+              </p>
+              {m.reason && (
+                <p className={cn(
+                  'mt-0.5 truncate text-xs font-medium',
+                  m.state === 'yellow' ? 'text-amber-500' : m.state === 'red' ? 'text-rose-500' : 'text-muted-foreground',
+                )}>
+                  {m.reason}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {MARKS.map((c) => {
+                const active = m.state === c.key;
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => mark(m, c.key)}
+                    disabled={busy === m.id}
+                    aria-pressed={active}
+                    aria-label={`${m.name}: ${c.label}`}
+                    title={active ? `${c.label} (tap again to clear)` : c.label}
+                    className={cn(
+                      'flex h-11 w-11 items-center justify-center rounded-full border-2 transition active:scale-95 disabled:opacity-60',
+                      active ? c.on : c.off,
+                    )}
+                  >
+                    {busy === m.id && active
+                      ? <Loader2 className="h-5 w-5 animate-spin" />
+                      : <Icon className="h-5 w-5" />}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        ))}
+        {!filtered.length && (
+          <li className="px-3 py-6 text-center text-sm text-muted-foreground">Nobody matches “{q}”.</li>
+        )}
+      </ul>
+
+      {inRoom.length > 0 && (
+        <section className="rounded-xl border p-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-emerald-400" />In the room ({inRoom.length})</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{inRoom.map((r) => r.name).join(', ')}</p>
+        </section>
+      )}
+
+      <Dialog open={!!reasonFor} onOpenChange={(open) => { if (!open) { setReasonFor(null); setReasonText(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {reasonFor?.colour === 'yellow'
+                ? `Why is ${reasonFor?.member.name.split(' ')[0]} away?`
+                : `Why is ${reasonFor?.member.name.split(' ')[0]} not in?`}
+            </DialogTitle>
+            <DialogDescription>
+              {reasonFor?.colour === 'yellow'
+                ? 'Away for a while. The register keeps this reason next to their name.'
+                : 'Not in for this session. The register keeps this reason next to their name.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            {(reasonFor?.colour === 'red' ? OUT_REASONS : AWAY_REASONS).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setReasonText(r)}
+                className={cn(
+                  'rounded-full border px-3 py-2 text-sm transition active:scale-95',
+                  reasonText === r ? 'border-primary bg-primary/10 font-semibold text-foreground' : 'text-muted-foreground hover:border-foreground/30',
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <Input
+            value={reasonText}
+            onChange={(e) => setReasonText(e.target.value)}
+            maxLength={200}
+            placeholder="Or type the reason"
+            className="h-11"
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const target = reasonFor;
+                setReasonFor(null);
+                setReasonText('');
+                if (target) void write(target.member, '');
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              disabled={reasonText.trim().length < 2}
+              onClick={() => { if (reasonFor) saveReason(reasonFor.colour); }}
+              className={reasonFor?.colour === 'yellow' ? 'bg-amber-500 hover:bg-amber-500/90' : 'bg-rose-500 hover:bg-rose-500/90'}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <QrScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onToken={(t) => void onToken(t)} />
     </div>
   );
 }

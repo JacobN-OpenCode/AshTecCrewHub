@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { presenceRequest } from 'zitejs/api';
+import { presenceRequest } from '#api';
 import { Button } from '@project/components/ui/button';
 import { Badge } from '@project/components/ui/badge';
 import { Skeleton } from '@project/components/ui/skeleton';
@@ -9,7 +9,7 @@ import QrCode from '../components/QrCode';
 import { CUSTOM_REASON, SIGN_OUT_REASONS, fmtDate } from '../lib/constants';
 import { pv } from '../lib/preview';
 import { useLivePresence } from '../lib/livePresence';
-import { Clock, DoorOpen, Loader2, LogOut, MapPin, TriangleAlert } from 'lucide-react';
+import { Clock, DoorOpen, Loader2, LogOut, MapPin, TriangleAlert, X } from 'lucide-react';
 import { cn } from '@project/components/lib/utils';
 
 const STATE_STYLE: Record<string, string> = {
@@ -22,8 +22,17 @@ const STATE_STYLE: Record<string, string> = {
 const clock = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
 
-/** The admin scans this off the member's phone, so it points at this app's own origin. */
-const approvalUrl = (token: string) => `${window.location.origin}/a/${token}`;
+/**
+ * The admin scans this off the member's phone, so it points at this app's own
+ * origin.
+ *
+ * The `?pwa=1` fragment is not read by anything - it is there so the QR carries
+ * a different URL from the bare site. iOS opens a scanned link in Safari, not in
+ * the installed app, and if the app is already installed the OS will offer to
+ * open it there; the distinct URL also stops Safari reusing a cached tab. On
+ * Android, in scope of the manifest, it opens in the installed app directly.
+ */
+const approvalUrl = (token: string) => `${window.location.origin}/a/${token}?pwa=1`;
 
 /** "back at 19:30" from the time the member said they would return. */
 const backLabel = (iso: string | null) =>
@@ -36,6 +45,7 @@ export default function Attendance() {
   // adds no polling of its own.
   const { session, me: mine, loading, refresh } = useLivePresence();
   const [busy, setBusy] = useState(false);
+  const [showHelp, setShowHelp] = useState(() => localStorage.getItem('hc-checkin-help') !== 'hidden');
   const [asking, setAsking] = useState(false);
   const [reasonLabel, setReasonLabel] = useState('');
   const [reason, setReason] = useState('');
@@ -78,7 +88,7 @@ export default function Attendance() {
     if (!reasonLabel) return toast.error('Pick a reason for leaving.');
     // Mirrors the server's own rule so the member finds out before the round trip.
     if (reasonLabel === CUSTOM_REASON && words(reason) < 8)
-      return toast.error('Describe why you are leaving in at least 8 words.');
+      return toast.error('Tell the stage manager why you are leaving, in at least 8 words.');
     if (comingBack && !backTime) return toast.error('Say what time you will be back.');
 
     setBusy(true);
@@ -119,6 +129,24 @@ export default function Attendance() {
         </p>
       </div>
 
+      {showHelp && (
+        <div className="rounded-2xl border bg-muted/30 p-4 relative">
+          <button
+            onClick={() => { setShowHelp(false); localStorage.setItem('hc-checkin-help', 'hidden'); }}
+            className="absolute right-3 top-3 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Dismiss how check-in works"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">How check-in works</h2>
+          <ul className="mt-2 list-disc pl-5 text-sm text-muted-foreground space-y-1">
+            <li>When a check-in is open you sign in and tell the stage manager where you are, so nobody has to go looking.</li>
+            <li>If you step out, say so with a reason and whether you will be back in time.</li>
+            <li>The stage manager scans the code below to mark you in, or marks you in without it. The code is a shortcut, not a requirement.</li>
+          </ul>
+        </div>
+      )}
+
       {!session ? (
         <div className="rounded-2xl border p-6">
           <h2 className="text-lg font-semibold">No check-in is open</h2>
@@ -149,7 +177,7 @@ export default function Attendance() {
             <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.05] p-5">
               <h2 className="flex items-center gap-2 text-lg font-semibold text-yellow-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Waiting for an admin to {pending.toLowerCase()} you
+                Waiting for an admin to {pending.toLowerCase() === 'check out' ? 'check you out' : 'check you in'}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Hold this up to an admin&rsquo;s phone camera. The page updates on its own once they approve it.

@@ -1,7 +1,8 @@
 import { previewId } from '../lib/preview';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { setShowResponse, setAttendance, type GetMyEventsOutputType } from 'zitejs/api';
+import { setShowResponse, setAttendance, type GetMyEventsOutputType } from '#api';
 import { Badge } from '@project/components/ui/badge';
 import { Button } from '@project/components/ui/button';
 import {
@@ -27,7 +28,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
 
   const respond = async (r: 'Yes' | 'No' | 'Maybe') => {
     setBusy(true);
-    try { await setShowResponse({ showId: show.id, response: r, memberId: previewId() }); await reload(); }
+    try { await setShowResponse({ showId: show.id, response: r, memberId: previewId() }); toast.success(r === 'Yes' ? 'You are marked as in.' : r === 'Maybe' ? 'Saved as maybe.' : 'You are marked as not taking part.'); await reload(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -61,8 +62,8 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm uppercase tracking-wider text-muted-foreground font-semibold">{title} ({list.length})</h3>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => pick(list.map((e) => e.id), 'Expected Arrival')}>Attending all</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => pick(list.map((e) => e.id), 'Not Attending')}>Not attending all</Button>
+            <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => pick(list.map((e) => e.id), 'Expected Arrival')}>Attending all</Button>
+            <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => pick(list.map((e) => e.id), 'Not Attending')}>Not attending all</Button>
           </div>
         </div>
         {list.map((e) => <SubEventRow key={e.id} ev={e} disabled={busy} onPick={(s) => pick([e.id], s)} />)}
@@ -77,6 +78,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
             <h2 className="text-xl font-bold">{show.name}</h2>
             {show.code && <Badge variant="outline" className="font-mono">{show.code}</Badge>}
             {!show.response && !locked && <Badge className="bg-primary text-primary-foreground">Respond</Badge>}
+            <Link to={`/show/${show.id}`} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Workspace</Link>
           </div>
           {show.description && <p className="text-sm text-muted-foreground mt-1">{show.description}</p>}
           <p className="text-xs text-muted-foreground font-mono mt-1">{dueLabel(show.dueDate, show.dueUnknown)}</p>
@@ -86,7 +88,7 @@ export default function ShowCard({ show, events, reload }: { show: Show; events:
             <button key={r} disabled={busy || locked} onClick={() => respond(r)}
               className={cn('px-4 py-2 rounded-lg border font-medium text-sm transition-colors disabled:opacity-50',
                 show.response === r ? (r === 'Yes' ? 'bg-emerald-500 text-white border-emerald-500' : r === 'No' ? 'bg-red-500 text-white border-red-500' : 'bg-yellow-500 text-black border-yellow-500') : 'hover:bg-muted')}>
-              {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Not taking part' : 'Maybe'}
+              {r === 'Yes' ? 'I’m in' : r === 'No' ? 'Can’t go' : 'Maybe'}
             </button>
           ))}
         </div>
