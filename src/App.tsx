@@ -57,6 +57,7 @@ import { applyAccent, getAccent, applyAccessibilityPrefs } from './lib/uiPrefs';
 import { noteAppVersion } from './lib/appVersion';
 import ThemeBuilder from './pages/ThemeBuilder';
 import { applyChoice } from './lib/theme';
+import { applyFont, getFont } from './lib/fonts';
 
 document.documentElement.classList.add('dark');
 // Ticket 8051f385: apply the saved density (roomy/compact) before first paint
@@ -70,6 +71,8 @@ applyAccent(getAccent());
 // Ticket 1bbe2d65: then the theme, so it wins over the accent when it is not the
 // original look. Both run before the first paint for the same reason.
 applyChoice();
+// Tickets e3d9578f and 00bdfc48: the font people picked, before first paint.
+applyFont(getFont());
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>

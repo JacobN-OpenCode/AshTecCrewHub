@@ -19,6 +19,7 @@ import { cn } from '@project/components/lib/utils';
 import { Lock, Palette, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell, KeyRound, Cat, LifeBuoy, Pencil, Check, X, Loader2, ArrowUpRight, Upload, Download, History, MonitorSmartphone, Type, Contrast, Volume2, VolumeX, Watch, LayoutPanelTop, Mail, LayoutGrid, List } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
+import { FONTS, useFont } from '../lib/fonts';
 import MemberAvatar from '../components/MemberAvatar';
 import Fold from '../components/Fold';
 import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
@@ -920,6 +921,7 @@ function Preferences() {
 function AccessibilitySettings() {
   const [text, setText] = useTextScale();
   const [contrast, setContrast] = useHighContrast();
+  const [font, setFont] = useFont();
   return (
     <Fold page="settings" id="accessibility" pad="p-6" bodyClass="space-y-5"
       header={<>
@@ -946,6 +948,31 @@ function AccessibilitySettings() {
               )}
             >
               {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="flex items-center gap-2 text-sm font-medium"><Type className="h-4 w-4" />Font</p>
+        <p className="text-xs text-muted-foreground">
+          Outfit is the original. Inter is plainer, Caladea is the free Constantia, and Google Sans is the one asked for on ticket 00bdfc48.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Font">
+          {FONTS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={font === f.id}
+              onClick={() => setFont(f.id)}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-left transition-colors',
+                font === f.id ? 'border-primary bg-primary/10' : 'hover:bg-muted/60',
+              )}
+            >
+              <span className="block text-sm font-medium" style={{ fontFamily: `'${f.family}', ${f.stack}` }}>{f.name}</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">{f.blurb}</span>
             </button>
           ))}
         </div>
