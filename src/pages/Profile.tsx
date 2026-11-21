@@ -20,6 +20,7 @@ import { Lock, CalendarPlus, ExternalLink, MessageCircle, Smartphone, Info, Bell
 import { Link } from 'react-router-dom';
 import { useMe } from '../lib/me';
 import MemberAvatar from '../components/MemberAvatar';
+import Fold from '../components/Fold';
 import { WHATSAPP_COMMUNITY_URL } from '../lib/constants';
 import { useAppSettings } from '../lib/appSettings';
 import { parseList, parsePrivacy, PRIVACY_LABEL, type Privacy, type PrivacyLevel } from '../lib/settings';
@@ -194,11 +195,12 @@ export default function Profile() {
             />
           </div>
 
-          <div className="rounded-2xl border bg-card p-6 space-y-5">
-        <div>
-          <h2 className="font-semibold text-lg">Your details</h2>
-          <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
-        </div>
+          <Fold page="settings" id="your-details" pad="p-6" bodyClass="space-y-5"
+      header={<>
+              <h2 className="font-semibold text-lg">Your details</h2>
+              <p className="text-sm text-muted-foreground">Fix a typo, or change school or move up a year. Staff status, crew roles and everything else stay admin-managed.</p>
+        
+      </>}>
 
         {/* Ticket 171e29fa: upload a picture (stored on our server) or paste a
             link if it already lives somewhere. Either way the profile stores a
@@ -443,7 +445,7 @@ export default function Profile() {
             no roles picked could not save a picture, initials, surname or year
             change at all. */}
         <Button data-tour="profile-save" onClick={save} disabled={busy || (!me.isAdmin && !!p1 && p1 === p2)}>{busy ? 'Saving…' : 'Save profile'}</Button>
-          </div>
+          </Fold>
 
           <CalendarIntegration />
 
@@ -527,11 +529,12 @@ function EmergencySignIn() {
   const placeholder = useMemo(() => (hasSecret ? 'Enter a new passphrase to replace it' : 'Choose a passphrase or PIN'), [hasSecret]);
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div className="flex items-center gap-2">
-        <Cat className="h-5 w-5 text-primary" />
-        <h2 className="font-semibold text-lg">Emergency sign-in (cat)</h2>
-      </div>
+    <Fold page="settings" id="emergency-sign-in-cat" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <Cat className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-lg">Emergency sign-in (cat)</h2>
+      
+      </>}>
       <p className="text-sm text-muted-foreground">
         For when the magic-link email can&rsquo;t get through (school mail filter, no signal on the phone). Tap the crew cat five times on
         the sign-in screen and use this passphrase. Other admins can&rsquo;t see it, and it lives only in your account.
@@ -581,7 +584,7 @@ function EmergencySignIn() {
           </Button>
         )}
       </div>
-    </div>
+    </Fold>
   );
 }
 
@@ -659,18 +662,19 @@ function PwaSettings() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Smartphone className="h-5 w-5 text-primary" />
-          App &amp; notifications
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {installed
-            ? 'You are using the installed app.'
-            : 'You are on the website. Install the app to get the home-screen icon, full-screen view and notifications.'}
-        </p>
-      </div>
+    <Fold page="settings" id="app-notifications" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-primary" />
+              App &amp; notifications
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {installed
+                ? 'You are using the installed app.'
+                : 'You are on the website. Install the app to get the home-screen icon, full-screen view and notifications.'}
+            </p>
+      
+      </>}>
 
       {!installed && (
         <p className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
@@ -771,30 +775,31 @@ function PwaSettings() {
       <Button variant="ghost" size="sm" className="w-full" onClick={openPwaWelcome}>
         Show the PWA welcome again
       </Button>
-    </div>
+    </Fold>
   );
 }
 
 /** Ticket d6b098db: a one-click way into the club's WhatsApp community. */
 function WhatsAppCommunity() {
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-primary" />
-          WhatsApp community
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Crew announcements and quick questions live in the club&apos;s WhatsApp community.
-        </p>
-      </div>
+    <Fold page="settings" id="whatsapp-community" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              WhatsApp community
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Crew announcements and quick questions live in the club&apos;s WhatsApp community.
+            </p>
+      
+      </>}>
       <Button asChild>
         <a href={WHATSAPP_COMMUNITY_URL} target="_blank" rel="noreferrer">
           Join the WhatsApp community
           <ExternalLink className="ml-2 h-4 w-4" />
         </a>
       </Button>
-    </div>
+    </Fold>
   );
 }
 
@@ -810,11 +815,12 @@ function Preferences() {
   const [density, setDensity] = useDensity();
   const [catHidden, setCatHidden] = useCatHidden();
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-5">
-      <div>
-        <h2 className="font-semibold text-lg">Preferences</h2>
-        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
-      </div>
+    <Fold page="settings" id="preferences" pad="p-6" bodyClass="space-y-5"
+      header={<>
+            <h2 className="font-semibold text-lg">Preferences</h2>
+            <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      
+      </>}>
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Accent colour</p>
@@ -887,7 +893,7 @@ function Preferences() {
         </span>
         <Switch checked={density === 'compact'} onCheckedChange={(v) => setDensity(v ? 'compact' : 'roomy')} aria-label="Use compact spacing" />
       </label>
-    </div>
+    </Fold>
   );
 }
 
@@ -900,13 +906,14 @@ function AccessibilitySettings() {
   const [text, setText] = useTextScale();
   const [contrast, setContrast] = useHighContrast();
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-5">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Type className="h-5 w-5 text-primary" />Accessibility
-        </h2>
-        <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
-      </div>
+    <Fold page="settings" id="accessibility" pad="p-6" bodyClass="space-y-5"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Type className="h-5 w-5 text-primary" />Accessibility
+            </h2>
+            <p className="text-sm text-muted-foreground">Just for this browser. They do not follow you to another device.</p>
+      
+      </>}>
 
       <div className="space-y-2">
         <p className="text-sm font-medium">Text size</p>
@@ -938,7 +945,7 @@ function AccessibilitySettings() {
         </span>
         <Switch checked={contrast} onCheckedChange={setContrast} aria-label="Use high contrast" />
       </label>
-    </div>
+    </Fold>
   );
 }
 
@@ -950,13 +957,14 @@ function AccessibilitySettings() {
 function SoundSettings() {
   const [muted, setMuted] = useSfxMuted();
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Volume2 className="h-5 w-5 text-primary" />Sound effects
-        </h2>
-        <p className="text-sm text-muted-foreground">Just for this browser. A few small noises when things happen.</p>
-      </div>
+    <Fold page="settings" id="sound-effects" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Volume2 className="h-5 w-5 text-primary" />Sound effects
+            </h2>
+            <p className="text-sm text-muted-foreground">Just for this browser. A few small noises when things happen.</p>
+      
+      </>}>
       <label className="flex items-start justify-between gap-4 cursor-pointer">
         <span>
           <span className="flex items-center gap-2 font-medium text-sm">{muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}Play sounds</span>
@@ -967,7 +975,7 @@ function SoundSettings() {
       <Button variant="outline" size="sm" onClick={() => { if (muted) setMuted(false); playSfx('success'); }}>
         Preview
       </Button>
-    </div>
+    </Fold>
   );
 }
 
@@ -1001,15 +1009,16 @@ function NotificationTuning() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary" />Push notifications
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Choose which of your own notifications reach you. These follow your account to every device.
-        </p>
-      </div>
+    <Fold page="settings" id="push-notifications" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />Push notifications
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Choose which of your own notifications reach you. These follow your account to every device.
+            </p>
+      
+      </>}>
       <div className="space-y-4">
         {NOTIFICATION_KINDS.map((k) => (
           <label key={k.id} className="flex items-start justify-between gap-4 cursor-pointer">
@@ -1031,7 +1040,7 @@ function NotificationTuning() {
           Ticket and venue alerts are operational and use the switch in the “Notifications” card above.
         </p>
       ) : null}
-    </div>
+    </Fold>
   );
 }
 
@@ -1043,15 +1052,16 @@ function NotificationTuning() {
 function AdminPageLayout() {
   const [layout, setLayout] = useAdminLayout();
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <LayoutGrid className="h-5 w-5 text-primary" />Admin pages
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Cards or lists on the crew, support, events and overview dashboards. Just for this browser.
-        </p>
-      </div>
+    <Fold page="settings" id="admin-pages" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-primary" />Admin pages
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Cards or lists on the crew, support, events and overview dashboards. Just for this browser.
+            </p>
+      
+      </>}>
       <div className="flex gap-2">
         {([['cards', 'Cards', LayoutGrid], ['lists', 'Lists', List]] as const).map(([id, label, Icon]) => (
           <button key={id} type="button" onClick={() => setLayout(id)}
@@ -1060,7 +1070,7 @@ function AdminPageLayout() {
           </button>
         ))}
       </div>
-    </div>
+    </Fold>
   );
 }
 
@@ -1091,15 +1101,16 @@ function SupportEmailSettings() {
   ];
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Mail className="h-5 w-5 text-primary" />Support ticket email
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          How you want to hear about new support tickets. This is yours alone, and it follows your account to every device.
-        </p>
-      </div>
+    <Fold page="settings" id="support-ticket-email" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Mail className="h-5 w-5 text-primary" />Support ticket email
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              How you want to hear about new support tickets. This is yours alone, and it follows your account to every device.
+            </p>
+      
+      </>}>
       <div className="space-y-3">
         {OPTIONS.map((o) => (
           <label key={o.value || 'default'} className="flex items-start justify-between gap-4 cursor-pointer">
@@ -1113,7 +1124,7 @@ function SupportEmailSettings() {
           </label>
         ))}
       </div>
-    </div>
+    </Fold>
   );
 }
 
@@ -1133,13 +1144,14 @@ function NotificationHistory() {
   }, []);
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" />Recent notifications
-        </h2>
-        <p className="text-sm text-muted-foreground">Your last 30 pushes, so you can catch up on anything you missed.</p>
-      </div>
+    <Fold page="settings" id="recent-notifications" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />Recent notifications
+            </h2>
+            <p className="text-sm text-muted-foreground">Your last 30 pushes, so you can catch up on anything you missed.</p>
+      
+      </>}>
       {items === null ? (
         <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : items.length === 0 ? (
@@ -1159,7 +1171,7 @@ function NotificationHistory() {
           ))}
         </ul>
       )}
-    </div>
+    </Fold>
   );
 }
 
@@ -1170,13 +1182,14 @@ function NotificationHistory() {
  */
 function DeviceViews() {
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <MonitorSmartphone className="h-5 w-5 text-primary" />Compact views
-        </h2>
-        <p className="text-sm text-muted-foreground">Lightweight pages for a phone home screen or a second screen.</p>
-      </div>
+    <Fold page="settings" id="compact-views" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <MonitorSmartphone className="h-5 w-5 text-primary" />Compact views
+            </h2>
+            <p className="text-sm text-muted-foreground">Lightweight pages for a phone home screen or a second screen.</p>
+      
+      </>}>
       <div className="grid gap-2 sm:grid-cols-2">
         <Link to="/widget" className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60">
           <LayoutPanelTop className="h-4 w-4 text-primary" />Next-call widget
@@ -1188,7 +1201,7 @@ function DeviceViews() {
       <p className="text-xs text-muted-foreground">
         Tip: open one of these and use your browser’s “Add to Home Screen”.
       </p>
-    </div>
+    </Fold>
   );
 }
 
@@ -1222,20 +1235,21 @@ function DataExport() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <Download className="h-5 w-5 text-primary" />Export your data
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Download everything the hub holds about you: your profile, show responses, attendance, support tickets, availability and rota sign-ups.
-        </p>
-      </div>
+    <Fold page="settings" id="export-your-data" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <Download className="h-5 w-5 text-primary" />Export your data
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Download everything the hub holds about you: your profile, show responses, attendance, support tickets, availability and rota sign-ups.
+            </p>
+      
+      </>}>
       <Button variant="outline" onClick={download} disabled={busy}>
         {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
         Download my data (JSON)
       </Button>
-    </div>
+    </Fold>
   );
 }
 
@@ -1303,16 +1317,17 @@ function CalendarIntegration() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div>
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <CalendarPlus className="h-5 w-5 text-primary" />
-          Add the crew calendar to yours
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Rehearsals and performances you are in, next to your school timetable. Hidden events are not included.
-        </p>
-      </div>
+    <Fold page="settings" id="add-the-crew-calendar-to-yours" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <h2 className="font-semibold text-lg flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5 text-primary" />
+              Add the crew calendar to yours
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Rehearsals and performances you are in, next to your school timetable. Hidden events are not included.
+            </p>
+      
+      </>}>
 
       <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3 space-y-2">
         <p className="text-sm font-medium">Subscribe (updates automatically)</p>
@@ -1353,7 +1368,7 @@ function CalendarIntegration() {
         The download is a one-off snapshot — if a date changes you would download it again. The subscribe link above
         does not have that problem.
       </p>
-    </div>
+    </Fold>
   );
 }
 
@@ -1436,70 +1451,71 @@ function YourTickets() {
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-6 space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold text-lg flex items-center gap-2">
-            <LifeBuoy className="h-5 w-5 text-primary" />
-            Your support tickets
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
-            crew is told automatically.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v); setExpanded(false); }}>
-            <SelectTrigger className="w-full sm:w-[130px]" aria-label="How many tickets to show">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">Show 3</SelectItem>
-              <SelectItem value="5">Show 5</SelectItem>
-              <SelectItem value="10">Show 10</SelectItem>
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
-          {sizeMode === 'custom' && (
-            <Input
-              type="number"
-              min={1}
-              max={200}
-              value={customCount}
-              onChange={(e) => { setCustomCount(e.target.value); setExpanded(false); }}
-              className="w-[90px]"
-              aria-label="Custom number of tickets"
-            />
-          )}
-          <Select value={view} onValueChange={(v) => { setView(v); setExpanded(false); }}>
-            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Which tickets to show">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recency">Newest first</SelectItem>
-              <SelectItem value="open">My open tickets</SelectItem>
-              <SelectItem value="day1">Last 1 day</SelectItem>
-              <SelectItem value="day2">Last 2 days</SelectItem>
-              <SelectItem value="day3">Last 3 days</SelectItem>
-              <SelectItem value="day5">Last 5 days</SelectItem>
-              <SelectItem value="custom">Last N days…</SelectItem>
-              <SelectItem value="category">By category</SelectItem>
-            </SelectContent>
-          </Select>
-          {view === 'custom' && (
-            <Input
-              type="number"
-              min={1}
-              max={365}
-              value={customDays}
-              onChange={(e) => { setCustomDays(e.target.value); setExpanded(false); }}
-              className="w-[90px]"
-              aria-label="Number of days to look back"
-              placeholder="Days"
-            />
-          )}
-        </div>
-      </div>
+    <Fold page="settings" id="your-support-tickets" pad="p-6" bodyClass="space-y-4"
+      header={<>
+            <div>
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <LifeBuoy className="h-5 w-5 text-primary" />
+                Your support tickets
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Everything you have raised. Tickets that are still open can be edited — fix a typo or add detail, and the
+                crew is told automatically.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={sizeMode} onValueChange={(v) => { setSizeMode(v); setExpanded(false); }}>
+                <SelectTrigger className="w-full sm:w-[130px]" aria-label="How many tickets to show">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3">Show 3</SelectItem>
+                  <SelectItem value="5">Show 5</SelectItem>
+                  <SelectItem value="10">Show 10</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {sizeMode === 'custom' && (
+                <Input
+                  type="number"
+                  min={1}
+                  max={200}
+                  value={customCount}
+                  onChange={(e) => { setCustomCount(e.target.value); setExpanded(false); }}
+                  className="w-[90px]"
+                  aria-label="Custom number of tickets"
+                />
+              )}
+              <Select value={view} onValueChange={(v) => { setView(v); setExpanded(false); }}>
+                <SelectTrigger className="w-full sm:w-[180px]" aria-label="Which tickets to show">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recency">Newest first</SelectItem>
+                  <SelectItem value="open">My open tickets</SelectItem>
+                  <SelectItem value="day1">Last 1 day</SelectItem>
+                  <SelectItem value="day2">Last 2 days</SelectItem>
+                  <SelectItem value="day3">Last 3 days</SelectItem>
+                  <SelectItem value="day5">Last 5 days</SelectItem>
+                  <SelectItem value="custom">Last N days…</SelectItem>
+                  <SelectItem value="category">By category</SelectItem>
+                </SelectContent>
+              </Select>
+              {view === 'custom' && (
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={customDays}
+                  onChange={(e) => { setCustomDays(e.target.value); setExpanded(false); }}
+                  className="w-[90px]"
+                  aria-label="Number of days to look back"
+                  placeholder="Days"
+                />
+              )}
+            </div>
+      
+      </>}>
 
       {shown.length === 0 && (
         <p className="text-sm text-muted-foreground">
@@ -1572,7 +1588,7 @@ function YourTickets() {
           {expanded ? 'Show fewer' : `Show all ${shown.length} tickets`}
         </Button>
       )}
-    </div>
+    </Fold>
   );
 }
 

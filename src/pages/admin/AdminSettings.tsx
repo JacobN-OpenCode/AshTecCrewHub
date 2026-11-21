@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { adminSaveSettings, adminGetSupportSettings, adminSetSupportSettings, adminCheckPush } from '#api';
+import Fold from '../../components/Fold';
 import { Button } from '@project/components/ui/button';
 import { Input } from '@project/components/ui/input';
 import { Label } from '@project/components/ui/label';
@@ -95,8 +96,10 @@ export default function AdminSettings() {
           This page is for the things that apply to everyone. */}
 
       {/* Support email default (tickets d1ae2a76 / 09b3e402 / 26239458) */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4 text-primary" /> Support email</h2>
+      <Fold page="admin-settings" id="support-email" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4 text-primary" /> Support email</h2>
+      </>}>
         <label className="flex items-start justify-between gap-3 cursor-pointer">
           <span>
             <span className="block text-sm font-medium">Default: one daily summary instead of per-ticket email</span>
@@ -107,11 +110,13 @@ export default function AdminSettings() {
           </span>
           <Switch checked={summaryMode === 'daily'} onCheckedChange={setDaily} aria-label="Default to one daily support summary" />
         </label>
-      </section>
+      </Fold>
 
       {/* Branding */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Branding</h2>
+      <Fold page="admin-settings" id="branding" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Branding</h2>
+      </>}>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1"><Label htmlFor="platform">Platform name</Label><Input id="platform" value={platformName} onChange={(e) => setPlatformName(e.target.value)} maxLength={60} /></div>
           <div className="space-y-1"><Label htmlFor="school">School / crew name</Label><Input id="school" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} maxLength={80} /></div>
@@ -119,11 +124,13 @@ export default function AdminSettings() {
         <Button disabled={busy === 'brand' || !platformName.trim() || !schoolName.trim()} onClick={() => save('brand', { platformName, schoolName }, 'Branding saved')}>
           {busy === 'brand' ? 'Saving…' : 'Save branding'}
         </Button>
-      </section>
+      </Fold>
 
       {/* Features */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Features</h2>
+      <Fold page="admin-settings" id="features" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Features</h2>
+      </>}>
         <p className="text-sm text-muted-foreground">Turn whole parts of the app off. A switch off hides the nav entry for everyone.</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {FEATURE_KEYS.map((k) => (
@@ -136,11 +143,13 @@ export default function AdminSettings() {
         <Button disabled={busy === 'features'} onClick={() => save('features', { features }, 'Features saved')}>
           {busy === 'features' ? 'Saving…' : 'Save features'}
         </Button>
-      </section>
+      </Fold>
 
       {/* Cat */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><Cat className="h-4 w-4 text-primary" /> The cat</h2>
+      <Fold page="admin-settings" id="the-cat" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><Cat className="h-4 w-4 text-primary" /> The cat</h2>
+      </>}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="cat-name">Name</Label>
@@ -151,11 +160,13 @@ export default function AdminSettings() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">Shows on the corner cat and the mascot page.</p>
-      </section>
+      </Fold>
 
       {/* Skills */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><GraduationCap className="h-4 w-4 text-primary" /> Skills</h2>
+      <Fold page="admin-settings" id="skills" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><GraduationCap className="h-4 w-4 text-primary" /> Skills</h2>
+      </>}>
         <div className="flex flex-wrap gap-1.5">
           {skills.map((s) => (
             <span key={s} className="inline-flex items-center gap-1 rounded-full border bg-background px-3 py-1 text-xs font-medium">
@@ -177,11 +188,13 @@ export default function AdminSettings() {
         <Button disabled={busy === 'skills' || skills.length === 0} onClick={() => save('skills', { skillOptions: skills, skillsEditable }, 'Skills saved')}>
           {busy === 'skills' ? 'Saving…' : 'Save skills'}
         </Button>
-      </section>
+      </Fold>
 
       {/* Option lists */}
-      <section className="space-y-3 rounded-2xl border bg-card p-5">
-        <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Crew options</h2>
+      <Fold page="admin-settings" id="crew-options" pad="p-5" bodyClass="space-y-3"
+      header={<>
+      <h2 className="flex items-center gap-2 font-semibold"><Tag className="h-4 w-4 text-primary" /> Crew options</h2>
+      </>}>
         <p className="text-sm text-muted-foreground">The lists every picker draws from. Removing one does not unassign it from anyone already set.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {listNames.map(([key, label]) => (
@@ -196,7 +209,7 @@ export default function AdminSettings() {
         <Button disabled={busy === 'lists'} onClick={() => save('lists', { lists }, 'Option lists saved')}>
           {busy === 'lists' ? 'Saving…' : 'Save option lists'}
         </Button>
-      </section>
+      </Fold>
 
       <NotificationHealth />
 
@@ -246,8 +259,10 @@ function NotificationHealth() {
   };
 
   return (
-    <section className="space-y-3 rounded-2xl border bg-card p-5">
+    <Fold page="admin-settings" id="notifications" pad="p-5" bodyClass="space-y-3"
+      header={<>
       <h2 className="flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> Notifications</h2>
+      </>}>
       <p className="text-sm text-muted-foreground">
         Who has a device set up to receive alerts, and on which push service. Send a test to one person to see
         whether their device accepts it and, if not, what the push service said.
@@ -312,7 +327,7 @@ function NotificationHealth() {
         <code> fcm.googleapis.com</code> is Chrome. If someone is missing here entirely, they have not turned
         notifications on for this device.
       </p>
-    </section>
+    </Fold>
   );
 }
 
