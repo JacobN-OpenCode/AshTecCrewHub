@@ -48,10 +48,12 @@ export default createEndpoint({
           replyCount: replies.length,
           referToOpencode: !!(t as { referToOpencode?: boolean }).referToOpencode,
           pinned: !!(t as { pinned?: boolean }).pinned,
-          // Nobody has answered since the ticket was raised or last replied.
           // Finished tickets can keep an unanswered last word, so they must not
           // count - this has to agree with the badge count in getMe.
-          awaitingReply: ACTIVE_STATUSES.includes(t.status ?? 'Open') && (!newest || newest.kind === REPLY_KIND.toUser),
+          // Ticket 7bb46cad: "waiting on the reporter" means we answered and the
+          // next move is theirs. A ticket nobody has replied to is waiting on us,
+          // not on them, so a real reply from a maintainer has to exist first.
+          awaitingReply: ACTIVE_STATUSES.includes(t.status ?? 'Open') && !!newest && newest.kind === REPLY_KIND.toUser,
           // The maintainer's turn, by the same rule the "Remind maintainers"
           // digest uses: still active, and the last real message is not from a
           // maintainer (ticket edf25b3d - the old filter bound this to
