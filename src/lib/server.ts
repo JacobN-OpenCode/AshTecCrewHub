@@ -48,6 +48,21 @@ export async function requireAdmin(email: string) {
   return m;
 }
 
+// ---------------------------------------------------------------------------
+// Audio Deck (the desktop app on the show laptop). It has no CrewHub session,
+// so its two endpoints are `authenticated: false` and gate on a shared token
+// instead. The token can be rotated with AUDIO_DECK_TOKEN on the server; the
+// deck ships with the same default so the pair works out of the box.
+// ---------------------------------------------------------------------------
+export const DECK_ID = 'main';
+
+export function requireDeckToken(token: string): void {
+  const expected = process.env.AUDIO_DECK_TOKEN || 'ashtec-deck';
+  if (!token || token !== expected) {
+    throw new ZiteError({ code: 'FORBIDDEN', message: 'Bad deck token.', userFacingMessage: 'Bad deck token.' });
+  }
+}
+
 /**
  * Loads a show for the workspace pages. Hidden shows only exist for staff and
  * admins, and a missing show reads as not found either way so the two cases are

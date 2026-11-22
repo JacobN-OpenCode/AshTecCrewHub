@@ -1092,4 +1092,37 @@ DROP TABLE IF EXISTS "Feedback";
 DROP TABLE IF EXISTS "FeedbackItems";
 DROP TABLE IF EXISTS "FeedbackVotes";
 
+-- ---------------------------------------------------------------------------
+-- Audio Deck (admin tab). The show laptop's Audio Deck desktop app polls
+-- deckStatus every 3s: status + audio-update events go up, control requests
+-- and queued commands come down. An admin requests temporary control from the
+-- hub; the operator approves it inside the deck app, which opens a 2-minute
+-- window in which deckControlCommand may queue play/pause/skip.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "AudioDeckState" (
+  "deckId"          text PRIMARY KEY,
+  "status"          jsonb NOT NULL DEFAULT '{}'::jsonb,
+  "lastEventSeq"    integer NOT NULL DEFAULT 0,
+  "pendingCommands" jsonb NOT NULL DEFAULT '[]'::jsonb,
+  "updatedAt"       timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS "AudioDeckEvents" (
+  "id"        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "deckId"    text NOT NULL DEFAULT '',
+  "seq"       integer NOT NULL DEFAULT 0,
+  "message"   text NOT NULL DEFAULT '',
+  "createdAt" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS "AudioDeckEvents_deck_created_idx" ON "AudioDeckEvents" ("deckId", "createdAt");
+CREATE TABLE IF NOT EXISTS "AudioDeckControl" (
+  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "deckId"      text NOT NULL DEFAULT '',
+  "status"      text NOT NULL DEFAULT 'pending',
+  "requestedBy" text NOT NULL DEFAULT '',
+  "expiresAt"   timestamptz,
+  "createdAt"   timestamptz NOT NULL DEFAULT now(),
+  "resolvedAt"  timestamptz
+);
+CREATE INDEX IF NOT EXISTS "AudioDeckControl_status_idx" ON "AudioDeckControl" ("status");
+
 COMMIT;

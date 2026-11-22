@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   Activity, CalendarCheck, CalendarDays, CalendarPlus, CalendarRange, Cat, ChartColumn, Cog, DoorOpen, Eye, HeartHandshake, Home as HomeIcon, Images,
   LayoutGrid, LifeBuoy, Lightbulb, LogIn, Mail, LogOut, Megaphone, Menu, MoreHorizontal, Palette, PanelLeftClose,
-  PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Wrench, X, FileText, BookUser, ChevronDown,
+  PanelLeftOpen, Plug, Search, Settings2, Sparkles, Tv, Users, Volume2, Wrench, X, FileText, BookUser, ChevronDown,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import SupportButton from './SupportButton';
@@ -264,6 +264,7 @@ function Shell() {
     { to: '/admin/emails', label: 'Emails', icon: Mail },
     { to: '/admin/support', label: 'Support', icon: LifeBuoy, badge: supportAwaiting },
     { to: '/admin/live-show', label: 'Live Show Setup', icon: Tv },
+    { to: '/admin/audio-deck', label: 'Audio Deck', icon: Volume2 },
     { to: '/admin/diagnostics', label: 'Server diagnostics', icon: Activity },
     { to: '/admin/mcp', label: 'MCP', icon: Plug },
   ].filter((l) => showAdmin || (!memberView && l.to === '/admin/attendance')) as NavItem[];

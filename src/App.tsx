@@ -31,6 +31,7 @@ import EmailLog from './pages/admin/EmailLog';
 import Support from './pages/admin/Support';
 import AdminPresence from './pages/admin/AdminPresence';
 import ServerDiagnostics from './pages/admin/ServerDiagnostics';
+import AdminAudioDeck from './pages/admin/AdminAudioDeck';
 import Tools from './pages/Tools';
 import Calendar from './pages/Calendar';
 import Schedule from './pages/Schedule';
@@ -165,6 +166,7 @@ function SignedIn() {
           {me.isAdmin && <Route path="/admin/support" element={<Support />} />}
           {(me.isAdmin || me.isStaff) && <Route path="/admin/attendance" element={<AdminPresence />} />}
           {me.isAdmin && <Route path="/admin/diagnostics" element={<ServerDiagnostics />} />}
+          {me.isAdmin && <Route path="/admin/audio-deck" element={<AdminAudioDeck />} />}
           {me.isAdmin && <Route path="/admin/mcp" element={<AdminMcp />} />}
           {me.isAdmin && <Route path="/admin/live-show" element={<LiveShowAdmin />} />}
           {me.isAdmin && <Route path="/admin/support/:ticketId" element={<Ticket />} />}

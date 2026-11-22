@@ -863,6 +863,48 @@ if (!admin) {
       const lockedSkills = await callAs(crewJar, 'updateMyProfile', { skillsTeach: ['Lighting'] });
       check('locked skills block a normal member', lockedSkills.status === 403, `status=${lockedSkills.status}`);
 
+      // ------------------------------------------------- audio deck (admin tab)
+      // The desktop deck app pushes status + events and receives control
+      // requests/commands; admins drive the other half from the hub tab.
+      await db().query(`UPDATE "AudioDeckControl" SET "status" = 'expired', "expiresAt" = now() WHERE "status" = 'approved'`);
+      const deckStatusBad = await call('deckStatus', { token: 'wrong-token', status: { playing: false, trackName: null, queueCount: 0, autoPlay: false } });
+      check('deckStatus rejects a bad token', deckStatusBad.status === 403, `status=${deckStatusBad.status}`);
+      const deckStatus = await call('deckStatus', {
+        token: 'ashtec-deck',
+        status: { playing: true, trackName: 'Smoke Track', queueCount: 3, autoPlay: true, appVersion: '9.9.9' },
+        events: [{ seq: 1, message: 'Smoke: deck online' }],
+      });
+      check('deckStatus accepts the deck token', deckStatus.status === 200 && (deckStatus.body?.lastSeq ?? 0) >= 1, JSON.stringify(deckStatus.body).slice(0, 160));
+      check('deckStatus reports its requests list', Array.isArray(deckStatus.body?.requests), JSON.stringify(deckStatus.body).slice(0, 120));
+
+      const deckTab = await callAs(jar, 'adminGetAudioDeck', {});
+      check('adminGetAudioDeck works for admins', deckTab.status === 200 && deckTab.body?.state !== undefined, JSON.stringify(deckTab.body).slice(0, 160));
+      check('adminGetAudioDeck sees the pushed event', (deckTab.body?.events ?? []).some((e: { message: string }) => e.message === 'Smoke: deck online'), JSON.stringify((deckTab.body?.events ?? []).slice(0, 3)).slice(0, 160));
+      check('adminGetAudioDeck reads deck status back', deckTab.body?.state?.status?.trackName === 'Smoke Track', JSON.stringify(deckTab.body?.state).slice(0, 160));
+      const deckTabCrew = await callAs(crewJar, 'adminGetAudioDeck', {});
+      check('adminGetAudioDeck blocks non-admins', deckTabCrew.status === 403, `status=${deckTabCrew.status}`);
+
+      const cmdBefore = await callAs(jar, 'deckControlCommand', { action: 'pause' });
+      check('control command refused without a window', cmdBefore.status === 403, `status=${cmdBefore.status}`);
+
+      const reqCtl = await callAs(jar, 'deckControlRequest', { action: 'request' });
+      check('admin can request control', reqCtl.status === 200 && !!reqCtl.body?.request?.id, JSON.stringify(reqCtl.body).slice(0, 160));
+      const pollPending = await call('deckStatus', { token: 'ashtec-deck', status: { playing: true, trackName: 'Smoke Track', queueCount: 3, autoPlay: true } });
+      check('deck receives the pending request', (pollPending.body?.requests ?? []).some((r: { id: string }) => r.id === reqCtl.body?.request?.id), JSON.stringify(pollPending.body).slice(0, 160));
+      const approve = await call('deckControlRespond', { token: 'ashtec-deck', requestId: reqCtl.body?.request?.id, approved: true });
+      check('deck approves the request', approve.status === 200 && approve.body?.approved === true, JSON.stringify(approve.body).slice(0, 160));
+      const cmdOk = await callAs(jar, 'deckControlCommand', { action: 'pause' });
+      check('control command accepted while the window is open', cmdOk.status === 200, `status=${cmdOk.status} ${JSON.stringify(cmdOk.body).slice(0, 120)}`);
+      const pollCmds = await call('deckStatus', { token: 'ashtec-deck', status: { playing: false, trackName: 'Smoke Track', queueCount: 3, autoPlay: true } });
+      check('deck receives the queued command', (pollCmds.body?.commands ?? []).some((c: { action: string }) => c.action === 'pause'), JSON.stringify(pollCmds.body).slice(0, 160));
+      const pollAgain = await call('deckStatus', { token: 'ashtec-deck', status: { playing: false, trackName: 'Smoke Track', queueCount: 3, autoPlay: true } });
+      check('commands are delivered exactly once', (pollAgain.body?.commands ?? []).length === 0, JSON.stringify(pollAgain.body).slice(0, 120));
+      await db().query(`UPDATE "AudioDeckControl" SET "status" = 'expired', "expiresAt" = now() WHERE "deckId" = 'main' AND "status" = 'approved'`);
+      const cmdAfter = await callAs(jar, 'deckControlCommand', { action: 'play' });
+      check('control command refused once the window expires', cmdAfter.status === 403, `status=${cmdAfter.status}`);
+      const ctlCancel = await callAs(jar, 'deckControlRequest', { action: 'cancel' });
+      check('cancelling with nothing pending is harmless', ctlCancel.status === 200 && ctlCancel.body?.requested === false, JSON.stringify(ctlCancel.body).slice(0, 120));
+
       // Branding, feature switches and option lists.
       await call('adminSaveSettings', {
         platformName: 'Smoke Hub', schoolName: 'Smoke School',

@@ -52,6 +52,13 @@ export type AdminExportTicketsInputType = NonNullable<_AdminExportTicketsCfg['in
 export type AdminExportTicketsOutputType = Awaited<ReturnType<_AdminExportTicketsCfg['execute']>>;
 export const adminExportTickets = createCaller<AdminExportTicketsInputType, AdminExportTicketsOutputType>('adminExportTickets');
 
+import type { default as _AdminGetAudioDeckEp } from '../api/adminGetAudioDeck';
+
+type _AdminGetAudioDeckCfg = typeof _AdminGetAudioDeckEp;
+export type AdminGetAudioDeckInputType = NonNullable<_AdminGetAudioDeckCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_AdminGetAudioDeckCfg['execute']>[0]['input'];
+export type AdminGetAudioDeckOutputType = Awaited<ReturnType<_AdminGetAudioDeckCfg['execute']>>;
+export const adminGetAudioDeck = createCaller<AdminGetAudioDeckInputType, AdminGetAudioDeckOutputType>('adminGetAudioDeck');
+
 import type { default as _AdminGetDataEp } from '../api/adminGetData';
 
 type _AdminGetDataCfg = typeof _AdminGetDataEp;
@@ -331,6 +338,34 @@ type _CustomThemesCfg = typeof _CustomThemesEp;
 export type CustomThemesInputType = NonNullable<_CustomThemesCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_CustomThemesCfg['execute']>[0]['input'];
 export type CustomThemesOutputType = Awaited<ReturnType<_CustomThemesCfg['execute']>>;
 export const customThemes = createCaller<CustomThemesInputType, CustomThemesOutputType>('customThemes');
+
+import type { default as _DeckControlCommandEp } from '../api/deckControlCommand';
+
+type _DeckControlCommandCfg = typeof _DeckControlCommandEp;
+export type DeckControlCommandInputType = NonNullable<_DeckControlCommandCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeckControlCommandCfg['execute']>[0]['input'];
+export type DeckControlCommandOutputType = Awaited<ReturnType<_DeckControlCommandCfg['execute']>>;
+export const deckControlCommand = createCaller<DeckControlCommandInputType, DeckControlCommandOutputType>('deckControlCommand');
+
+import type { default as _DeckControlRequestEp } from '../api/deckControlRequest';
+
+type _DeckControlRequestCfg = typeof _DeckControlRequestEp;
+export type DeckControlRequestInputType = NonNullable<_DeckControlRequestCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeckControlRequestCfg['execute']>[0]['input'];
+export type DeckControlRequestOutputType = Awaited<ReturnType<_DeckControlRequestCfg['execute']>>;
+export const deckControlRequest = createCaller<DeckControlRequestInputType, DeckControlRequestOutputType>('deckControlRequest');
+
+import type { default as _DeckControlRespondEp } from '../api/deckControlRespond';
+
+type _DeckControlRespondCfg = typeof _DeckControlRespondEp;
+export type DeckControlRespondInputType = NonNullable<_DeckControlRespondCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeckControlRespondCfg['execute']>[0]['input'];
+export type DeckControlRespondOutputType = Awaited<ReturnType<_DeckControlRespondCfg['execute']>>;
+export const deckControlRespond = createCaller<DeckControlRespondInputType, DeckControlRespondOutputType>('deckControlRespond');
+
+import type { default as _DeckStatusEp } from '../api/deckStatus';
+
+type _DeckStatusCfg = typeof _DeckStatusEp;
+export type DeckStatusInputType = NonNullable<_DeckStatusCfg['inputSchema']> extends { _input: infer I } ? I : Parameters<_DeckStatusCfg['execute']>[0]['input'];
+export type DeckStatusOutputType = Awaited<ReturnType<_DeckStatusCfg['execute']>>;
+export const deckStatus = createCaller<DeckStatusInputType, DeckStatusOutputType>('deckStatus');
 
 import type { default as _DeletePushSubscriptionEp } from '../api/deletePushSubscription';
 
@@ -967,6 +1002,7 @@ export const api = {
   adminDeleteSubEvent,
   adminDeploy,
   adminExportTickets,
+  adminGetAudioDeck,
   adminGetData,
   adminGetDiagnostics,
   adminGetEmailLog,
@@ -1007,6 +1043,10 @@ export const api = {
   checkEmail,
   claimRotaSlot,
   customThemes,
+  deckControlCommand,
+  deckControlRequest,
+  deckControlRespond,
+  deckStatus,
   deletePushSubscription,
   enableLiveShowDevice,
   exportMyData,
