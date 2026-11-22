@@ -10,6 +10,14 @@
  * `ask()` is called from an event handler and awaited like confirm(), so the
  * call sites stay one line. Confirm resolves true, cancel or Escape resolves
  * false. `say()` is the alert() replacement and always resolves true.
+ *
+ * Ticket 183f94e4: the Deploy button on Server > Logs did nothing when clicked.
+ * The question appeared over the open log dialog, but a modal Radix dialog sets
+ * `pointer-events: none` on the body and only re-enables it inside its own
+ * layer, so every click on this dialog landed on nothing. The container turns
+ * pointer events back on and stops the press reaching the dialog underneath,
+ * otherwise Radix reads it as a click outside and closes that dialog, taking
+ * the deploy steps with it.
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -68,17 +76,15 @@ export default function DialogHost() {
     if (!request) return;
     confirmRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        close(false);
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        close(true);
-      }
+      if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      e.preventDefault();
+      // Capture phase, and stop it here: a dialog underneath is also listening
+      // for Escape and would close itself and everything it was showing.
+      e.stopPropagation();
+      close(e.key === 'Enter');
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   });
 
   function close(ok: boolean) {
@@ -92,11 +98,16 @@ export default function DialogHost() {
   const single = !request.cancel;
 
   return (
+    // `pointerEvents` is inline on purpose: a dialog underneath sets `none` on
+    // the body, and this is the one rule that has to beat it.
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="dialog-title"
+      style={{ pointerEvents: 'auto' }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
