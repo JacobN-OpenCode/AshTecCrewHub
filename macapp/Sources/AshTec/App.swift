@@ -148,6 +148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     private var notifiedCalls = Set<String>()
     private var notifiedMovement: String?
 
+    // Ticket c80f5a65: the app now fetches and installs its own updates.
+    private let updater = Updater()
+    private var pendingRelease: Updater.Release?
+    private var statusItem: NSStatusItem?
+
     // MARK: lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -158,6 +163,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
 
         // The next-call poll: a notification 15 minutes before a call.
         Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in self?.checkNextCall() }
+
+        // Is there a newer build? Quietly at launch, then every six hours.
+        checkForUpdates(quiet: true)
+        Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in
+            self?.checkForUpdates(quiet: true)
+        }
 
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -295,6 +306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         let appMenu = NSMenu(); appItem.submenu = appMenu
         appMenu.addItem(withTitle: "About AshTec", action: #selector(about), keyEquivalent: "").target = self
         appMenu.addItem(withTitle: "Check for Updates…", action: #selector(checkUpdates), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Downloads and notes", action: #selector(openDownloads), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide AshTec", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
@@ -338,9 +350,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.windowsMenu = windowMenu
     }
 
-    /// One click on the downloads page, where it can compare this build against
-    /// the newest one and hand over the zip.
-    @objc private func checkUpdates() { if let page = appURL("/apps") { webView.load(URLRequest(url: page)) } }
+    // MARK: updates
+
+    /// Ticket c80f5a65: the app fetches, unpacks and installs its own builds.
+    /// `Check for Updates…` is the manual version; the download page stays in the
+    /// AshTec menu for anyone who would rather do it by hand.
+
+    @objc private func checkUpdates() { checkForUpdates(quiet: false) }
+    @objc private func openDownloads() { if let page = appURL("/apps") { webView.load(URLRequest(url: page)) } }
+
+    /// Ask the site what it is handing out. `quiet` is the launch and six-hourly
+    /// check: it only lights the menu bar. A manual check always says something.
+    private func checkForUpdates(quiet: Bool) {
+        updater.check { [weak self] release in
+            guard let self else { return }
+            self.pendingRelease = release
+            self.showMenuBarIcon(for: release)
+            if !quiet { self.tellAbout(release) }
+        }
+    }
+
+    /// A menu-bar arrow appears only while there is something to install, so it
+    /// is a signal rather than another permanent icon.
+    private func showMenuBarIcon(for release: Updater.Release?) {
+        if let item = statusItem {
+            NSStatusBar.system.removeStatusItem(item)
+            statusItem = nil
+        }
+        guard let release else { return }
+
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        item.button?.image = NSImage(systemSymbolName: "arrow.down.circle.fill",
+                                     accessibilityDescription: "AshTec update available")
+        item.button?.toolTip = "AshTec \(release.version) is ready to install"
+        item.button?.target = self
+        item.button?.action = #selector(menuBarUpdateTapped)
+        statusItem = item
+    }
+
+    @objc private func menuBarUpdateTapped() { startUpdate() }
+
+    private func tellAbout(_ release: Updater.Release?) {
+        guard let release else {
+            let alert = NSAlert()
+            alert.messageText = "AshTec \(APP_VERSION) is the newest build."
+            alert.informativeText = "Nothing to install."
+            alert.runModal()
+            return
+        }
+        startUpdate(release)
+    }
+
+    private func startUpdate() {
+        guard let release = pendingRelease else { return }
+        startUpdate(release)
+    }
+
+    private func startUpdate(_ release: Updater.Release) {
+        let alert = NSAlert()
+        alert.messageText = "Update to AshTec \(release.version)?"
+        alert.informativeText = "AshTec downloads the new build, swaps itself out and opens again. About ten seconds, and you do not have to touch anything."
+        alert.addButton(withTitle: "Update now")
+        alert.addButton(withTitle: "Later")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let panel = UpdatePanel(title: "Updating AshTec")
+        panel.show()
+        updater.install(release, progress: { line in
+            panel.set(line)
+        }, failure: { [weak self] message in
+            panel.close()
+            let bad = NSAlert()
+            bad.messageText = "The update did not happen."
+            bad.informativeText = message + "\n\nYour copy of AshTec is untouched."
+            bad.runModal()
+            self?.pendingRelease = release
+        })
+    }
     @objc private func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "AshTec",

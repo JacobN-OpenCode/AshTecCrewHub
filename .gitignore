@@ -14,3 +14,4 @@ dist/
 
 # Ticket 171e29fa: uploaded profile pictures live on disk, not in git.
 uploads/node_modules
+.build/

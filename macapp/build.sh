@@ -13,8 +13,8 @@ bin="$here/.build/release/AshTec"
 # zip and public/downloads/latest.json all read these two, so the site can never
 # advertise a build that was not uploaded (which is what went wrong before:
 # latest.json said 1.1 while the zip was still 1.0).
-version="1.1"
-build="2"
+version="1.2"
+build="3"
 
 echo "==> Building (release)"
 swift build -c release --package-path "$here"
